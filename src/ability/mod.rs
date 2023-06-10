@@ -245,7 +245,8 @@ pub struct LastHitTimers {
 pub struct DamageInstance{
     pub damage: u32,
     pub mitigated: u32,
-    pub character: Entity,
+    pub attacker: Entity,
+    pub defender: Entity,
     pub when: Instant,
 }
 
@@ -280,7 +281,8 @@ fn area_apply_effects(
                                     let damage_instance = DamageInstance{
                                         damage: damage as u32,
                                         mitigated: 0,
-                                        character: sensor_entity,
+                                        attacker: sensor_entity,
+                                        defender: *target_entity,
                                         when: Instant::now(),
                                     };
                                     damage_events.send(damage_instance);

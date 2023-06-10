@@ -12,7 +12,13 @@ pub enum MouseState {
 }
 
 #[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
-pub enum MouseMenuOpen{
+pub enum TabMenuOpen{
+    Open,
+    #[default]
+    Closed
+}
+#[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
+pub enum InGameMenuOpen{
     Open,
     #[default]
     Closed
@@ -49,14 +55,15 @@ pub fn free_mouse(
 
 pub fn mouse_with_free_key(
     kb: Res<Input<KeyCode>>,
-    menu_open: Res<State<MouseMenuOpen>>,
+    tab_menu_open: Res<State<TabMenuOpen>>,
+    ingame_menu_open: Res<State<InGameMenuOpen>>,
     mut next_state: ResMut<NextState<MouseState>>,
 ){
     let mouse_key_held = kb.pressed(KeyCode::Space);    
-    if menu_open.0 == MouseMenuOpen::Closed{
+    if tab_menu_open.0 == TabMenuOpen::Closed{
         next_state.set(MouseState::Locked);
     }
-    if mouse_key_held || menu_open.0 == MouseMenuOpen::Open{
+    if mouse_key_held || tab_menu_open.0 == TabMenuOpen::Open{
         next_state.set(MouseState::Free);
     }
 }
@@ -72,17 +79,17 @@ pub fn menu_toggle(
     mut tab_panel: Query<(&mut Visibility, &ComputedVisibility), With<TabPanel>>,
     mut inner_menu_query: Query<(&mut Visibility, &TabMenuWrapper, &ComputedVisibility), (Without<TabPanel>, Without<StoreMain>)>,
     mut menu_event: EventWriter<MenuEvent>,
-    mut next_state: ResMut<NextState<MouseMenuOpen>>,
+    mut next_state: ResMut<NextState<TabMenuOpen>>,
 ){
     let Ok((mut store_vis, store_computed_vis)) = store.get_single_mut() else { return };
     let Ok((mut panel_vis, panel_computed_vis)) = tab_panel.get_single_mut() else { return };
     if kb.just_pressed(KeyCode::R) {
         if store_computed_vis.is_visible(){
             *store_vis = Visibility::Hidden;
-            next_state.set(MouseMenuOpen::Closed);
+            next_state.set(TabMenuOpen::Closed);
         } else{
             *store_vis = Visibility::Visible;
-            next_state.set(MouseMenuOpen::Open);
+            next_state.set(TabMenuOpen::Open);
         }
         if panel_computed_vis.is_visible(){            
             *panel_vis = Visibility::Hidden;
@@ -107,11 +114,11 @@ pub fn menu_toggle(
             if tabtype.0 == tab_panel_opened{                
                 if tab_computed_vis.is_visible() && panel_computed_vis.is_visible(){
                     *panel_vis = Visibility::Hidden;
-                    next_state.set(MouseMenuOpen::Closed);
+                    next_state.set(TabMenuOpen::Closed);
                 } else{
                     *tab_vis = Visibility::Visible;
                     *panel_vis = Visibility::Visible;
-                    next_state.set(MouseMenuOpen::Open);
+                    next_state.set(TabMenuOpen::Open);
                 }
             }
         }

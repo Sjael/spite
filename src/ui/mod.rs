@@ -1,10 +1,10 @@
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{prelude::*, window::PrimaryWindow, app::AppExit};
 use bevy_tweening::TweenCompleted;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*,},
     player::{PlayerCam, IncomingDamageLog, OutgoingDamageLog},  
-    ability::{AbilityInfo, ability_bundles::FloatingDamage},
+    ability::{AbilityInfo, ability_bundles::FloatingDamage, DamageInstance},
     game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
     
 };
@@ -14,7 +14,7 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<MouseState>();
-        app.add_state::<MouseMenuOpen>();
+        app.add_state::<TabMenuOpen>();
         app.add_event::<MenuEvent>();
 
         app.add_event::<BuyItem>();
@@ -64,7 +64,7 @@ impl Plugin for UiPlugin {
         ));
         app.add_systems((
             button_hovers,
-            main_menu_buttons,
+            button_actions,
             tick_despawn_timers,
         ));
 
@@ -343,33 +343,32 @@ fn tick_despawn_timers(
 }
 
 fn update_damage_log(
-    incoming_logs: Query<&IncomingDamageLog, Changed<IncomingDamageLog>>,
-    outgoing_logs: Query<&OutgoingDamageLog, Changed<OutgoingDamageLog>>,
+    incoming_logs: Query<&IncomingDamageLog>,
+    outgoing_logs: Query<&OutgoingDamageLog>,
     incoming_ui: Query<(Entity, Option<&Children>), With<IncomingLogUi>>,
     outgoing_ui: Query<(Entity, Option<&Children>), With<OutgoingLogUi>>,
     mut commands: Commands,
     fonts: Res<Fonts>,
+    mut damage_events: EventReader<DamageInstance>,
 ){
     let Ok((incoming_log_entity, incoming_children)) = incoming_ui.get_single() else {return};
-    for changed_incoming in incoming_logs.iter(){
-        if let Some(incoming_children) = incoming_children{
-            for child in incoming_children {
-                //commands.entity(*child).despawn_recursive();
-            } 
-        }
-        for log in changed_incoming.map.iter().rev().take(30){
-            //dbg!(log.damage.clone());
-            commands.entity(incoming_log_entity).with_children(|parent| {
-                parent.spawn(damage_entry(log.damage.clone().to_string(), &fonts));
-            });
-
-        }
-    }   
-
     let Ok((outgoing_log_entity, outgoing_children)) = outgoing_ui.get_single() else {return};
-    for changed_outgoing in outgoing_logs.iter(){
-        
-    }
+    
+    for damage_instance in damage_events.iter(){
+        if let Ok(attacker_log) = outgoing_logs.get(damage_instance.attacker) {
+
+        }
+        commands.entity(incoming_log_entity).with_children(|parent| {
+            parent.spawn(damage_entry(damage_instance.damage.clone().to_string(), &fonts));
+        });
+        commands.entity(outgoing_log_entity).with_children(|parent| {
+            parent.spawn(damage_entry(damage_instance.damage.clone().to_string(), &fonts));
+        });
+        if let Ok(defender_log) = incoming_logs.get(damage_instance.defender) {
+            
+        }
+    } 
+
 }
  
 fn spawn_floating_damage(
@@ -439,6 +438,54 @@ fn tick_clock_ui(
 
 }
 
+
+pub fn button_actions(
+    mut interaction_query: Query<
+        (&ButtonAction, &Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut app_exit_writer: EventWriter<AppExit>,
+    mut kb: ResMut<Input<KeyCode>>,
+) {
+    for (button_action, interaction, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Clicked => {
+                match button_action {
+                    ButtonAction::Play => {
+                        next_state.set(GameState::InGame);
+                    }
+                    ButtonAction::Settings => {
+
+                    }
+                    ButtonAction::Lobby => {
+                        next_state.set(GameState::MainMenu);
+                    }
+                    ButtonAction::Resume => {
+                        kb.press(KeyCode::Escape);
+                    }
+                    ButtonAction::Exit => {
+                        app_exit_writer.send(AppExit);
+                    }
+                }
+            }
+            Interaction::Hovered => {
+            }
+            Interaction::None => {
+            }
+        }
+    }
+}
+
+
+#[derive(Component, PartialEq, Eq)]
+pub enum ButtonAction{
+    Play,
+    Settings,
+    Exit,
+    Resume,
+    Lobby,
+}
 
 
 pub mod main_menu;

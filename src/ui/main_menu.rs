@@ -1,6 +1,8 @@
 use bevy::{prelude::*, app::AppExit};
 use crate::{ui::styles::*, assets::Fonts, GameState};
 
+use super::ButtonAction;
+
 
 
 
@@ -19,6 +21,7 @@ pub fn spawn_main_menu(
                     Val::Percent(100.0),
                 ),
                 align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
                 gap: Size::new(
                     Val::Percent(10.0),
@@ -44,9 +47,7 @@ pub fn spawn_main_menu(
                 background_color: NORMAL_BUTTON.into(),
                 ..default()
             },
-            MainMenuButton{
-                button_type: MainMenuOption::Play
-            },
+            ButtonAction::Play,
         )).with_children(|parent|{
             parent.spawn((
                 TextBundle::from_section(
@@ -74,9 +75,7 @@ pub fn spawn_main_menu(
                 background_color: NORMAL_BUTTON.into(),
                 ..default()
             },
-            MainMenuButton{
-                button_type: MainMenuOption::Settings
-            },
+            ButtonAction::Settings,
         )).with_children(|parent|{
             parent.spawn((
                 TextBundle::from_section(
@@ -104,9 +103,7 @@ pub fn spawn_main_menu(
                 background_color: NORMAL_BUTTON.into(),
                 ..default()
             },
-            MainMenuButton{
-                button_type: MainMenuOption::Exit
-            },
+            ButtonAction::Exit,
         )).with_children(|parent|{
             parent.spawn((
                 TextBundle::from_section(
@@ -124,37 +121,6 @@ pub fn spawn_main_menu(
 }
 
 
-pub fn main_menu_buttons(
-    mut interaction_query: Query<
-        (&MainMenuButton, &Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut app_exit_writer: EventWriter<AppExit>,
-) {
-    for (button, interaction, mut color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Clicked => {
-                match button.button_type {
-                    MainMenuOption::Play => {
-                        next_state.set(GameState::InGame);
-                    },
-                    MainMenuOption::Settings => {
-
-                    }
-                    MainMenuOption::Exit => {
-                        app_exit_writer.send(AppExit);
-                    }
-                }
-            }
-            Interaction::Hovered => {
-            }
-            Interaction::None => {
-            }
-        }
-    }
-}
-
 pub fn cleanup(mut commands: Commands, root: Query<Entity, With<MainMenuRoot>>) {
     for entity in root.iter() {
         commands.entity(entity).despawn_recursive();
@@ -164,17 +130,7 @@ pub fn cleanup(mut commands: Commands, root: Query<Entity, With<MainMenuRoot>>) 
 #[derive(Component)]
 pub struct MainMenuRoot;
 
-#[derive(PartialEq, Eq)]
-pub enum MainMenuOption{
-    Play,
-    Settings,
-    Exit,
-}
 
-#[derive(Component)]
-pub struct MainMenuButton{
-    pub button_type: MainMenuOption
-}
 
 pub fn exit_game_main_menu(
     kb: Res<Input<KeyCode>>,

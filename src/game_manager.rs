@@ -168,7 +168,7 @@ fn check_deaths(
             if let Some(mut bounty) = bounty{
                 for instance in damagelog.map.iter(){
                     if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT) {
-                        if let Ok((_awardee, mut gold, mut xp)) = the_victors.get_mut(instance.character){
+                        if let Ok((_awardee, mut gold, mut xp)) = the_victors.get_mut(instance.attacker){
                             *gold += bounty.gold;
                             *xp += bounty.xp;
                         }
