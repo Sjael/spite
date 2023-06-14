@@ -8,12 +8,12 @@ use winit::window::Icon;
 use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
-    game_manager::{Fountain, SpectatorCam, CharacterState, Team},  
+    game_manager::{Fountain, CharacterState, Team, PLAYER_GROUPING, GROUND_GROUPING},  
     stats::*, 
     assets::*, 
     GameState, 
     ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, TagType, ScanEffect, OnEnterEffect, Ticks, LastHitTimers
-}};
+}, view::Spectatable};
 
 fn main() {
     //std::env::set_var("RUST_BACKTRACE", "1");
@@ -58,6 +58,7 @@ pub fn setup_map(
             ..default()
         },
         RigidBody::Fixed,
+        GROUND_GROUPING,
         Collider::cuboid(50.0, 0.1, 50.0),
         Name::new("Plane"),
     ));
@@ -99,13 +100,15 @@ pub fn setup_map(
         
         Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
         RigidBody::Fixed,
+        PLAYER_GROUPING,
         Team(5),
         ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
         Attribute::<Health>::new(4000.0),
         Attribute::<Min<Health>>::new(0.0),
         Attribute::<Max<Health>>::new(10000.0),
         Attribute::<Regen<Health>>::new(0.0),
-        Name::new("Target Dummy"),        
+        Name::new("Target Dummy"),       
+        Spectatable, 
     ));
 
     // Scanning Damage zone
@@ -165,6 +168,7 @@ pub fn setup_map(
         }),
         TargetsInArea::default(),
         TargetsToEffect::default(),
+        Spectatable, 
         Name::new("DamageFountain2"),
     ));
 
@@ -203,6 +207,7 @@ pub fn setup_map(
         },
         TargetsInArea::default(),
         TargetsToEffect::default(),
+        Spectatable, 
         Name::new("Healing Fountain"),
     ));
 
@@ -287,7 +292,6 @@ pub fn setup_camera(mut commands: Commands) {
             ..default()
         },
         Fxaa::default(),
-        SpectatorCam,
         Name::new("Spectator Camera"),
         FlyCamera{
             sensitivity: 12.0,

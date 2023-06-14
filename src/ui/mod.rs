@@ -3,9 +3,9 @@ use bevy_tweening::TweenCompleted;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*,},
-    player::{PlayerCam, IncomingDamageLog, OutgoingDamageLog},  
+    player::{IncomingDamageLog, OutgoingDamageLog},  
     ability::{AbilityInfo, ability_bundles::FloatingDamage, DamageInstance},
-    game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
+    game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::PlayerCam, 
     
 };
 
@@ -15,6 +15,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<MouseState>();
         app.add_state::<TabMenuOpen>();
+        app.add_state::<InGameMenuOpen>();
         app.add_event::<MenuEvent>();
 
         app.add_event::<BuyItem>();
@@ -46,12 +47,13 @@ impl Plugin for UiPlugin {
             mouse_with_free_key,
             //mouse_menu_open,
             menu_toggle,
-            toggle_ingame_menu,
         ).in_set(OnUpdate(GameState::InGame)));
         app.add_systems((            
             update_damage_log,
             killfeed_update,
             kill_notif_cleanup,
+            state_ingame_menu,
+            toggle_ingame_menu,
         ).in_set(OnUpdate(GameState::InGame)));
 
         app.add_systems((
@@ -444,7 +446,9 @@ pub fn button_actions(
         (&ButtonAction, &Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>),
     >,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut ingamemenu_next: ResMut<NextState<InGameMenuOpen>>,
+    ingamemenu_state: Res<State<InGameMenuOpen>>,
     mut app_exit_writer: EventWriter<AppExit>,
     mut kb: ResMut<Input<KeyCode>>,
 ) {
@@ -453,16 +457,16 @@ pub fn button_actions(
             Interaction::Clicked => {
                 match button_action {
                     ButtonAction::Play => {
-                        next_state.set(GameState::InGame);
+                        game_state.set(GameState::InGame);
                     }
                     ButtonAction::Settings => {
 
                     }
                     ButtonAction::Lobby => {
-                        next_state.set(GameState::MainMenu);
+                        game_state.set(GameState::MainMenu);
                     }
                     ButtonAction::Resume => {
-                        kb.press(KeyCode::Escape);
+                        ingamemenu_next.set(ingamemenu_state.0.toggle());
                     }
                     ButtonAction::Exit => {
                         app_exit_writer.send(AppExit);

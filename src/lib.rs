@@ -12,6 +12,7 @@ use input::InputPlugin;
 use player::PlayerPlugin;
 use ui::UiPlugin;
 use stats::StatsPlugin;
+use view::ViewPlugin;
 
 
 pub fn app_plugins_both(app: &mut App) {
@@ -52,6 +53,7 @@ pub fn app_plugins_both(app: &mut App) {
         .add_plugin(TweeningPlugin)
         .add_plugin(GameAssetPlugin)
         .add_plugin(GameManagerPlugin)
+        .add_plugin(ViewPlugin)
         .add_plugin(UiPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(StatsPlugin)
@@ -106,3 +108,4 @@ pub mod player;
 pub mod game_manager;
 pub mod stats;
 pub mod ui;
+pub mod view;

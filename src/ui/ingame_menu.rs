@@ -1,8 +1,24 @@
 use crate::assets::Fonts;
 
-use super::{ui_bundles::*, mouse::TabMenuOpen, ButtonAction};
+use super::{ui_bundles::*, mouse::{TabMenuOpen}, ButtonAction};
 use bevy::prelude::*;
 
+
+#[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
+pub enum InGameMenuOpen{
+    Open,
+    #[default]
+    Closed
+}
+
+impl InGameMenuOpen{
+    pub fn toggle(&self) -> Self{
+        match self{
+            Self::Open => Self::Closed,
+            Self::Closed => Self::Open,
+        }
+    }
+}
 
 pub fn add_ingame_menu(
     mut commands: Commands,
@@ -40,18 +56,27 @@ pub fn add_ingame_menu(
 }
 
 pub fn toggle_ingame_menu(
-    mut ingame_menu: Query<(&mut Visibility, &ComputedVisibility), With<InGameMenu>>,
-    kb: Res<Input<KeyCode>>,
-    mut next_state: ResMut<NextState<TabMenuOpen>>,
+    mut ingame_menu: Query<&mut Visibility, With<InGameMenu>>,
+    state: Res<State<InGameMenuOpen>>,
 ){
-    let Ok((mut vis, computed_vis)) = ingame_menu.get_single_mut() else {return};
+    let Ok(mut vis) = ingame_menu.get_single_mut() else {return};
+    if state.0 == InGameMenuOpen::Closed{
+        *vis = Visibility::Hidden;
+    } else{
+        *vis = Visibility::Visible;
+    }
+}
+
+pub fn state_ingame_menu(
+    kb: Res<Input<KeyCode>>,
+    mut next_state: ResMut<NextState<InGameMenuOpen>>,
+    state: Res<State<InGameMenuOpen>>,
+){
     if kb.just_pressed(KeyCode::Escape){
-        if computed_vis.is_visible(){
-            *vis = Visibility::Hidden;
-            next_state.set(TabMenuOpen::Closed);
-        } else{
-            *vis = Visibility::Visible;
-            next_state.set(TabMenuOpen::Open);
+        if state.0.toggle() == InGameMenuOpen::Closed{
+            next_state.set(InGameMenuOpen::Closed);
+        }else{
+            next_state.set(InGameMenuOpen::Open);
         }
     }
 }

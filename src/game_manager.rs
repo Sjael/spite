@@ -3,7 +3,7 @@ use std::{time::{Instant, Duration}, collections::HashMap};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{ui::ui_bundles::{RootUI, RespawnText, Killfeed, kill_notification}, stats::{Attribute, Health, Gold, Experience}, player::{IncomingDamageLog, Player, SpawnEvent}, GameState};
+use crate::{ui::ui_bundles::{RootUI, RespawnText, Killfeed, kill_notification}, stats::{Attribute, Health, Gold, Experience}, player::{IncomingDamageLog, Player, SpawnEvent, PlayerInput}, GameState};
 
 
 
@@ -25,14 +25,6 @@ impl Plugin for GameManagerPlugin {
     }
 }
 
-fn swap_cameras(
-    spectating: Res<Spectating>,
-    mut spawn_events: EventReader<SpawnEvent>,
-){
-    if spectating.is_changed(){
-
-    }
-}
 
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -42,11 +34,6 @@ pub enum CharacterState{
     Dead,
 }
 
-#[derive(Component)]
-pub struct SpectatorCam;
-
-#[derive(Resource)]
-pub struct Spectating(pub Entity);
 
 #[derive(Default)]
 pub enum GameMode{
@@ -202,9 +189,11 @@ bitflags::bitflags! {
         const FLUFF = 1 << 4;
 
         const PLAYER_FILTER = Groups::PLAYER.bits() | Groups::TERRAIN.bits()| Groups::GROUND.bits();
-        const TERRAIN_FILTER = Groups::PLAYER.bits() | Groups::TERRAIN.bits();
+        const TERRAIN_FILTER = Groups::PLAYER.bits() ;
         // Make this interact with Terrain and other Abilities when we want cool interactions or no pen walls
         const ABILITY_FILTER = Groups::PLAYER.bits();
+        const GROUND_FILTER = Groups::GROUND.bits() | Groups::PLAYER.bits();
+        const CAMERA_FILTER = Groups::GROUND.bits();
     }
 }
 
@@ -219,4 +208,12 @@ pub const TERRAIN_GROUPING: CollisionGroups = CollisionGroups::new(
 pub const ABILITY_GROUPING: CollisionGroups = CollisionGroups::new(
     Group::from_bits_truncate(Groups::ABILITY.bits()), 
     Group::from_bits_truncate(Groups::ABILITY_FILTER.bits())
+);
+pub const GROUND_GROUPING: CollisionGroups = CollisionGroups::new(
+    Group::from_bits_truncate(Groups::GROUND.bits()), 
+    Group::from_bits_truncate(Groups::GROUND_FILTER.bits())
+);
+pub const CAMERA_GROUPING: CollisionGroups = CollisionGroups::new(
+    Group::from_bits_truncate(Groups::GROUND.bits()), 
+    Group::from_bits_truncate(Groups::CAMERA_FILTER.bits())
 );

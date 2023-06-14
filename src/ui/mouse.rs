@@ -3,6 +3,8 @@ use bevy_editor_pls::editor::Editor;
 
 use crate::{ui::ui_bundles::{StoreMain, TabPanel, TabMenuType, TabMenuWrapper}, GameState};
 
+use super::ingame_menu::InGameMenuOpen;
+
 
 #[derive(States, Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
 pub enum MouseState {
@@ -17,11 +19,13 @@ pub enum TabMenuOpen{
     #[default]
     Closed
 }
-#[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
-pub enum InGameMenuOpen{
-    Open,
-    #[default]
-    Closed
+impl TabMenuOpen{
+    pub fn toggle(&self) -> Self{
+        match self{
+            Self::Open => Self::Closed,
+            Self::Closed => Self::Open,
+        }
+    }
 }
 
 
@@ -60,10 +64,10 @@ pub fn mouse_with_free_key(
     mut next_state: ResMut<NextState<MouseState>>,
 ){
     let mouse_key_held = kb.pressed(KeyCode::Space);    
-    if tab_menu_open.0 == TabMenuOpen::Closed{
+    if tab_menu_open.0 == TabMenuOpen::Closed && ingame_menu_open.0 == InGameMenuOpen::Closed{
         next_state.set(MouseState::Locked);
     }
-    if mouse_key_held || tab_menu_open.0 == TabMenuOpen::Open{
+    if mouse_key_held || tab_menu_open.0 == TabMenuOpen::Open || ingame_menu_open.0 == InGameMenuOpen::Open{
         next_state.set(MouseState::Free);
     }
 }

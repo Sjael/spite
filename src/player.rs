@@ -1,5 +1,5 @@
 use std::{fmt::Debug, f32::consts::PI, collections::{HashMap, BTreeMap}, time::{Duration, Instant}};
-use bevy::{prelude::*, input::mouse::MouseMotion, core_pipeline::{tonemapping::{Tonemapping, DebandDither}, fxaa::Fxaa, bloom::BloomSettings}};
+use bevy::{prelude::*, input::mouse::MouseMotion,};
 use leafwing_input_manager::prelude::ActionState;
 use serde::{Serialize, Deserialize};
 use bevy_rapier3d::prelude::*;
@@ -13,8 +13,8 @@ use crate::{
     input::{setup_player_slots, SlotAbilityMap}, 
     stats::*, 
     crowd_control::CCType, 
-    game_manager::{Bounty, CharacterState, Team}, 
-    GameState};
+    game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING}, 
+    GameState, view::{PossessEvent, InnerGimbal, OuterGimbal, Spectatable, camera_swivel_and_tilt}};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[reflect(Component)]
@@ -30,18 +30,7 @@ impl Player{
     }
 }
 
-#[derive(Component, Debug)]
-pub struct Neck;
 
-#[derive(Component, Debug)]
-pub struct PlayerCam;
-
-#[derive(Component, Clone, Debug)]
-pub struct AvoidIntersecting {
-    pub dir: Vec3,
-    pub max_toi: f32,
-    pub buffer: f32,
-}
 
 #[derive(Component, Debug)]
 pub struct Reticle {
@@ -222,9 +211,6 @@ impl Plugin for PlayerPlugin {
 
         //Systems
         app.add_system(setup_player.in_schedule(OnEnter(GameState::InGame)));
-        app.add_system(
-            avoid_intersecting.in_schedule(CoreSchedule::FixedUpdate).in_set(OnUpdate(GameState::InGame))
-        );
         app.add_systems((
             player_keys_input.run_if(in_state(GameState::InGame)),
             player_mouse_input.run_if(in_state(GameState::InGame)),
@@ -235,16 +221,17 @@ impl Plugin for PlayerPlugin {
             place_ability.after(cast_ability),
             trigger_cooldown.after(cast_ability),
             tick_cooldowns.after(trigger_cooldown),
-            spawn_player,
             tick_ccs,
             tick_buffs,
+            spawn_player,
         ).in_set(OnUpdate(GameState::InGame)));
         // Process transforms always after inputs
         app.add_systems((
-            player_swivel_and_tilt,
+            player_swivel,
             // Process translations after rotations 
-            player_movement.after(player_swivel_and_tilt).run_if(in_state(GameState::InGame)),
-            reticle_move.after(player_swivel_and_tilt).run_if(in_state(GameState::InGame)),
+            player_movement.after(player_swivel).run_if(in_state(GameState::InGame)),
+            reticle_move.after(camera_swivel_and_tilt).run_if(in_state(GameState::InGame)),
+            update_local_player_inputs,
         ).in_base_set(CoreSet::PostUpdate));
     }
 }
@@ -252,10 +239,6 @@ impl Plugin for PlayerPlugin {
 pub struct SpawnEvent{
     pub player: Player,
     pub transform: Transform,
-}
-pub struct PossessEvent{
-    pub entity_to_possess: Option<Entity>,
-    pub player: Player,
 }
 
 #[derive(Component, Default)]
@@ -269,16 +252,22 @@ pub struct IncomingDamageLog{
     pub ui_entities: HashMap<Entity, DamageInstance>,
 }
 
+#[derive(Component)]
+pub struct NetworkOwner;
 
 fn spawn_player(
     mut commands: Commands,
     mut _meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut spawn_events: EventReader<SpawnEvent>,
+    mut possess_events: EventWriter<PossessEvent>,
     mut next_state: ResMut<NextState<CharacterState>>,
 ){
     for event in spawn_events.iter(){
         next_state.set(CharacterState::Alive);
+        // reset the rotation so you dont spawn looking the other way
+        commands.insert_resource(PlayerInput::default());
+
         
         let mut material = StandardMaterial::default();
         material.base_color = Color::hex("800000").unwrap().into();
@@ -306,6 +295,7 @@ fn spawn_player(
             RigidBody::Dynamic,
             LockedAxes::ROTATION_LOCKED,
             Velocity::default(),
+            PLAYER_GROUPING,
         ))
         .insert((
             Attribute::<Health>::new(33.0),
@@ -334,81 +324,22 @@ fn spawn_player(
             CooldownMap::default(),
             CCMap::default(),
             BuffMap::default(),
+            NetworkOwner,
+            Spectatable,
         ))
         .id();
 
-        let camera = commands.spawn((
-            Camera3dBundle {
-                transform: Transform::from_translation(Vec3::new(0., 0., 6.5))
-                    .looking_at(Vec3::ZERO, Vec3::Y),
-                tonemapping: Tonemapping::ReinhardLuminance,
-                dither: DebandDither::Enabled,
-                camera: Camera{
-                    order: 1, // overwite the spectator cam
-                    hdr: true,
-                    ..default()
-                },
-                ..default()
-            },
-            Fxaa::default(),
-            PlayerCam,
-            BloomSettings::default(),
-            Name::new("Player Camera"),
-            AvoidIntersecting {
-                dir: Vec3::Z,
-                max_toi: 6.5,
-                buffer: 0.05,
-            },
-            /* 
-            FogSettings {
-                color: Color::rgba(0.05, 0.1, 0.4, 1.0),
-                falloff: FogFalloff::from_visibility_colors(
-                    10000.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
-                    Color::rgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
-                    Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
-                ),
-                ..default()
-            },*/
-        )).id();
-
-        let neck = commands.spawn((
-            SpatialBundle::from_transform(
-                Transform {
-                    translation: Vec3::new(0., 1., 0.),
-                    ..default()
-            }),
-            Neck,
-            Name::new("Neck"),
-        )).id();
+        let player_is_owned = true; // make it check if you are that player
+        if player_is_owned {
+            possess_events.send(PossessEvent{
+                entity: player_entity,
+            })
+        }
         
-        let reticle = commands.spawn((
-            SpatialBundle::from_transform(
-                Transform {
-                    translation: Vec3::new(0., 0., 0.),
-                    ..default()
-            }),
-            Reticle {
-                max_distance: 7.0,
-                from_height: 4.0,
-            },
-            Name::new("Reticle"),
-        )).id();      
-        
-        let ret_mesh = commands.spawn(PbrBundle {
-            material: red.clone(),
-            mesh: _meshes.add(Mesh::from(bevy::render::mesh::shape::Cube { size: 0.2 })),
-            ..default()
-        }).id();
-
-        commands.entity(neck).push_children(&[camera]);
-        commands.entity(reticle).push_children(&[ret_mesh]);
-        
-        commands
-            .entity(player_entity)
-            .push_children(&[neck, reticle]);
     }
    
 }
+
 
 fn setup_player(
     mut spawn_events: EventWriter<SpawnEvent>,
@@ -424,44 +355,15 @@ fn setup_player(
 }
 
 
-pub fn avoid_intersecting(
-    rapier_context: Res<RapierContext>,
-    global_query: Query<&GlobalTransform>,
-    mut avoid: Query<(&mut Transform, &Parent, &AvoidIntersecting)>,
-) {
-    let filter = QueryFilter::exclude_dynamic().exclude_sensors();
-    for (mut transform, parent, avoid) in &mut avoid {
-        let adjusted_transform = if let Ok(global) = global_query.get(parent.get()) {
-            global.compute_transform()
-        } else {
-            Transform::default()
-        };
-        let (toi, normal) = if let Some((_entity, intersection)) = rapier_context
-            .cast_ray_and_get_normal(
-                adjusted_transform.translation,
-                adjusted_transform.rotation * avoid.dir,
-                avoid.max_toi + avoid.buffer,
-                true,
-                filter,
-            ) {
-            (intersection.toi, intersection.normal)
-        } else {
-            (avoid.max_toi + avoid.buffer, Vec3::ZERO)
-        };
-        transform.translation = avoid.dir * toi + (normal * avoid.buffer);
-    }
-}
 
 fn player_mouse_input(
     mut ev_mouse: EventReader<MouseMotion>,
-    //mut player_input: ResMut<PlayerInput>,
-    mut query: Query<&mut PlayerInput>,
+    mut player_input: ResMut<PlayerInput>,
     mouse_state: Res<State<MouseState>>,
 ) {
     if mouse_state.0 == MouseState::Free{ // if mouse is free, dont turn character
         return;
     }
-    let Ok(mut player_input) = query.get_single_mut() else { return };
     let mut cumulative_delta = Vec2::ZERO;
     for ev in ev_mouse.iter() {
         cumulative_delta += ev.delta;
@@ -476,52 +378,41 @@ fn player_mouse_input(
 
 fn player_keys_input(
     keyboard_input: Res<Input<KeyCode>>, 
-    mut query: Query<&mut PlayerInput>,
+    mut player_input: ResMut<PlayerInput>,
 ) {    
     // only 1 player right now
-    if let Ok(mut player_input) = query.get_single_mut() {
-        player_input
-            .set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
-        player_input
-            .set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
-        player_input
-            .set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
-        player_input
-            .set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
-        player_input
-            .set_ability1(keyboard_input.pressed(KeyCode::Key1));
-        player_input
-            .set_ability2(keyboard_input.pressed(KeyCode::Key2));
-        player_input
-            .set_ability3(keyboard_input.pressed(KeyCode::Key3));
-        player_input
-            .set_ability4(keyboard_input.pressed(KeyCode::Key4));
-    }
+    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
+    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
+    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
+    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+    player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
+    player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
+    player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
+    player_input.set_ability4(keyboard_input.pressed(KeyCode::Key4));
 }
 
-fn player_swivel_and_tilt(
-    mut players: Query<(&mut Transform, &PlayerInput, Option<&Children>), With<Player>>,
-    mut necks: Query<&mut Transform, (With<Neck>, Without<Player>)>,
-    keyboard_input: Res<Input<KeyCode>>, 
+pub fn update_local_player_inputs(
+    player_input: Res<PlayerInput>,
+    mut query: Query<&mut PlayerInput>,
 ) {
-    for (mut player_transform, inputs, children) in players.iter_mut() {
-    
-        let Some(children) = children else { return };
-        for child in children.iter() {
-            let Ok(mut neck_transform) = necks.get_mut(*child) else { continue };
-            neck_transform.rotation = Quat::from_axis_angle(Vec3::X, inputs.pitch as f32).into();
-        }
-        if keyboard_input.just_released(KeyCode::LShift){
-            //outer_gimbal.rotation = Quat::IDENTITY;
-        } else if keyboard_input.pressed(KeyCode::LShift){
-            //outer_gimbal.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
-        } else{
-            player_transform.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
-        }
+    if let Ok(mut input) = query.get_single_mut() {
+        //info!("setting local player inputs: {:?}", player_input);
+        *input = player_input.clone();
+    } else {
+        //warn!("no player to provide input for");
     }
 }
 
-fn player_movement(mut query: Query<(&Attribute<MovementSpeed>, &mut Velocity, &PlayerInput)>) {
+fn player_swivel(
+    mut players: Query<(&mut Transform, &PlayerInput), With<Player>>,
+){
+    for (mut player_transform, inputs) in players.iter_mut() {
+        player_transform.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
+    }
+}
+
+
+pub fn player_movement(mut query: Query<(&Attribute<MovementSpeed>, &mut Velocity, &PlayerInput)>) {
     for (speed, mut velocity, player_input) in query.iter_mut() {
         //dbg!(player_input);
         let mut direction = Vec3::new(0.0, 0.0, 0.0);
