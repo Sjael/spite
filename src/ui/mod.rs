@@ -2,7 +2,7 @@ use bevy::{prelude::*, window::PrimaryWindow, app::AppExit};
 use bevy_tweening::TweenCompleted;
 
 use crate::{
-    ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*,},
+    ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
     player::{IncomingDamageLog, OutgoingDamageLog},  
     ability::{AbilityInfo, ability_bundles::FloatingDamage, DamageInstance},
     game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::PlayerCam, 
@@ -16,8 +16,10 @@ impl Plugin for UiPlugin {
         app.add_state::<MouseState>();
         app.add_state::<TabMenuOpen>();
         app.add_state::<InGameMenuOpen>();
-        app.add_event::<MenuEvent>();
+        app.add_state::<EditingHUD>();
 
+        app.add_event::<EditUIEvent>();
+        app.add_event::<MenuEvent>();
         app.add_event::<BuyItem>();
 
 
@@ -41,12 +43,11 @@ impl Plugin for UiPlugin {
             update_health,
             update_character_resource,
             tick_clock_ui,
-            draggables, // combine these 2 later
-            //drag_items,
+            draggables,
             free_mouse,
             mouse_with_free_key,
-            //mouse_menu_open,
             menu_toggle,
+            tick_despawn_timers,
         ).in_set(OnUpdate(GameState::InGame)));
         app.add_systems((            
             update_damage_log,
@@ -55,7 +56,7 @@ impl Plugin for UiPlugin {
             state_ingame_menu,
             toggle_ingame_menu,
         ).in_set(OnUpdate(GameState::InGame)));
-
+        
         app.add_systems((
             add_base_ui,
             add_ingame_menu,
@@ -64,10 +65,15 @@ impl Plugin for UiPlugin {
             load_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
             hide_tooltip.in_schedule(OnExit(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
         ));
+
         app.add_systems((
             button_hovers,
             button_actions,
-            tick_despawn_timers,
+        ));
+
+        app.add_systems((
+            give_editable_ui.in_schedule(OnEnter(EditingHUD::Yes)),
+            remove_editable_ui.in_schedule(OnEnter(EditingHUD::No)),
         ));
 
     }
@@ -123,12 +129,22 @@ fn add_base_ui(
     images: Res<Images>,
 ){
     commands.spawn(root_ui()).with_children(|parent| {
+        // can be edited in HUD editor
         parent.spawn(header()).with_children(|parent| {
             parent.spawn(timer_ui(&fonts));          
         });
         parent.spawn(killfeed());
         parent.spawn(minimap(&images));
         parent.spawn(respawn_text(&fonts));
+        parent.spawn(team_thumbs());
+        parent.spawn(bottom_left_ui()).with_children(|parent| {
+            parent.spawn(stats_ui());
+            parent.spawn(build_and_kda()).with_children(|parent| {
+                parent.spawn(kda_ui());
+                parent.spawn(build_ui());
+            });
+        });
+        // non editable ui
         parent.spawn(tooltip());
         parent.spawn(tab_panel()).with_children(|parent| {
             parent.spawn(damage_log()).with_children(|parent| {
@@ -138,14 +154,6 @@ fn add_base_ui(
             parent.spawn(scoreboard());
             parent.spawn(death_recap());
             parent.spawn(abilities_panel());
-        });
-        parent.spawn(team_thumbs());
-        parent.spawn(bottom_left_ui()).with_children(|parent| {
-            parent.spawn(stats_ui());
-            parent.spawn(build_and_kda()).with_children(|parent| {
-                parent.spawn(kda_ui());
-                parent.spawn(build_ui());
-            });
         });
         parent.spawn(store()).with_children(|parent| {
             parent.spawn(drag_bar());
@@ -170,7 +178,6 @@ fn add_base_ui(
             });
         });
     });
-    // Store 
 }
 
 
@@ -211,6 +218,8 @@ fn draggables(
             let left_position = cursor_pos.x - parent_offset.x - offset.x;
             let top_position = cursor_y_flip - parent_offset.y - offset.y;
             // clamp cant go outside bounds
+            style.margin = UiRect::default();
+            style.position = UiRect::all(Val::Px(0.));
             style.position.left = Val::Px(left_position.clamp(0.0, max_offset.x));
             style.position.top = Val::Px(top_position.clamp(0.0, max_offset.y));
             style.position_type = PositionType::Absolute;
@@ -426,16 +435,17 @@ fn tick_clock_ui(
 
 pub fn button_actions(
     mut interaction_query: Query<
-        (&ButtonAction, &Interaction, &mut BackgroundColor),
+        (&ButtonAction, &Interaction),
         (Changed<Interaction>, With<Button>),
     >,
     mut game_state: ResMut<NextState<GameState>>,
     mut ingamemenu_next: ResMut<NextState<InGameMenuOpen>>,
     ingamemenu_state: Res<State<InGameMenuOpen>>,
+    mut editing_hud_next: ResMut<NextState<EditingHUD>>,
+    editing_hud_state: Res<State<EditingHUD>>,
     mut app_exit_writer: EventWriter<AppExit>,
-    mut kb: ResMut<Input<KeyCode>>,
 ) {
-    for (button_action, interaction, mut color) in &mut interaction_query {
+    for (button_action, interaction) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
                 match button_action {
@@ -454,6 +464,10 @@ pub fn button_actions(
                     ButtonAction::Exit => {
                         app_exit_writer.send(AppExit);
                     }
+                    ButtonAction::EditHUD => {
+                        editing_hud_next.set(editing_hud_state.0.toggle());
+                        ingamemenu_next.set(ingamemenu_state.0.toggle());
+                    },
                 }
             }
             Interaction::Hovered => {
@@ -472,6 +486,7 @@ pub enum ButtonAction{
     Exit,
     Resume,
     Lobby,
+    EditHUD,
 }
 
 
@@ -480,5 +495,6 @@ pub mod ingame_menu;
 pub mod mouse;
 pub mod styles;
 pub mod player_ui;
+pub mod hud_editor;
 #[allow(unused_parens)]
 pub mod ui_bundles;

@@ -27,6 +27,26 @@ pub struct HoverEvent{
     // info
 }
 
+#[derive(Component, Debug)]
+pub struct EditableUI;
+
+#[derive(Component, Debug)]
+pub struct EditingUIHandle;
+
+pub fn editing_ui_handle() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            position_type: PositionType::Absolute,
+            ..default()
+        },
+        background_color: Color::rgba(0.1, 0.2, 0.8, 0.5).into(),
+        ..default()
+    },
+    DragHandle,
+    Interaction::default(),
+    EditingUIHandle,
+)}
 
 #[derive(Component, Debug)]
 pub struct HealthBarText;
@@ -86,7 +106,8 @@ pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
         background_color: Color::rgba(0.8, 0.7, 0.2, 0.4).into(),
         ..default()
     },
-    RespawnText
+    RespawnText,
+    EditableUI,
 )}
 
 #[derive(Component)]
@@ -97,10 +118,13 @@ pub fn minimap(images: &Res<Images>) -> impl Bundle {(
         style: Style {
             max_size: Size::new(Val::Px(300.), Val::Px(300.)),
             position_type: PositionType::Absolute,
+            margin: UiRect {
+                right: Val::Percent(20.),
+                ..UiRect::all(Val::Auto)
+            },
             position: UiRect {
-                top: Val::Percent(10.),
-                right: Val::Percent(10.),
-                ..default()
+                right: Val::Percent(20.),
+                ..UiRect::all(Val::Px(0.))
             },
             ..default()
         },
@@ -109,7 +133,9 @@ pub fn minimap(images: &Res<Images>) -> impl Bundle {(
         ..default()
     },
     Interaction::None,
-    Minimap
+    Minimap,
+    EditableUI,
+    Name::new("Minimap"),
 )}
 
 #[derive(Component)]
@@ -122,10 +148,8 @@ pub fn killfeed() -> impl Bundle {(
             position_type: PositionType::Absolute,
             flex_direction: FlexDirection::Column,
             margin: UiRect {
-                left: Val::Auto,
-                top: Val::Auto,
-                bottom: Val::Auto,
-                right: Val::Px(30.)
+                right: Val::Px(30.),
+                ..UiRect::all(Val::Auto)
             },
             ..default()
         },
@@ -134,6 +158,7 @@ pub fn killfeed() -> impl Bundle {(
     },
     Killfeed,
     Name::new("Killfeed"),
+    EditableUI,
 )}
 
 #[derive(Component)]
@@ -236,6 +261,7 @@ pub fn bottom_left_ui() -> impl Bundle {(
         ..default()
     },
     Name::new("Bottomleft"),
+    EditableUI,
 )}
 pub fn stats_ui() -> impl Bundle {(
     NodeBundle {
@@ -306,6 +332,7 @@ pub fn team_thumbs() -> impl Bundle {(
     },
     TeammateThumbs,
     Name::new("Team thumbs"),
+    EditableUI,
 )}
 
 #[derive(Component)]
@@ -329,6 +356,7 @@ pub fn header() -> impl Bundle {(
     },
     HeaderUI,
     Name::new("Header UI"),
+    EditableUI,
 )}
 
 pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {(

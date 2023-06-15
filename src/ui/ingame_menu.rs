@@ -37,7 +37,10 @@ pub fn add_ingame_menu(
         parent.spawn(ingame_menu_button()).with_children(|parent| {   
             parent.spawn(ingame_menu_button_text("Settings".to_string(),&fonts));    
         });      
-        parent.spawn(ingame_menu_button()).with_children(|parent| {   
+        parent.spawn(ingame_menu_button())
+        .insert(
+            ButtonAction::EditHUD
+        ).with_children(|parent| {   
             parent.spawn(ingame_menu_button_text("Hud Editor".to_string(),&fonts));    
         });      
         parent.spawn(ingame_menu_button())
