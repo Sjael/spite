@@ -1,8 +1,7 @@
-use bevy::{prelude::*, render::camera::RenderTarget, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}, transform::TransformSystem};
-use bevy_rapier3d::prelude::{RapierContext, QueryFilter, RapierTransformPropagateSet, PhysicsSet};
-use leafwing_input_manager::prelude::ActionState;
+use bevy::{prelude::*, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}};
+use bevy_rapier3d::prelude::{RapierContext, QueryFilter, };
 
-use crate::{player::{Player, PlayerInput, NetworkOwner, Reticle, player_movement}, game_manager::{CharacterState, TERRAIN_GROUPING, GROUND_GROUPING, CAMERA_GROUPING}, ability::Ability, input::Slot, GameState};
+use crate::{player::{Player, PlayerInput, NetworkOwner, Reticle}, game_manager::{CharacterState, CAMERA_GROUPING}, GameState};
 
 
 #[derive(Component)]
@@ -73,12 +72,10 @@ fn update_spectatable(
     for removing in removed_spectatables.iter(){
         if let Some(index) = objects.map.iter().position(|entity| *entity == removing){
             objects.map.remove(index);
-            dbg!(objects.clone());
         }
     }
     for entity in added_spectatables.iter(){
         objects.map.push(entity);
-        dbg!(objects.clone());
     }
 }
 
@@ -151,7 +148,6 @@ fn possess_entity(
         transform.rotation = Quat::IDENTITY;
         spectating.0 = Some(possessed.entity);
         commands.entity(entity).set_parent(possessed.entity.clone());
-        dbg!(possessed.entity);
     }
 }
 

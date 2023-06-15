@@ -11,11 +11,13 @@ use crate::{
 
 pub fn add_player_ui(
     mut commands: Commands,
-    query: Query<&SlotAbilityMap, Added<Player>>,
+    ui_query: Query<Entity, With<RootUI>>,
+    player_query: Query<&SlotAbilityMap, Added<Player>>,
     fonts: Res<Fonts>,
 ) {
-    for ability_map in query.iter() {  
-        commands.spawn(player_root()).with_children(|parent| {
+    let Ok(root_ui) = ui_query.get_single() else {return};
+    for ability_map in player_query.iter() {  
+        commands.entity(root_ui).with_children(|parent| {
             // Bottom Container
             parent.spawn(player_bottom_container())
             .with_children(|parent| {
@@ -52,7 +54,6 @@ pub fn add_player_ui(
 pub fn add_ability_icons(
     mut commands: Commands,
     query: Query<(Entity, &SlotAbilityMap), Added<AbilityHolder>>, // Changed<AbilityHolder> for changing spells midgame
-    asset_server: Res<AssetServer>,
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ) {    

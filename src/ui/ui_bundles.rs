@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, ui::FocusPolicy};
-use bevy_tweening::{Animator, RepeatStrategy, RepeatCount, lens::{TransformPositionLens, UiPositionLens, UiBackgroundColorLens}, EaseFunction, Tween, Tracks, Sequence, Delay};
+use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens}, EaseFunction, Tween, Delay};
 
 use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item};
 
@@ -356,7 +356,7 @@ pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {(
 #[derive(Component)]
 pub struct RootUI;
 
-pub fn player_root() -> impl Bundle {(
+pub fn root_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
             size: Size::new(Val::Percent(100.), Val::Percent(100.)),
@@ -370,9 +370,11 @@ pub fn player_root() -> impl Bundle {(
         ..default()
     },
     RootUI,
-    Name::new("Player UI"),
+    Name::new("UI"),
 )}
 
+#[derive(Component)]
+pub struct PlayerUI;
 pub fn player_bottom_container() -> impl Bundle {(
     NodeBundle {
         style: Style {
@@ -393,7 +395,8 @@ pub fn player_bottom_container() -> impl Bundle {(
         },
         background_color: Color::rgba(0.1, 0.7, 0.7, 0.4).into(),
         ..default()
-    }
+    },
+    PlayerUI,
 )}
 
 pub fn effect_bar() -> impl Bundle {(
@@ -733,10 +736,6 @@ pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {(
     TooltipContents::Image,
 )}
 
-#[derive(Component, Debug)]
-pub struct Draggable;
-#[derive(Component, Debug)]
-pub struct DragHandle;
 
 
 #[derive(Component, Debug)]
@@ -951,12 +950,17 @@ pub fn store() -> impl Bundle {(
         visibility: Visibility::Hidden,
         ..default()
     },
+    Draggable,
     StoreMain,
     Name::new("Store"),
 )}
 
 #[derive(Component, Debug)]
-pub struct DragStore;
+pub struct Draggable;
+
+#[derive(Component, Debug)]
+pub struct DragHandle;
+
 pub fn drag_bar() -> impl Bundle{(
     NodeBundle {
         style: Style {
@@ -980,7 +984,7 @@ pub fn drag_bar() -> impl Bundle{(
         focus_policy: FocusPolicy::Block,
         ..default()
     },
-    DragStore,
+    DragHandle,
     Interaction::default(),
     Name::new("DragBar")
 )}

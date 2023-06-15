@@ -1,5 +1,5 @@
 use bevy::{prelude::*, app::AppExit};
-use crate::{ui::styles::*, assets::Fonts, GameState};
+use crate::{ui::styles::*, assets::Fonts};
 
 use super::ButtonAction;
 
@@ -10,7 +10,6 @@ use super::ButtonAction;
 
 pub fn spawn_main_menu(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     fonts: Res<Fonts>,
 ){
     commands.spawn((

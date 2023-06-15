@@ -1,4 +1,4 @@
-use std::{fmt::Debug, f32::consts::PI, collections::{HashMap, BTreeMap}, time::{Duration, Instant}};
+use std::{fmt::Debug, f32::consts::PI, collections::{HashMap}, time::{Duration}};
 use bevy::{prelude::*, input::mouse::MouseMotion,};
 use leafwing_input_manager::prelude::ActionState;
 use serde::{Serialize, Deserialize};
@@ -14,7 +14,7 @@ use crate::{
     stats::*, 
     crowd_control::CCType, 
     game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING}, 
-    GameState, view::{PossessEvent, InnerGimbal, OuterGimbal, Spectatable, camera_swivel_and_tilt}};
+    GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[reflect(Component)]

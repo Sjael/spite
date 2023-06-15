@@ -37,7 +37,6 @@ pub fn setup_map(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    assets: Res<AssetServer>,
     icons: Res<Icons>,
     models: Res<Models>,
     scenes: Res<Scenes>,

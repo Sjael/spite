@@ -41,8 +41,8 @@ impl Plugin for UiPlugin {
             update_health,
             update_character_resource,
             tick_clock_ui,
-            drag_store, // combine these 2 later
-            drag_items,
+            draggables, // combine these 2 later
+            //drag_items,
             free_mouse,
             mouse_with_free_key,
             //mouse_menu_open,
@@ -118,117 +118,103 @@ fn button_hovers(
 
 fn add_base_ui(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     items: Res<Items>,
     fonts: Res<Fonts>,
     images: Res<Images>,
 ){
-    commands.spawn(header()).with_children(|parent| {
-        parent.spawn(timer_ui(&fonts));          
-    });
-    commands.spawn(killfeed());
-    commands.spawn(minimap(&images));
-    commands.spawn(respawn_text(&fonts));
-    commands.spawn(tooltip());
-    commands.spawn(tab_panel()).with_children(|parent| {
-        parent.spawn(damage_log()).with_children(|parent| {
-            parent.spawn(log_outgoing());
-            parent.spawn(log_incoming());
+    commands.spawn(root_ui()).with_children(|parent| {
+        parent.spawn(header()).with_children(|parent| {
+            parent.spawn(timer_ui(&fonts));          
         });
-        parent.spawn(scoreboard());
-        parent.spawn(death_recap());
-        parent.spawn(abilities_panel());
-    });
-    commands.spawn(team_thumbs());
-    commands.spawn(bottom_left_ui()).with_children(|parent| {
-        parent.spawn(stats_ui());
-        parent.spawn(build_and_kda()).with_children(|parent| {
-            parent.spawn(kda_ui());
-            parent.spawn(build_ui());
-        });
-    });
-    commands.spawn(store()).with_children(|parent| {
-        parent.spawn(drag_bar());
-        parent.spawn(list_categories()).with_children(|parent| {
-            parent.spawn(category()).with_children(|parent| {
-                parent.spawn(category_text("Attack Damage".to_owned(),&fonts));
+        parent.spawn(killfeed());
+        parent.spawn(minimap(&images));
+        parent.spawn(respawn_text(&fonts));
+        parent.spawn(tooltip());
+        parent.spawn(tab_panel()).with_children(|parent| {
+            parent.spawn(damage_log()).with_children(|parent| {
+                parent.spawn(log_outgoing());
+                parent.spawn(log_incoming());
             });
-            parent.spawn(category()).with_children(|parent| {
-                parent.spawn(category_text("Magical Power".to_owned(),&fonts));
+            parent.spawn(scoreboard());
+            parent.spawn(death_recap());
+            parent.spawn(abilities_panel());
+        });
+        parent.spawn(team_thumbs());
+        parent.spawn(bottom_left_ui()).with_children(|parent| {
+            parent.spawn(stats_ui());
+            parent.spawn(build_and_kda()).with_children(|parent| {
+                parent.spawn(kda_ui());
+                parent.spawn(build_ui());
             });
         });
-        parent.spawn(list_items()).with_children(|parent| {
-            parent.spawn(item_image(&items, Item::HiddenDagger));
-            parent.spawn(item_image(&items, Item::Arondight));
-            parent.spawn(item_image(&items, Item::SoulReaver));
+        parent.spawn(store()).with_children(|parent| {
+            parent.spawn(drag_bar());
+            parent.spawn(list_categories()).with_children(|parent| {
+                parent.spawn(category()).with_children(|parent| {
+                    parent.spawn(category_text("Attack Damage".to_owned(),&fonts));
+                });
+                parent.spawn(category()).with_children(|parent| {
+                    parent.spawn(category_text("Magical Power".to_owned(),&fonts));
+                });
             });
-        parent.spawn(inspector()).with_children(|parent| {
-            parent.spawn(gold_text(&fonts));
-            parent.spawn(button()).with_children(|parent| {
-                parent.spawn(button_text("buy".to_string(),&fonts));
-            });            
+            parent.spawn(list_items()).with_children(|parent| {
+                parent.spawn(item_image(&items, Item::HiddenDagger));
+                parent.spawn(item_image(&items, Item::Arondight));
+                parent.spawn(item_image(&items, Item::SoulReaver));
+                });
+            parent.spawn(inspector()).with_children(|parent| {
+                parent.spawn(gold_text(&fonts));
+                parent.spawn(button()).with_children(|parent| {
+                    parent.spawn(button_text("buy".to_string(),&fonts));
+                });            
+            });
         });
     });
     // Store 
 }
 
-fn drag_items( // need to consume click event so you dont drag multiple things
+
+fn draggables(
     windows: Query<&mut Window, With<PrimaryWindow>>,
-    mut draggable_query: Query<(&Interaction, &Parent, &mut Style, &Node, &GlobalTransform), With<Draggable>>,
+    // both queries can be the same entity or different
+    handle_query: Query<(Entity, &Interaction, &Parent), With<DragHandle>>,
+    mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform), With<Draggable>>,
     parent_query: Query<(&Node, &GlobalTransform)>,
     mut offset: Local<Vec2>,
     mut parent_offset: Local<Vec2>,
-    mouse: Res<Input<MouseButton>>,
-    mouse_is_free: Res<State<MouseState>>,
-){    
-    let Ok(window) = windows.get_single() else { return };
-    for (interaction, parent, mut style, node, gt) in &mut draggable_query {
-        if *interaction == Interaction::Clicked && mouse_is_free.0 == MouseState::Free{ 
-            if let Some(cursor_pos) = window.cursor_position() {   
-                // cursor is from bottom left, ui is from top left so we need to flip  
-                let cursor_y_flip = window.height() - cursor_pos.y; 
-                if mouse.just_pressed(MouseButton::Left){
-                    if let Ok((parent_node, parent_gt)) = parent_query.get(parent.get()){  
-                        parent_offset.x = parent_gt.translation().x - parent_node.size().x/2.0;  
-                        parent_offset.y = parent_gt.translation().y - parent_node.size().y/2.0;
-                    }
-                    // save cursor_pos when clicked
-                    offset.x = cursor_pos.x - gt.translation().x + node.size().x/2.0;
-                    offset.y = cursor_y_flip - gt.translation().y + node.size().y/2.0;
-                } 
-                style.position.left = Val::Px(cursor_pos.x - parent_offset.x - offset.x);
-                style.position.top = Val::Px(cursor_y_flip - parent_offset.y - offset.y);
-                style.position_type = PositionType::Absolute;
-            }
-        }
-    }
-}
-
-fn drag_store(
-    windows: Query<&mut Window, With<PrimaryWindow>>,
-    handle_query: Query<(Entity, &Interaction, &Parent), With<DragStore>>,
-    // both queries can be the same entity or different
-    mut draggable_query: Query<(&mut Style, &Node, &GlobalTransform), With<StoreMain>>,
-    mut offset: Local<Vec2>,
+    mut max_offset: Local<Vec2>,
     mouse: Res<Input<MouseButton>>,
     mouse_is_free: Res<State<MouseState>>,
 ){
+    if mouse_is_free.0 != MouseState::Free { return }
     let Ok(window) = windows.get_single() else { return };
-    for (_e, interaction, handle_parent) in &handle_query {
-        if *interaction == Interaction::Clicked && mouse_is_free.0 == MouseState::Free{ 
-            if let Ok((mut style, node, gt)) = draggable_query.get_mut(handle_parent.get()){  
-                if let Some(cursor_pos) = window.cursor_position() {   
-                    // cursor is from bottom left, ui is from top left so we need to flip  
-                    let cursor_y_flip = window.height() - cursor_pos.y; 
-                    if mouse.just_pressed(MouseButton::Left){
-                        offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
-                        offset.y = cursor_y_flip - (gt.translation().y - node.size().y/2.0);
-                    }   
-                    style.position.left = Val::Px(cursor_pos.x - offset.x);
-                    style.position.top = Val::Px(cursor_y_flip - offset.y);
+    let Some(cursor_pos) = window.cursor_position() else { return };   
+    for (handle_entity, interaction, handle_parent) in &handle_query {
+        if *interaction != Interaction::Clicked { 
+            continue
+        };
+        for draggable in [handle_entity, handle_parent.get()]{
+            let Ok((mut style, parent, node, gt)) = draggable_query.get_mut(draggable) else { 
+                continue 
+            };
+            // cursor is from bottom left, ui is from top left so we need to flip  
+            let cursor_y_flip = window.height() - cursor_pos.y; 
+            if mouse.just_pressed(MouseButton::Left){
+                if let Ok((parent_node, parent_gt)) = parent_query.get(parent.get()){  
+                    parent_offset.x = parent_gt.translation().x - parent_node.size().x/2.0;  
+                    parent_offset.y = parent_gt.translation().y - parent_node.size().y/2.0;
+                    *max_offset = parent_node.size() - node.size();
                 }
-            }
-        }
+                offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
+                offset.y = cursor_y_flip - (gt.translation().y - node.size().y/2.0);
+            }   
+            let left_position = cursor_pos.x - parent_offset.x - offset.x;
+            let top_position = cursor_y_flip - parent_offset.y - offset.y;
+            // clamp cant go outside bounds
+            style.position.left = Val::Px(left_position.clamp(0.0, max_offset.x));
+            style.position.top = Val::Px(top_position.clamp(0.0, max_offset.y));
+            style.position_type = PositionType::Absolute;
+        } 
     }
 }
 
@@ -258,7 +244,6 @@ fn load_tooltip(
     mut commands: Commands,
     mut tooltip: Query<(&mut Tooltip, &mut Visibility, Option<&Children>, Entity)>,
     hoverables: Query<(Entity, &AbilityInfo, &Interaction), With<Hoverable>>,
-    asset_server: Res<AssetServer>,
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ){
@@ -307,7 +292,6 @@ pub fn killfeed_update(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
     killfeed_query: Query<Entity, With<Killfeed>>,
-    asset_server: Res<AssetServer>,
 ){
     for death in death_events.iter(){
         let Ok(killfeed) = killfeed_query.get_single() else { return};
@@ -376,7 +360,6 @@ fn update_damage_log(
 fn spawn_floating_damage(
     mut commands: Commands,
     query: Query<(Entity, &FloatingDamage), Added<FloatingDamage>>,
-    asset_server: Res<AssetServer>,
     fonts: Res<Fonts>,
 ) {
     for (entity, damage) in query.iter() {

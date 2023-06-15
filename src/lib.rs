@@ -1,7 +1,7 @@
 
 use std::time::Duration;
 use bevy_rapier3d::prelude::*;
-use bevy::{prelude::*, app::AppExit};
+use bevy::{prelude::*};
 use bevy_editor_pls::prelude::*;
 
 use ability::{AbilityPlugin, shape::load_ability_shape};

@@ -3,7 +3,7 @@ use std::{time::{Instant, Duration}, collections::HashMap};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{ui::ui_bundles::{RootUI, RespawnText, Killfeed, kill_notification}, stats::{Attribute, Health, Gold, Experience}, player::{IncomingDamageLog, Player, SpawnEvent, PlayerInput}, GameState};
+use crate::{ui::ui_bundles::{PlayerUI, RespawnText,}, stats::{Attribute, Health, Gold, Experience}, player::{IncomingDamageLog, Player, SpawnEvent}, GameState};
 
 
 
@@ -132,7 +132,7 @@ fn check_deaths(
     mut the_damned: Query<(Entity, &Attribute<Health>, Option<&mut Bounty>, &IncomingDamageLog, &Player)>, // Changed<IncomingDamageLog>
     mut the_victors: Query<(Entity, &mut Attribute<Gold>, &mut Attribute<Experience>)>,// make optional so creep can kill
     mut gamemodedetails: ResMut<GameModeDetails>,
-    ui: Query<Entity, With<RootUI>>,
+    ui: Query<Entity, With<PlayerUI>>,
     mut character_state_next: ResMut<NextState<CharacterState>>,
     mut death_events: EventWriter<DeathEvent>,
 ){

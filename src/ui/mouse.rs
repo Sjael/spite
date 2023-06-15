@@ -1,7 +1,7 @@
 use bevy::{prelude::*, window::{PrimaryWindow}};
 use bevy_editor_pls::editor::Editor;
 
-use crate::{ui::ui_bundles::{StoreMain, TabPanel, TabMenuType, TabMenuWrapper}, GameState};
+use crate::{ui::ui_bundles::{StoreMain, TabPanel, TabMenuType, TabMenuWrapper}};
 
 use super::ingame_menu::InGameMenuOpen;
 
