@@ -32,7 +32,7 @@ impl AbilityShape {
                 (arc.mesh(), Collider::ball(radius))
             }
             AbilityShape::Rectangle { length, width } => {
-                let rect = Rectangle::extruded(length, width);
+                let rect = Rectangle::flat(length, width);
                 (rect.mesh(), rect.collider())
             }
         }
@@ -55,4 +55,12 @@ pub fn load_ability_shape(
             collider_shape,
         ));
     }
+}
+
+pub fn cross_product(first: Vec3, second: Vec3) -> Vec3{
+    let x = first[1] * second[2] - second[1] * first[2];
+    let y = first[2] * second[0] - second[2] * first[0];
+    let z = first[0] * second[2] - second[0] * first[1];
+    Vec3::new(x,y,z)
+    // normalize if you want generated normal
 }

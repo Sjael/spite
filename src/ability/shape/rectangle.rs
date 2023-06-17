@@ -18,15 +18,17 @@ impl Rectangle {
             [-width / 2.0, 0.0, -length],
         ];
 
-        let mut indices = Vec::new();
-        indices.push([0, 2, 1]);
-        indices.push([0, 3, 2]);
-
+        // normals pointing up
+        let indices = vec![
+            [0, 2, 1],
+            [0, 3, 2],
+        ];
         Self { positions, indices }
     }
 
     pub fn extruded(length: f32, width: f32) -> Self {
         let flat = Rectangle::flat(length, width);
+        const ABILITY_HEIGHT: f32 = 1.0;
 
         let mut extruded = Rectangle {
             positions: flat.positions.clone(),
@@ -34,15 +36,13 @@ impl Rectangle {
         };
 
         extruded.positions.extend(
-            flat.positions
-                .iter()
-                .map(|position| [position[0], position[1] + 1., position[2]]),
+            flat.positions.iter()
+                .map(|position| [position[0], position[1] + ABILITY_HEIGHT , position[2]]),
         );
 
         // make top tris
         extruded.indices.extend(
-            flat.indices
-                .iter()
+            flat.indices.iter()
                 .map(|tri| [tri[0] + 4, tri[1] + 4, tri[2] + 4]),
         );
 
@@ -54,10 +54,6 @@ impl Rectangle {
         extruded
     }
 
-    pub fn planar() -> Mesh {
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh
-    }
 
     pub fn mesh(&self) -> Mesh {
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);

@@ -270,10 +270,10 @@ fn spawn_player(
 
         
         let mut material = StandardMaterial::default();
-        material.base_color = Color::hex("800000").unwrap().into();
+        material.base_color = Color::hex("208000").unwrap().into();
         material.perceptual_roughness = 0.97;
         material.reflectance = 0.0;
-        let red = materials.add(material);
+        let green = materials.add(material);
 
         let id  = event.player.id.clone();
         info!("spawning player {}", id);
@@ -283,7 +283,7 @@ fn spawn_player(
                 radius: 0.4,
                 ..default()
             }.into()),       
-            red.clone(), 
+            green.clone(), 
             Player { id },
             Name::new(format!("Player {}", id.to_string())),
             
@@ -501,11 +501,11 @@ fn place_ability(
                 let _spawned = match event.ability{
                     Ability::Frostbolt => {
                         let blueprint = FrostboltInfo::default();
-                        blueprint.fire(&mut commands, &player_transform.compute_transform())
+                        blueprint.fire(&mut commands, &reticle_transform.compute_transform())
                     },
                     Ability::Fireball => {
                         let blueprint = FireballInfo::default();
-                        blueprint.fire(&mut commands, &reticle_transform.compute_transform())
+                        blueprint.fire(&mut commands, &player_transform.compute_transform())
                     },
                     _ => { 
                         let blueprint = DefaultAbilityInfo::default();

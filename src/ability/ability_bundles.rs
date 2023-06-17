@@ -127,8 +127,8 @@ impl Default for FireballInfo {
             name: Name::new("Fireball"),
             id: Ability::Fireball,
             shape: AbilityShape::Arc {
-                radius: 2.,
-                angle: 90.,
+                radius: 1.,
+                angle: 360.,
             },
             transform: Transform::default(),
         }
@@ -139,6 +139,7 @@ impl Default for FireballInfo {
 impl FireballInfo {
 
     pub fn fire(&self, commands: &mut Commands, transform: &Transform) -> Entity {
+        let direction = transform.rotation * -Vec3::Z;
         commands.spawn((
             self.name.clone(),
             self.id.clone(),
@@ -146,8 +147,12 @@ impl FireballInfo {
             transform.clone(),
             GlobalTransform::default(),
             RigidBody::KinematicVelocityBased,
+            Velocity {
+                linvel: direction * 20.0,
+                ..default()
+            },
             Sensor,
-            CastingLifetime { seconds: 3.0 },
+            CastingLifetime { seconds: 5.0 },
         )).id()
     }
 }

@@ -22,9 +22,11 @@ bevy_tweening = {git = "https://github.com/Sjael/bevy_tweening", branch="sjael"}
 #bevy_prototype_lyon = "0.8.0" 
 
 
-# Stable crates down here
+# Relatively stable crates down here
 bitflags = "1.3"
 derive_more = "0.99"
+#octree = "0.1.0" #for getting the closest things in a wide range 
+rand = "0.8.4"
 serde = { version = "1.0", features = ["derive"] }
 fixed = {version = "1.11", features = ["serde", "std", "serde-str"]}
 

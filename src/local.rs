@@ -8,11 +8,11 @@ use winit::window::Icon;
 use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
-    game_manager::{Fountain, CharacterState, Team, PLAYER_GROUPING, GROUND_GROUPING},  
+    game_manager::{Fountain, CharacterState, Team, PLAYER_GROUPING, GROUND_GROUPING, TERRAIN_GROUPING},  
     stats::*, 
     assets::*, 
     GameState, 
-    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, TagType, ScanEffect, OnEnterEffect, Ticks, LastHitTimers
+    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, TagType, ScanEffect, OnEnterEffect, Ticks, LastHitTimers, EffectApplyTargets, TargetSelection
 }, view::Spectatable};
 
 fn main() {
@@ -83,6 +83,61 @@ pub fn setup_map(
         */
         Name::new("Platform"),
     ));
+
+    let tower = commands.spawn((        
+        SpatialBundle::from_transform(
+            Transform {
+                translation: Vec3::new(-3.0, 0.5, -22.0),
+                ..default()
+        }),
+        meshes.add(shape::Capsule{
+            radius: 0.7,
+            depth: 2.0,
+            ..default()
+        }.into()),
+        materials.add(StandardMaterial::from(Color::RED)),
+        
+        Collider::capsule(Vec3::ZERO, Vec3::Y, 0.7),
+        RigidBody::Fixed,
+        TERRAIN_GROUPING,
+        Team(5),
+        ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+        Attribute::<Health>::new(4000.0),
+        Attribute::<Min<Health>>::new(0.0),
+        Attribute::<Max<Health>>::new(10000.0),
+        Attribute::<Regen<Health>>::new(0.0),
+        Name::new("Tower"),       
+        Spectatable, 
+    )).id();
+
+    let tower_range = commands.spawn((
+        SpatialBundle::default(),
+        Collider::cylinder(1.0, 7.),
+        Sensor,
+        EffectApplyTargets{
+            number_of_targets: 1,
+            target_selection: TargetSelection::Closest,
+        },
+        EffectApplyType::Scan(ScanEffect{
+            ticks: Ticks::Unlimited{
+                interval: 2000,
+            },
+            ..default()
+        }),
+        TargetsInArea::default(),
+        TargetsToEffect::default(),
+        Tags{
+            list: vec![
+                TagInfo{
+                    tag: TagType::Damage(25.0),
+                    team:4,
+                }
+            ]
+        },
+        Name::new("Range Collider"),      
+    )).id();
+    
+    commands.entity(tower).push_children(&[tower_range]);
 
     // target dummy
     commands.spawn((        

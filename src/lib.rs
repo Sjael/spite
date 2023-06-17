@@ -104,6 +104,7 @@ pub mod buff;
 pub mod item;
 pub mod crowd_control;
 pub mod input;
+pub mod homing;
 pub mod player;
 pub mod game_manager;
 pub mod stats;

@@ -3,7 +3,7 @@ use bevy_editor_pls::editor::Editor;
 
 use crate::{ui::ui_bundles::{StoreMain, TabPanel, TabMenuType, TabMenuWrapper}};
 
-use super::ingame_menu::InGameMenuOpen;
+use super::{ingame_menu::InGameMenuOpen, hud_editor::EditingHUD};
 
 
 #[derive(States, Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
@@ -61,13 +61,20 @@ pub fn mouse_with_free_key(
     kb: Res<Input<KeyCode>>,
     tab_menu_open: Res<State<TabMenuOpen>>,
     ingame_menu_open: Res<State<InGameMenuOpen>>,
+    editing_hud: Res<State<EditingHUD>>,
     mut next_state: ResMut<NextState<MouseState>>,
-){
-    let mouse_key_held = kb.pressed(KeyCode::Space);    
-    if tab_menu_open.0 == TabMenuOpen::Closed && ingame_menu_open.0 == InGameMenuOpen::Closed{
+){  
+    if tab_menu_open.0 == TabMenuOpen::Closed 
+        && ingame_menu_open.0 == InGameMenuOpen::Closed
+        && editing_hud.0 == EditingHUD::No 
+    {
         next_state.set(MouseState::Locked);
     }
-    if mouse_key_held || tab_menu_open.0 == TabMenuOpen::Open || ingame_menu_open.0 == InGameMenuOpen::Open{
+    if kb.pressed(KeyCode::Space) 
+        || tab_menu_open.0 == TabMenuOpen::Open 
+        || ingame_menu_open.0 == InGameMenuOpen::Open
+        || editing_hud.0 == EditingHUD::Yes 
+    {
         next_state.set(MouseState::Free);
     }
 }

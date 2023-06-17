@@ -6,6 +6,8 @@ use derive_more::Display;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::Actionlike;
+use octree::Octree;
+use rand::Rng;
 
 use crate::{stats::{Health, Attribute}, crowd_control::{CCInfo}, buff::{BuffInfo, BuffInfoTest}, player::{BuffMap, CCMap, IncomingDamageLog}, game_manager::Team};
 use shape::AbilityShape;
@@ -48,18 +50,18 @@ pub enum Ability {
 
 
 
-// ISNT BEING USED, CLEAN UP OR REFACTOR
 impl Ability{
-    // cooldown
+    // cooldown IS BEING USED
     pub fn get_cooldown(&self) -> f32{
         match self{
-            Ability::Dash => 4.5,
-            Ability::Frostbolt => 7.5,
-            Ability::Fireball => 13.,
+            Ability::Dash => 7.,
+            Ability::Frostbolt => 3.5,
+            Ability::Fireball => 4.,
             Ability::BasicAttack => 2.,
         }
     }
 
+    // ISNT BEING USED, CLEAN UP OR REFACTOR
     // Cant just return bundle cus match arms are different tuples, need to pass in commands
     pub fn fire(&self, commands: &mut Commands) -> Entity{
         match self {
@@ -242,6 +244,22 @@ pub struct LastHitTimers {
     pub map: HashMap<Entity, Timer>,
 }
 
+#[derive(Component, Debug, Clone, Reflect, Default)]
+#[reflect(Component)]
+pub struct EffectApplyTargets{
+    pub target_selection: TargetSelection,
+    pub number_of_targets: u8,
+}
+
+#[derive(Default, Debug, Clone, FromReflect, Reflect,)]
+pub enum TargetSelection{
+    #[default]
+    Closest,
+    Random,
+    TopThreat,
+    All,
+}
+
 pub struct DamageInstance{
     pub damage: u32,
     pub mitigated: u32,
@@ -251,7 +269,7 @@ pub struct DamageInstance{
 }
 
 fn area_apply_effects(
-    mut sensor_query: Query<(Entity, &mut TargetsToEffect, &mut Tags)>,
+    mut sensor_query: Query<(Entity, &mut TargetsToEffect, &Tags)>,
     mut targets_query: Query<(Entity, &mut Attribute<Health>, &Team, &mut BuffMap, &mut CCMap, &mut IncomingDamageLog)>,
     rapier_context: Res<RapierContext>,
     mut damage_events: EventWriter<DamageInstance>,
@@ -260,7 +278,8 @@ fn area_apply_effects(
         for target_entity in targets_to_effect.list.iter_mut(){
             // double check they are intersecting, maybe dont even need since we are detecting enter and exit but im scared lol
             if rapier_context.intersection_pair(sensor_entity, target_entity.clone()) == Some(true) {
-                if let Ok((_, mut health, target_team, mut buffs, mut cc, mut inc_damage_log)) = targets_query.get_mut(target_entity.clone()){
+                if let Ok((_, mut health, target_team, mut buffs, mut cc, mut inc_damage_log)) 
+                    = targets_query.get_mut(target_entity.clone()){
                                         
                     for taginfo in tags.list.iter(){
                         let on_same_team = taginfo.team == target_team.0;
@@ -301,6 +320,7 @@ fn area_apply_effects(
                                     Timer::new(Duration::from_millis((ccinfo.duration * 1000.0) as u64), TimerMode::Once), 
                                 );
                             }
+                            _ => ()
                         }
                     }
                 }
@@ -309,17 +329,58 @@ fn area_apply_effects(
     }
 }
 
-fn area_queue_targets(
-    mut sensor_query: Query<(&mut EffectApplyType, &TargetsInArea, &mut TargetsToEffect)>,
+
+fn filter_targets(
+    mut sensor_query: Query<(&EffectApplyTargets, &mut TargetsToEffect, &GlobalTransform)>,
+    mut target_query: Query<(Entity, &GlobalTransform)> // add threat stat later 
 ){
-    for (mut effect_apply_type, targets_in_area, mut target_queue) in sensor_query.iter_mut(){
-        target_queue.list = Vec::new();
+    for (effect_apply_targets, mut targets_to_effect, sensor_transform ) in sensor_query.iter_mut(){
+        let mut new_targets: Vec<Entity> = Vec::new();
+        match effect_apply_targets.target_selection{
+            TargetSelection::Closest => {
+                let mut closest_targets: Vec<Entity> = Vec::new();
+                let mut target_transforms: Vec<[f64;3]> = Vec::new();
+                for (target_entity, target_transform) in target_query.iter(){
+                    let t = target_transform.translation();
+                    target_transforms.push([t.x as f64, t.y as f64,t.z as f64]);
+                }
+                let sorting_targets = Octree::new(target_transforms);
+                let sensor = sensor_transform.translation();
+                let converted_sensor = [sensor.x as f64, sensor.y as f64, sensor.z as f64];
+                let sorted = sorting_targets.search(converted_sensor, 7.);
+                for i in 0..effect_apply_targets.number_of_targets{
+                    sorted.iter().next().map(|k| {
+                        closest_targets
+                    });
+                }
+                new_targets = closest_targets;
+            },
+            TargetSelection::Random => {
+                // can hit the same target twice lol, should remove from array and gen again but idc
+                let mut rng = rand::thread_rng();
+                for i in 0..effect_apply_targets.number_of_targets{
+                    let random_target_index = rng.gen_range(0..targets_to_effect.list.len());
+                    let from_list = targets_to_effect.list.get(random_target_index).unwrap();
+                    new_targets.push(*from_list);
+                }
+            },
+            _ => (),
+        }
+        targets_to_effect.list = new_targets;
+    }
+}
+
+fn area_queue_targets(
+    mut sensor_query: Query<(&mut EffectApplyType, &mut TargetsInArea, &mut TargetsToEffect)>,
+){
+    for (mut effect_apply_type, mut targets_in_area, mut targets_to_effect) in sensor_query.iter_mut(){
+        targets_to_effect.list = Vec::new();
         match *effect_apply_type{
             EffectApplyType::Scan(ref scaninfo) => {
                 if !scaninfo.timer.just_finished(){
                     continue;
                 }
-                target_queue.list = targets_in_area.list.clone();
+                targets_to_effect.list = targets_in_area.list.clone();
             }
             EffectApplyType::OnEnter(ref mut enterinfo) =>{
                 for target_entity in targets_in_area.list.iter(){
@@ -328,7 +389,7 @@ fn area_queue_targets(
                         None => true,
                     };
                     if interval_over{
-                        target_queue.list.push(*target_entity);
+                        targets_to_effect.list.push(*target_entity);
                         enterinfo.hittimers.map.insert(
                             *target_entity,
                             Timer::new(
@@ -462,6 +523,17 @@ pub enum TagType{
     Damage(f32),
     Buff(BuffInfoTest),
     Heal(f32),
+    Homing(HomingInfo),
+}
+
+#[derive(Default, Clone, Debug, Reflect, FromReflect)]
+pub struct HomingInfo{
+    targets: u8,
+}
+
+pub struct HomingEvent{
+    entities: Vec<Entity>,
+    info: HomingInfo,
 }
 
 impl Default for TagType{

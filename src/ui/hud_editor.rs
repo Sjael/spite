@@ -24,10 +24,9 @@ pub struct EditUIEvent;
 
 pub fn give_editable_ui(
     mut commands: Commands,
-    draggables: Query<Entity, With<EditableUI>>,
+    draggables: Query<(Entity, Option<&Name>), With<EditableUI>>,
 ){
-    for entity in draggables.iter(){
-        println!("spawning");
+    for (entity, name) in draggables.iter(){
         commands.entity(entity).insert(Draggable);
         commands.entity(entity).with_children(|parent|{
             parent.spawn(editing_ui_handle());
@@ -41,11 +40,9 @@ pub fn remove_editable_ui(
     edit_handles: Query<Entity, With<EditingUIHandle>>,
 ){
     for entity in draggables.iter(){
-        println!("removing drag");
         commands.entity(entity).remove::<Draggable>();
     }
     for handle in edit_handles.iter(){
-        println!("despawning handles");
         commands.entity(handle).despawn_recursive();
     }
 }
