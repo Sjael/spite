@@ -55,6 +55,8 @@ impl Plugin for UiPlugin {
             kill_notif_cleanup,
             state_ingame_menu,
             toggle_ingame_menu,
+            add_buffs,
+            update_buff_timers,
         ).in_set(OnUpdate(GameState::InGame)));
         
         app.add_systems((

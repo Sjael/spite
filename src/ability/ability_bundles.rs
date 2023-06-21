@@ -1,9 +1,11 @@
 
 use bevy::prelude::*;
-use crate::{crowd_control::{CCType, CCInfo}, stats::Stat, buff::BuffInfoTest};
+use crate::{crowd_control::{CCType, CCInfo}, stats::Stat, buff::BuffInfoTest, game_manager::TEAM_ALL};
 use bevy_rapier3d::prelude::{Velocity, RigidBody, Sensor, ActiveEvents};
 
 use super::*;
+
+
 
 
 
@@ -87,21 +89,21 @@ impl FrostboltInfo {
                 list: vec![
                     TagInfo{
                         tag: TagType::Damage(44.0),
-                        team:1,
+                        team:TEAM_ALL,
                     },
                     TagInfo{
                         tag: TagType::CC(CCInfo{
                             cctype: CCType::Stun,
                             duration: 20.0,
                         }),
-                        team: 0,
+                        team: TEAM_ALL,
                     },
                     TagInfo{
                         tag: TagType::Buff(BuffInfoTest{
                             stat: Stat::Health,
                             duration: 20.0,
                         }),
-                        team: 0,
+                        team: TEAM_ALL,
                     },
                 ]
             },

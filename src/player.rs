@@ -8,12 +8,12 @@ use crate::{
     ui::mouse::MouseState, 
     ability::{
         Ability,
-        ability_bundles::{FrostboltInfo, DefaultAbilityInfo, FireballInfo}, DamageInstance,
+        ability_bundles::{FrostboltInfo, DefaultAbilityInfo, FireballInfo}, DamageInstance, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo, TagType,
     }, 
     input::{setup_player_slots, SlotAbilityMap}, 
     stats::*, 
     crowd_control::CCType, 
-    game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING}, 
+    game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING, TEAM_1}, 
     GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
@@ -218,7 +218,6 @@ impl Plugin for PlayerPlugin {
         ).in_base_set(CoreSet::PreUpdate));
         app.add_systems((
             cast_ability,
-            place_ability.after(cast_ability),
             trigger_cooldown.after(cast_ability),
             tick_cooldowns.after(trigger_cooldown),
             tick_ccs,
@@ -307,7 +306,7 @@ fn spawn_player(
             Attribute::<CharacterResource>::new(175.0),
             Attribute::<Min<CharacterResource>>::new(0.0),
             Attribute::<Max<CharacterResource>>::new(400.0),
-            Attribute::<Regen<CharacterResource>>::new(15.0),
+            Attribute::<Regen<CharacterResource>>::new(2.0),
         ))
         .insert((
             Attribute::<MovementSpeed>::new(2.0),
@@ -316,7 +315,7 @@ fn spawn_player(
             Attribute::<Mult<MovementSpeed>>::new(1.0),
         ))
         .insert((
-            Team(1),
+            TEAM_1,
             HoveredAbility::default(),
             IncomingDamageLog::default(),
             OutgoingDamageLog::default(),
@@ -468,7 +467,7 @@ fn select_ability(
     }
 }
 
-fn cast_ability(
+pub fn cast_ability(
     players: Query<(&CooldownMap, &Player, Entity, &ActionState<Ability>, &Children)>,
     //reticle: Query<(&GlobalTransform, &Reticle), Without<Player>>,
     mut cast_event: EventWriter<CastEvent>,
@@ -477,7 +476,7 @@ fn cast_ability(
         for ability in ability_actions.get_just_pressed() {
             if !cooldowns.map.contains_key(&ability){
                 cast_event.send(CastEvent {
-                    player: player_entity,
+                    caster: player_entity,
                     ability: ability.clone(),
                 });
             }
@@ -485,38 +484,6 @@ fn cast_ability(
     }
 }
 
-fn place_ability(
-    mut commands: Commands,
-    mut cast_events: EventReader<CastEvent>,
-    player: Query<&GlobalTransform, (With<SlotAbilityMap>, With<Player>)>,
-    reticle: Query<&GlobalTransform, (With<Reticle>, Without<Player>)>,
-){
-    // TODO implement player id for multiplayer, and its child reticle
-    match (player.get_single(), reticle.get_single()){
-        (Ok(player_transform), Ok(reticle_transform)) => {
-
-            for event in cast_events.iter() {
-                // this was doing Ability impl
-                //let spawned_ability = event.ability.fire(&mut commands);
-                let _spawned = match event.ability{
-                    Ability::Frostbolt => {
-                        let blueprint = FrostboltInfo::default();
-                        blueprint.fire(&mut commands, &reticle_transform.compute_transform())
-                    },
-                    Ability::Fireball => {
-                        let blueprint = FireballInfo::default();
-                        blueprint.fire(&mut commands, &player_transform.compute_transform())
-                    },
-                    _ => { 
-                        let blueprint = DefaultAbilityInfo::default();
-                        blueprint.fire(&mut commands, &player_transform.compute_transform())
-                    },
-                };
-            }
-        }
-        _ => ()
-    }    
-}
 
 fn trigger_cooldown(
     mut cast_events: EventReader<CastEvent>,
@@ -573,7 +540,7 @@ fn tick_buffs(
 }
 
 pub struct CastEvent {
-    pub player: Entity,
+    pub caster: Entity,
     pub ability: Ability,
 }
 

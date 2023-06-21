@@ -3,7 +3,12 @@ use std::{time::{Instant, Duration}, collections::HashMap};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{ui::ui_bundles::{PlayerUI, RespawnText,}, stats::{Attribute, Health, Gold, Experience}, player::{IncomingDamageLog, Player, SpawnEvent}, GameState};
+use crate::{
+    ui::ui_bundles::{PlayerUI, RespawnText,}, 
+    stats::{Attribute, Health, Gold, Experience}, 
+    player::{IncomingDamageLog, Player, SpawnEvent, cast_ability, CastEvent, Reticle}, GameState, 
+    ability::{Ability, ability_bundles::*, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagType, TagInfo, homing::Homing, TargetsHit}
+};
 
 
 
@@ -21,6 +26,7 @@ impl Plugin for GameManagerPlugin {
             increment_bounty,
             handle_respawning,
             tick_respawn_ui,
+            place_ability.after(cast_ability),
         ).in_set(OnUpdate(GameState::InGame)));
     }
 }
@@ -42,8 +48,6 @@ pub enum GameMode{
     Tutorial,
 }
 
-#[derive(Component, Default, Debug, Clone)]
-pub struct Team(pub u32);
 
 #[derive(Resource)]
 pub struct GameModeDetails{
@@ -79,6 +83,64 @@ impl Default for Bounty{
             xp: 200.0,
             gold: 250.0,
         }
+    }
+}
+
+
+// TODO implement player id for multiplayer, and its child reticle 
+fn place_ability(
+    mut commands: Commands,
+    mut cast_events: EventReader<CastEvent>,
+    caster: Query<&GlobalTransform>,
+    reticle: Query<&GlobalTransform, With<Reticle>>,
+    player: Query<Entity, With<Player>>,
+){
+    let Ok(reticle_transform) = reticle.get_single() else {return};
+    let Ok(player_e) = player.get_single() else {return};
+    for event in cast_events.iter() {
+        let Ok(caster_transform) = caster.get(event.caster) else {return};
+
+        // Get ability-specific components
+        let spawned = match event.ability{
+            Ability::Frostbolt => {
+                let blueprint = FrostboltInfo::default();
+                blueprint.fire(&mut commands, &reticle_transform.compute_transform())
+            },
+            Ability::Fireball => {
+                let blueprint = FireballInfo::default();
+                blueprint.fire(&mut commands, &caster_transform.compute_transform())
+            },
+            _ => { 
+                let blueprint = DefaultAbilityInfo::default();
+                blueprint.fire(&mut commands, &caster_transform.compute_transform())
+            },
+        };
+
+        // Apply general components
+        commands.entity(spawned).insert((
+            TEAM_2,
+            ActiveEvents::COLLISION_EVENTS,
+            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+            TargetsInArea::default(),
+            TargetsToEffect::default(),
+            TargetsHit::new(1),
+            EffectApplyType::OnEnter(OnEnterEffect{
+                target_penetration: 2,
+                ticks: Ticks::Unlimited { interval: 500 },
+                ..default()
+            }),
+            Tags{
+                list: vec![
+                    TagInfo{
+                        tag: TagType::Damage(11.0),
+                        team:TEAM_2,
+                    }
+                ]
+            },
+            Homing(player_e),
+        ));
+
+        // Apply special components
     }
 }
 
@@ -177,6 +239,27 @@ fn increment_bounty(
         wanted.xp += 4.0 * time.delta_seconds();
     }
 }
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect, FromReflect)]
+pub struct Team(pub TeamMask);
+// Team masks
+bitflags::bitflags! {
+    #[derive(Reflect, FromReflect, Default)]
+    pub struct TeamMask: u32 {
+        const ALL = 1 << 0;
+        const TEAM_1 = 1 << 1;
+        const TEAM_2 = 1 << 2;
+        const TEAM_3 = 1 << 3;
+        const NEUTRALS = 1 << 4;
+    }
+}
+
+pub const TEAM_1: Team = Team(TeamMask::from_bits_truncate(TeamMask::TEAM_1.bits() | TeamMask::ALL.bits()));
+pub const TEAM_2: Team = Team(TeamMask::from_bits_truncate(TeamMask::TEAM_2.bits() | TeamMask::ALL.bits()));
+pub const TEAM_3: Team = Team(TeamMask::from_bits_truncate(TeamMask::TEAM_3.bits() | TeamMask::ALL.bits()));
+pub const TEAM_NEUTRAL: Team = Team(TeamMask::from_bits_truncate(TeamMask::NEUTRALS.bits() | TeamMask::ALL.bits()));
+pub const TEAM_ALL: Team = Team(TeamMask::from_bits_truncate(TeamMask::ALL.bits()));
+
 
 
 // Collision Grouping Flags

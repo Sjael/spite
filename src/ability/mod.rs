@@ -1,17 +1,16 @@
 
-use std::{collections::HashMap, time::{Duration, Instant}};
+use std::{collections::{HashMap, VecDeque}, time::{Duration, Instant}, cmp::Ordering};
 
 use bevy_rapier3d::prelude::{Velocity, RigidBody, Sensor};
 use derive_more::Display;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::Actionlike;
-use octree::Octree;
 use rand::Rng;
 
-use crate::{stats::{Health, Attribute}, crowd_control::{CCInfo}, buff::{BuffInfo, BuffInfoTest}, player::{BuffMap, CCMap, IncomingDamageLog}, game_manager::Team};
+use crate::{stats::{Health, Attribute}, crowd_control::{CCInfo}, buff::{BuffInfo, BuffInfoTest}, player::{BuffMap, CCMap, IncomingDamageLog, CastEvent}, game_manager::Team};
 use shape::AbilityShape;
-
+use homing::track_homing;
 
 pub struct AbilityPlugin;
 impl Plugin for AbilityPlugin {
@@ -24,15 +23,19 @@ impl Plugin for AbilityPlugin {
         app.register_type::<TargetsToEffect>();
 
         app.add_event::<DamageInstance>();
+        app.add_event::<BuffEvent>();
         
         app.add_systems((
             tick_lifetime,
             tick_effect_types,
+            track_homing,
         ));
         app.add_systems((
                 catch_collisions,
                 area_queue_targets,
+                filter_targets,
                 area_apply_effects,
+                despawn_after_max_hits,
         ).chain());
     }
 }
@@ -49,7 +52,6 @@ pub enum Ability {
 }
 
 
-
 impl Ability{
     // cooldown IS BEING USED
     pub fn get_cooldown(&self) -> f32{
@@ -60,6 +62,7 @@ impl Ability{
             Ability::BasicAttack => 2.,
         }
     }
+
 
     // ISNT BEING USED, CLEAN UP OR REFACTOR
     // Cant just return bundle cus match arms are different tuples, need to pass in commands
@@ -159,6 +162,30 @@ pub struct TargetsToEffect{
 }
 
 #[derive(Component, Debug, Clone, Reflect)]
+pub struct TargetsHit{
+    current: u8,
+    max: u8,
+}
+
+impl TargetsHit{
+    pub fn new(max: u8) -> Self{
+        TargetsHit{
+            max,
+            ..default() 
+        }
+    }
+}
+
+impl Default for TargetsHit{
+    fn default() -> Self {
+        Self{
+            current:0,
+            max: 1,
+        }
+    }
+}
+
+#[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component)]
 pub enum EffectApplyType{
     OnEnter(OnEnterEffect),
@@ -246,7 +273,7 @@ pub struct LastHitTimers {
 
 #[derive(Component, Debug, Clone, Reflect, Default)]
 #[reflect(Component)]
-pub struct EffectApplyTargets{
+pub struct FilterTargets{
     pub target_selection: TargetSelection,
     pub number_of_targets: u8,
 }
@@ -256,7 +283,7 @@ pub enum TargetSelection{
     #[default]
     Closest,
     Random,
-    TopThreat,
+    HighestThreat, // Make Threat hashmap of <(Entity, Threat)>
     All,
 }
 
@@ -268,60 +295,91 @@ pub struct DamageInstance{
     pub when: Instant,
 }
 
-fn area_apply_effects(
-    mut sensor_query: Query<(Entity, &mut TargetsToEffect, &Tags)>,
-    mut targets_query: Query<(Entity, &mut Attribute<Health>, &Team, &mut BuffMap, &mut CCMap, &mut IncomingDamageLog)>,
-    rapier_context: Res<RapierContext>,
-    mut damage_events: EventWriter<DamageInstance>,
+pub struct BuffEvent{
+    pub info: BuffInfoTest,
+    pub entity: Entity,
+    pub team: Team,
+}
+
+fn despawn_after_max_hits(
+    mut commands: Commands,
+    max_hits_query: Query<(Entity, &TargetsHit)>,
 ){
-    for (sensor_entity, mut targets_to_effect, tags) in sensor_query.iter_mut(){
+    for (entity, max_targets_hit) in max_hits_query.iter(){
+        if max_targets_hit.current >= max_targets_hit.max{
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+fn area_apply_effects(
+    mut sensor_query: Query<(Entity, &mut TargetsToEffect, &Tags, Option<&mut TargetsHit>)>,
+    mut targets_query: Query<(Entity, &mut Attribute<Health>, &Team, &mut BuffMap, &mut CCMap, &mut IncomingDamageLog)>,
+    //rapier_context: Res<RapierContext>,
+    mut damage_events: EventWriter<DamageInstance>,
+    mut buff_events: EventWriter<BuffEvent>,
+    mut cast_events: EventWriter<CastEvent>,
+){
+    for (sensor_entity, mut targets_to_effect, tags, mut max_targets_hit) in sensor_query.iter_mut(){
         for target_entity in targets_to_effect.list.iter_mut(){
             // double check they are intersecting, maybe dont even need since we are detecting enter and exit but im scared lol
-            if rapier_context.intersection_pair(sensor_entity, target_entity.clone()) == Some(true) {
-                if let Ok((_, mut health, target_team, mut buffs, mut cc, mut inc_damage_log)) 
-                    = targets_query.get_mut(target_entity.clone()){
-                                        
-                    for taginfo in tags.list.iter(){
-                        let on_same_team = taginfo.team == target_team.0;
-                        // change to send events
-                        match taginfo.tag {
-                            TagType::Heal(heal) => {                                
-                                if on_same_team{                                                         
-                                    println!("healing is {:?}", heal);
-                                    let new_hp = health.amount() + heal;
-                                    health.set_amount(new_hp);
-                                }
-                            }
-                            TagType::Damage(damage) => {
-                                if !on_same_team{
-                                    println!("damage is {:?}", damage);
-                                    let new_hp = health.amount() - damage; //  send these to mitigation handler
-                                    health.set_amount(new_hp);
-                                    let damage_instance = DamageInstance{
-                                        damage: damage as u32,
-                                        mitigated: 0,
-                                        attacker: sensor_entity,
-                                        defender: *target_entity,
-                                        when: Instant::now(),
-                                    };
-                                    damage_events.send(damage_instance);
-                                    //inc_damage_log.map.push(damage_instance);
-                                }
-                            }
-                            TagType::Buff(ref buffinfo) => {
-                                buffs.map.insert(
-                                    buffinfo.stat.to_string(),
-                                    Timer::new(Duration::from_millis((buffinfo.duration * 1000.0) as u64), TimerMode::Once), 
-                                );
-                            }
-                            TagType::CC(ref ccinfo) => {
-                                cc.map.insert(
-                                    ccinfo.cctype.clone(),
-                                    Timer::new(Duration::from_millis((ccinfo.duration * 1000.0) as u64), TimerMode::Once), 
-                                );
-                            }
-                            _ => ()
+            //if rapier_context.intersection_pair(sensor_entity, target_entity.clone()) == Some(true) {
+            let Ok((_, mut health, target_team, mut buffs, mut cc, mut inc_damage_log)) 
+                = targets_query.get_mut(*target_entity) else { continue};
+            
+            if let Some(ref mut max_hits) = max_targets_hit{
+                max_hits.current += 1;
+                if max_hits.current > max_hits.max{
+                    continue;
+                }
+            } 
+
+            for taginfo in tags.list.iter(){
+                let on_same_team = taginfo.team.0 == target_team.0;
+                // change to send events
+                match taginfo.tag {
+                    TagType::Heal(heal) => {                                
+                        if on_same_team{                                                         
+                            println!("healing is {:?}", heal);
+                            let new_hp = health.amount() + heal;
+                            health.set_amount(new_hp);
                         }
+                    }
+                    TagType::Damage(damage) => {
+                        if !on_same_team{
+                            println!("damage is {:?}", damage);
+                            let new_hp = health.amount() - damage; //  send these to mitigation handler
+                            health.set_amount(new_hp);
+                            let damage_instance = DamageInstance{
+                                damage: damage as u32,
+                                mitigated: 0,
+                                attacker: sensor_entity,
+                                defender: *target_entity,
+                                when: Instant::now(),
+                            };
+                            damage_events.send(damage_instance);
+                            //inc_damage_log.map.push(damage_instance);
+                        }
+                    }
+                    TagType::Buff(ref buffinfo) => {
+                        buff_events.send(BuffEvent {
+                            info: buffinfo.clone(),
+                            entity: *target_entity,
+                            team: taginfo.team,
+                        });
+                        dbg!(buffinfo.clone());
+                    }
+                    TagType::CC(ref ccinfo) => {
+                        cc.map.insert(
+                            ccinfo.cctype.clone(),
+                            Timer::new(Duration::from_millis((ccinfo.duration * 1000.0) as u64), TimerMode::Once), 
+                        );
+                    }
+                    TagType::Homing(ref projectile_to_spawn) => {                                
+                        cast_events.send(CastEvent {
+                            caster: sensor_entity,
+                            ability: projectile_to_spawn.clone(),
+                        });
                     }
                 }
             }
@@ -331,34 +389,33 @@ fn area_apply_effects(
 
 
 fn filter_targets(
-    mut sensor_query: Query<(&EffectApplyTargets, &mut TargetsToEffect, &GlobalTransform)>,
-    mut target_query: Query<(Entity, &GlobalTransform)> // add threat stat later 
+    mut sensor_query: Query<(&FilterTargets, &mut TargetsToEffect, &GlobalTransform)>,
+    target_query: Query<&GlobalTransform> // add threat stat later 
 ){
     for (effect_apply_targets, mut targets_to_effect, sensor_transform ) in sensor_query.iter_mut(){
+        if targets_to_effect.list.is_empty(){ continue }
         let mut new_targets: Vec<Entity> = Vec::new();
         match effect_apply_targets.target_selection{
             TargetSelection::Closest => {
-                let mut closest_targets: Vec<Entity> = Vec::new();
-                let mut target_transforms: Vec<[f64;3]> = Vec::new();
-                for (target_entity, target_transform) in target_query.iter(){
-                    let t = target_transform.translation();
-                    target_transforms.push([t.x as f64, t.y as f64,t.z as f64]);
+                let num_of_targets = effect_apply_targets.number_of_targets;
+
+                let mut closest_targets: Vec<(f32, Entity)> = Vec::new();
+                for target_entity in targets_to_effect.list.iter(){
+                    let Ok(target_transform) = target_query.get(*target_entity) else {continue};
+                    let relative_translation = target_transform.translation() - sensor_transform.translation();
+                    closest_targets.push((relative_translation.length(), *target_entity));
                 }
-                let sorting_targets = Octree::new(target_transforms);
-                let sensor = sensor_transform.translation();
-                let converted_sensor = [sensor.x as f64, sensor.y as f64, sensor.z as f64];
-                let sorted = sorting_targets.search(converted_sensor, 7.);
-                for i in 0..effect_apply_targets.number_of_targets{
-                    sorted.iter().next().map(|k| {
-                        closest_targets
-                    });
-                }
-                new_targets = closest_targets;
+                closest_targets.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Less));
+                
+                let (_, closest_entities): (Vec<_>, Vec<_>) = closest_targets.into_iter()
+                    .take(num_of_targets as usize)
+                    .unzip();
+                new_targets = closest_entities;
             },
             TargetSelection::Random => {
                 // can hit the same target twice lol, should remove from array and gen again but idc
                 let mut rng = rand::thread_rng();
-                for i in 0..effect_apply_targets.number_of_targets{
+                for _ in 0..effect_apply_targets.number_of_targets{
                     let random_target_index = rng.gen_range(0..targets_to_effect.list.len());
                     let from_list = targets_to_effect.list.get(random_target_index).unwrap();
                     new_targets.push(*from_list);
@@ -514,7 +571,7 @@ pub struct Tags{
 #[derive(Default, Clone, Debug, Reflect, FromReflect)]
 pub struct TagInfo{
     pub tag:TagType,
-    pub team: u32,
+    pub team: Team,
 }
 
 #[derive(Clone, Debug, Reflect, FromReflect)]
@@ -523,18 +580,14 @@ pub enum TagType{
     Damage(f32),
     Buff(BuffInfoTest),
     Heal(f32),
-    Homing(HomingInfo),
+    Homing(Ability),
 }
 
 #[derive(Default, Clone, Debug, Reflect, FromReflect)]
 pub struct HomingInfo{
-    targets: u8,
+    projectile_to_spawn: Ability,
 }
 
-pub struct HomingEvent{
-    entities: Vec<Entity>,
-    info: HomingInfo,
-}
 
 impl Default for TagType{
     fn default() -> Self {
@@ -545,3 +598,4 @@ impl Default for TagType{
 
 pub mod ability_bundles;
 pub mod shape;
+pub mod homing;

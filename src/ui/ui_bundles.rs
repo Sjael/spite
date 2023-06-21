@@ -406,7 +406,7 @@ pub struct PlayerUI;
 pub fn player_bottom_container() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(25.), Val::Auto),
+            size: Size::new(Val::Percent(28.), Val::Auto),
             position_type: PositionType::Absolute,
             position: UiRect{
                 bottom: Val::Px(0.),
@@ -421,7 +421,7 @@ pub fn player_bottom_container() -> impl Bundle {(
             align_items:AlignItems::Center,
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.7, 0.7, 0.4).into(),
+        //background_color: Color::rgba(0.1, 0.7, 0.7, 0.4).into(),
         ..default()
     },
     PlayerUI,
@@ -430,7 +430,7 @@ pub fn player_bottom_container() -> impl Bundle {(
 pub fn effect_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Px(60.0)),
+            size: Size::new(Val::Percent(100.0), Val::Auto),
             margin: UiRect {
                 bottom: Val::Px(30.),
                 left: Val::Auto,
@@ -443,26 +443,118 @@ pub fn effect_bar() -> impl Bundle {(
     }
 )}
 
+#[derive(Component)]
+pub struct BuffBar;
 pub fn buff_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
             size: Size::new(Val::Percent(50.), Val::Percent(100.)),
+            flex_wrap: FlexWrap::WrapReverse, 
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.1, 1., 0.4).into(),
+        //background_color: Color::rgba(0.1, 0.1, 1., 0.4).into(),
         ..default()
-    }
+    },
+    BuffBar,
 )}
 
+#[derive(Component)]
+pub struct DebuffBar;
 pub fn debuff_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
             size: Size::new(Val::Percent(50.), Val::Percent(100.)),
+            flex_wrap: FlexWrap::WrapReverse, 
             ..default()
         },
-        background_color: Color::rgba(1., 0.1, 0.2, 0.4).into(),
+        //background_color: Color::rgba(1., 0.1, 0.2, 0.4).into(),
         ..default()
+    },
+    DebuffBar,
+)}
+
+pub fn buff_holder(time: f32) -> impl Bundle{(
+    NodeBundle {
+        style: Style {
+            margin: UiRect {
+                right: Val::Px(7.),
+                top: Val::Px(10.),
+                ..default()
+            },
+            flex_direction: FlexDirection::Column,
+            ..default()
+        },
+        ..default()
+    },
+    DespawnTimer(
+        Timer::new(Duration::from_millis((time * 1000.0)as u64), TimerMode::Once)
+    ),
+)}
+
+pub fn buff_border(is_on_team: bool) -> impl Bundle{
+    const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
+    const ALLY_COLOR: Color = Color::rgb(0.3, 0.1, 0.94);
+    let color: Color;
+    if is_on_team{
+        color = ALLY_COLOR;
+    }else {
+        color = ENEMY_COLOR;
     }
+    (
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Px(32.), Val::Px(32.)),
+            ..default()
+        },
+        background_color: color.into(),
+        ..default()
+    },
+)}
+
+pub fn buff_image(ability: Ability, icons: &Res<Icons>,) -> impl Bundle{(
+    ImageBundle {
+        style: Style {
+            size: Size::new(Val::Percent(85.), Val::Percent(85.)),
+            margin: UiRect::all(Val::Auto),
+            ..default()
+        },
+        image: match ability{
+            Ability::Frostbolt => icons.frostbolt.clone().into(),
+            Ability::Fireball => icons.fireball.clone().into(),
+            Ability::Dash => icons.dash.clone().into(),
+            _ => icons.basic_attack.clone().into(),
+        },
+        ..default()
+    },
+    Interaction::None,
+    Name::new("Buff Image"),
+)}
+
+#[derive(Component)]
+pub struct BuffDurationText;
+
+
+pub fn buff_timer(fonts: &Res<Fonts>) -> impl Bundle{(
+    TextBundle {
+        style: Style {
+            margin: UiRect{
+                bottom: Val::Px(5.0),
+                ..UiRect::all(Val::Auto)
+            },
+            ..default()
+        },
+        text: Text::from_section(
+            "8",
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: 12.0,
+                color: Color::WHITE,
+            },
+        ),
+        ..default()
+    },
+    BuffDurationText,
+    Name::new("Buff Duration"),
 )}
 
 pub fn bar_wrapper() -> impl Bundle{(

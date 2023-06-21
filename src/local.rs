@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{io::Cursor, time::Duration};
 
 use bevy::{
     pbr::{NotShadowCaster, NotShadowReceiver},
@@ -8,12 +8,12 @@ use winit::window::Icon;
 use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
-    game_manager::{Fountain, CharacterState, Team, PLAYER_GROUPING, GROUND_GROUPING, TERRAIN_GROUPING},  
+    game_manager::{Fountain, CharacterState, Team, PLAYER_GROUPING, GROUND_GROUPING, TERRAIN_GROUPING, TEAM_ALL, TEAM_NEUTRAL, TEAM_1},  
     stats::*, 
     assets::*, 
     GameState, 
-    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, TagType, ScanEffect, OnEnterEffect, Ticks, LastHitTimers, EffectApplyTargets, TargetSelection
-}, view::Spectatable};
+    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, TagType, ScanEffect, OnEnterEffect, Ticks, LastHitTimers, FilterTargets, TargetSelection, Ability
+}, view::Spectatable, player::{CCMap, BuffMap, IncomingDamageLog}, buff::BuffInfoTest};
 
 fn main() {
     //std::env::set_var("RUST_BACKTRACE", "1");
@@ -100,7 +100,7 @@ pub fn setup_map(
         Collider::capsule(Vec3::ZERO, Vec3::Y, 0.7),
         RigidBody::Fixed,
         TERRAIN_GROUPING,
-        Team(5),
+        TEAM_NEUTRAL,
         ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
         Attribute::<Health>::new(4000.0),
         Attribute::<Min<Health>>::new(0.0),
@@ -113,25 +113,34 @@ pub fn setup_map(
     let tower_range = commands.spawn((
         SpatialBundle::default(),
         Collider::cylinder(1.0, 7.),
+        ActiveEvents::COLLISION_EVENTS,
+        ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
         Sensor,
-        EffectApplyTargets{
+        FilterTargets{
             number_of_targets: 1,
             target_selection: TargetSelection::Closest,
         },
         EffectApplyType::Scan(ScanEffect{
             ticks: Ticks::Unlimited{
-                interval: 2000,
+                interval: 5000,
             },
-            ..default()
+            timer: Timer::new(
+                Duration::from_millis(5000 as u64),
+                TimerMode::Repeating,
+            ),
         }),
         TargetsInArea::default(),
         TargetsToEffect::default(),
         Tags{
             list: vec![
                 TagInfo{
-                    tag: TagType::Damage(25.0),
-                    team:4,
-                }
+                    tag: TagType::Damage(3.0),
+                    team:TEAM_NEUTRAL,
+                },
+                TagInfo{
+                    tag: TagType::Homing(Ability::Fireball),
+                    team:TEAM_NEUTRAL,
+                },
             ]
         },
         Name::new("Range Collider"),      
@@ -143,7 +152,7 @@ pub fn setup_map(
     commands.spawn((        
         SpatialBundle::from_transform(
             Transform {
-                translation: Vec3::new(3.0, 0.5, -12.0),
+                translation: Vec3::new(-3.0, 0.5, -18.0),
                 ..default()
         }),
         meshes.add(shape::Capsule{
@@ -153,16 +162,20 @@ pub fn setup_map(
         materials.add(StandardMaterial::from(Color::INDIGO)),
         
         Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
-        RigidBody::Fixed,
+        RigidBody::Dynamic,
+        LockedAxes::ROTATION_LOCKED,
         PLAYER_GROUPING,
-        Team(5),
-        ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+        TEAM_NEUTRAL,
+        CCMap::default(),
+        BuffMap::default(),
+        IncomingDamageLog::default(),       
+        Spectatable, 
+        Name::new("Target Dummy"),
+    )).insert((
         Attribute::<Health>::new(4000.0),
         Attribute::<Min<Health>>::new(0.0),
         Attribute::<Max<Health>>::new(10000.0),
         Attribute::<Regen<Health>>::new(0.0),
-        Name::new("Target Dummy"),       
-        Spectatable, 
     ));
 
     // Scanning Damage zone
@@ -186,7 +199,7 @@ pub fn setup_map(
             list: vec![
                 TagInfo{
                     tag: TagType::Damage(12.0),
-                    team:4,
+                    team:TEAM_NEUTRAL,
                 }
             ]
         },
@@ -210,15 +223,22 @@ pub fn setup_map(
         Tags{
             list: vec![
                 TagInfo{
-                    tag: TagType::Damage(44.0),
-                    team:4,
+                    tag: TagType::Damage(4.0),
+                    team:TEAM_NEUTRAL,
+                },
+                TagInfo{
+                    tag: TagType::Buff(BuffInfoTest{
+                        stat: Stat::PhysicalPower,
+                        duration: 10.0
+                    }),
+                    team:TEAM_NEUTRAL,
                 }
             ]
         },
         EffectApplyType::OnEnter(OnEnterEffect{
             target_penetration: 2,
             ticks: Ticks::Unlimited { interval: 500 },
-            hittimers: LastHitTimers::default(),
+            ..default()
         }),
         TargetsInArea::default(),
         TargetsToEffect::default(),
@@ -251,11 +271,18 @@ pub fn setup_map(
             list: vec![
                 TagInfo{
                     tag: TagType::Heal(28.0),
-                    team:1,
+                    team:TEAM_1,
                 },
                 TagInfo{
                     tag: TagType::Damage(44.0),
-                    team:1,
+                    team:TEAM_1,
+                },
+                TagInfo{
+                    tag: TagType::Buff(BuffInfoTest{
+                        stat: Stat::PhysicalPower,
+                        duration: 8.0
+                    }),
+                    team:TEAM_1,
                 }
             ]
         },
@@ -266,8 +293,7 @@ pub fn setup_map(
     ));
 
     // sky 
-    let _sky = commands
-    .spawn((
+    let _sky = commands.spawn((
         SceneBundle {
             scene: models.skybox.clone(),
             transform: Transform {
@@ -316,24 +342,23 @@ pub fn setup_map(
     ));
 
     // arena
-    commands
-        .spawn((
-            SpatialBundle {
-                transform: Transform {
-                    translation: Vec3::new(0., -0.5, 0.),
-                    scale: Vec3::new(4., 4., 4.),
-                    ..default()
-                },
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform {
+                translation: Vec3::new(0., -0.5, 0.),
+                scale: Vec3::new(4., 4., 4.),
                 ..default()
             },
-            Name::new("Arena"),
-        ))
-        .with_children(|commands| {
-            commands.spawn(SceneBundle {
-                scene: scenes.arena_map.clone(),
-                ..default()
-            });
+            ..default()
+        },
+        Name::new("Arena"),
+    ))
+    .with_children(|commands| {
+        commands.spawn(SceneBundle {
+            scene: scenes.arena_map.clone(),
+            ..default()
         });
+    });
 }
 
 pub fn setup_camera(mut commands: Commands) {

@@ -1,4 +1,6 @@
-use crate::stats::{Stat};
+use std::time::Duration;
+
+use crate::{stats::{Stat}, ability::BuffEvent, player::BuffMap};
 use bevy::prelude::*;
 
 
@@ -17,6 +19,9 @@ pub struct BuffInfo{
     pub refresh: StackRefresh,
 }
 
+#[derive(Component, Default, Clone, Debug, Reflect)]
+pub struct UIBuffId(pub String);
+
 #[derive(Default, Clone, Debug, Reflect, FromReflect)]
 pub enum StackFalloff{
     None, // buff stacks drop one at a time,
@@ -31,6 +36,21 @@ pub enum StackRefresh{
     #[default]
     All, // adding a stack refreshes all
     Multiple(u32),
+}
+
+pub fn apply_buffs(
+    mut commands: Commands,
+    mut targets_query: Query<(Entity, &mut BuffMap)>,
+    mut buff_events: EventReader<BuffEvent>,
+){
+    for event in buff_events.iter(){
+        if let Ok((entity, mut buffs)) = targets_query.get_mut(event.entity){
+            buffs.map.insert(
+                event.info.stat.to_string(),
+                Timer::new(Duration::from_millis((event.info.duration * 1000.0) as u64), TimerMode::Once), 
+            );
+        }        
+    }
 }
 
 //

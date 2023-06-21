@@ -3,10 +3,10 @@ use bevy::{prelude::*, ui::RelativeCursorPosition};
 
 use crate::{
     ui::{ui_bundles::*, },
-    player::{Player, CooldownMap}, 
+    player::{Player, CooldownMap, BuffMap}, 
     input::SlotAbilityMap, 
-    ability::{AbilityInfo, Ability},
-    stats::*, assets::{Icons, Fonts},    
+    ability::{AbilityInfo, Ability, BuffEvent},
+    stats::*, assets::{Icons, Fonts}, buff::UIBuffId, game_manager::Team,    
 };
 
 pub fn add_player_ui(
@@ -174,3 +174,74 @@ pub fn update_cooldowns(
         }
     }
 }
+
+// limit this to only be every few frames?
+pub fn update_buff_timers(   
+    mut text_query: Query<(&mut Text, &Parent), With<BuffDurationText>>,
+    timer_query: Query<&DespawnTimer>,
+){
+    for (mut text, parent) in text_query.iter_mut() {
+        let Ok(despawn_timer) = timer_query.get(parent.get()) else {continue};
+        let remaining = despawn_timer.0.remaining_secs() as u32;
+        text.sections[0].value = remaining.to_string();
+    }
+}
+
+pub fn add_buffs(
+    mut commands: Commands,
+    targets_query: Query<(Entity, &Team), (With<Player>, With<BuffMap>)>,
+    mut buff_query: Query<(&mut Style, &UIBuffId)>,
+    buff_bar_ui: Query<Entity, With<BuffBar>>,
+    debuff_bar_ui: Query<Entity, With<DebuffBar>>,
+    mut buff_events: EventReader<BuffEvent>,
+    icons: Res<Icons>,
+    fonts: Res<Fonts>,
+){
+    for event in buff_events.iter(){
+        let Ok((_, team)) = targets_query.get(event.entity) else {continue};
+        let Ok(buff_bar) = buff_bar_ui.get_single() else {continue};
+        let Ok(debuff_bar) = debuff_bar_ui.get_single() else {continue};
+        let is_on_team = event.team.0 == team.0;
+        let holder_ui: Entity;
+        if is_on_team{
+            holder_ui = buff_bar;
+        } else{
+            holder_ui = debuff_bar;
+        }
+        commands.entity(holder_ui).with_children(|parent| {
+            parent.spawn(buff_holder(event.info.duration)).with_children(|parent| {
+                parent.spawn(buff_timer(&fonts));
+                parent.spawn(buff_border(is_on_team)).with_children(|parent| {
+                    parent.spawn(buff_image(Ability::Frostbolt, &icons));
+                });
+            });
+        });
+    }
+}
+
+
+/* 
+pub fn update_buffs(
+    buff_query: Query<(&Player, &BuffMap)>,
+    mut ui_query: Query<(&mut Style, &UIBuffId)>,
+    mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
+    mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
+){
+    for (_, buffs) in buff_query.iter() {
+        if !buffs.map.contains_key(ability) {
+            text.sections[0].value = String::from("");
+            *background_color = Color::WHITE.into();
+        } else {
+            let timer = buffs.map.get(ability).unwrap();
+            let newcd = timer.remaining_secs() as u32;
+            text.sections[0].value = newcd.to_string();
+            *background_color = Color::rgb(0.2, 0.2, 0.2).into();
+        }
+    }
+    for (mut text, ability, parent) in text_query.iter_mut() {
+        let Ok(mut background_color) = image_query.get_mut(parent.get()) else{
+            continue
+        };
+    }
+}
+*/
