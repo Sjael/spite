@@ -3,7 +3,7 @@ use bevy_tweening::TweenCompleted;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
-    player::{IncomingDamageLog, OutgoingDamageLog},  
+    player::{IncomingDamageLog, OutgoingDamageLog, self, Player},  
     ability::{AbilityInfo, ability_bundles::FloatingDamage, DamageInstance},
     game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::PlayerCam, 
     
@@ -48,6 +48,7 @@ impl Plugin for UiPlugin {
             mouse_with_free_key,
             menu_toggle,
             tick_despawn_timers,
+            minimap_track,
         ).in_set(OnUpdate(GameState::InGame)));
         app.add_systems((            
             update_damage_log,
@@ -136,7 +137,9 @@ fn add_base_ui(
             parent.spawn(timer_ui(&fonts));          
         });
         parent.spawn(killfeed());
-        parent.spawn(minimap(&images));
+        parent.spawn(minimap(&images)).with_children(|parent| {
+            parent.spawn(minimap_arrow(&images));
+        });
         parent.spawn(respawn_text(&fonts));
         parent.spawn(team_thumbs());
         parent.spawn(bottom_left_ui()).with_children(|parent| {
@@ -440,10 +443,10 @@ pub fn button_actions(
         (&ButtonAction, &Interaction),
         (Changed<Interaction>, With<Button>),
     >,
-    mut game_state: ResMut<NextState<GameState>>,
+    mut game_state_next: ResMut<NextState<GameState>>,
     mut ingamemenu_next: ResMut<NextState<InGameMenuOpen>>,
-    ingamemenu_state: Res<State<InGameMenuOpen>>,
     mut editing_hud_next: ResMut<NextState<EditingHUD>>,
+    ingamemenu_state: Res<State<InGameMenuOpen>>,
     editing_hud_state: Res<State<EditingHUD>>,
     mut app_exit_writer: EventWriter<AppExit>,
 ) {
@@ -452,13 +455,13 @@ pub fn button_actions(
             Interaction::Clicked => {
                 match button_action {
                     ButtonAction::Play => {
-                        game_state.set(GameState::InGame);
+                        game_state_next.set(GameState::InGame);
                     }
                     ButtonAction::Settings => {
 
                     }
                     ButtonAction::Lobby => {
-                        game_state.set(GameState::MainMenu);
+                        game_state_next.set(GameState::MainMenu);
                     }
                     ButtonAction::Resume => {
                         ingamemenu_next.set(ingamemenu_state.0.toggle());
@@ -480,6 +483,14 @@ pub fn button_actions(
     }
 }
 
+pub fn minimap_track(
+    mut arrow_query: Query<(&Node, &mut Style, &mut Transform), With<MinimapArrow>>,
+    player_query: Query<&GlobalTransform, With<Player>>
+){
+    let Ok((node, mut style, mut transform)) = arrow_query.get_single_mut() else { return };
+    let Ok(player_transform) = player_query.get_single() else { return };
+    transform.rotation = Quat::from_rotation_z(player_transform.to_scale_rotation_translation().1.z);
+}
 
 #[derive(Component, PartialEq, Eq)]
 pub enum ButtonAction{

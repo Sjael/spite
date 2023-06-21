@@ -13,7 +13,7 @@ use crate::{
     input::{setup_player_slots, SlotAbilityMap}, 
     stats::*, 
     crowd_control::CCType, 
-    game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING, TEAM_1}, 
+    game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING, TEAM_1, CastEvent}, 
     GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
@@ -204,7 +204,6 @@ impl Plugin for PlayerPlugin {
         app.register_type::<CooldownMap>();
         app.register_type::<CCMap>();
         app.register_type::<BuffMap>();
-        app.add_event::<CastEvent>();
         app.add_event::<SpawnEvent>();        
         
         //Plugins
@@ -499,7 +498,7 @@ fn trigger_cooldown(
     }
 }
 
-// Move these to character file, since mobs will be cc'd and buffed/cooldowns too
+// Move these to character file, since mobs will be cc'd and buffed/cooldowns too AND MAKE GENERIC 
 // ⬇️⬇️⬇️
 
 fn tick_cooldowns(
@@ -539,10 +538,6 @@ fn tick_buffs(
     }
 }
 
-pub struct CastEvent {
-    pub caster: Entity,
-    pub ability: Ability,
-}
 
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect]

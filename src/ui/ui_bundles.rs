@@ -139,6 +139,24 @@ pub fn minimap(images: &Res<Images>) -> impl Bundle {(
 )}
 
 #[derive(Component)]
+pub struct MinimapArrow;
+pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle{(    
+    ImageBundle {
+        style: Style {
+            max_size: Size::new(Val::Px(16.), Val::Px(20.)),
+            position_type: PositionType::Absolute,
+            margin: UiRect::all(Val::Auto),
+            position: UiRect::all(Val::Px(0.)),
+            ..default()
+        },
+        image: images.arrow.clone().into(),
+        ..default()
+    },
+    MinimapArrow,
+    Name::new("Arrow"),
+)}
+
+#[derive(Component)]
 pub struct Killfeed;
 
 pub fn killfeed() -> impl Bundle {(
@@ -493,7 +511,7 @@ pub fn buff_holder(time: f32) -> impl Bundle{(
 
 pub fn buff_border(is_on_team: bool) -> impl Bundle{
     const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
-    const ALLY_COLOR: Color = Color::rgb(0.3, 0.1, 0.94);
+    const ALLY_COLOR: Color = Color::rgb(0.34, 0.28, 0.78);
     let color: Color;
     if is_on_team{
         color = ALLY_COLOR;

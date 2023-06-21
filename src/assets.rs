@@ -48,6 +48,8 @@ pub struct Fonts {
 pub struct Images {
     #[asset(path = "images/minimap.png")]   
     pub minimap: Handle<Image>,
+    #[asset(path = "images/arrow.png")]   
+    pub arrow: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]

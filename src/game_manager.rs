@@ -6,7 +6,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     ui::ui_bundles::{PlayerUI, RespawnText,}, 
     stats::{Attribute, Health, Gold, Experience}, 
-    player::{IncomingDamageLog, Player, SpawnEvent, cast_ability, CastEvent, Reticle}, GameState, 
+    player::{IncomingDamageLog, Player, SpawnEvent, cast_ability, Reticle}, GameState, 
     ability::{Ability, ability_bundles::*, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagType, TagInfo, homing::Homing, TargetsHit}
 };
 
@@ -19,7 +19,9 @@ impl Plugin for GameManagerPlugin {
         app.insert_resource(Player::new(1507));
         app.register_type::<Bounty>();
         app.add_state::<CharacterState>();
+        
         app.add_event::<DeathEvent>();
+        app.add_event::<CastEvent>();
 
         app.add_systems((
             check_deaths,
@@ -238,6 +240,11 @@ fn increment_bounty(
         wanted.gold += 2.0 * time.delta_seconds();
         wanted.xp += 4.0 * time.delta_seconds();
     }
+}
+
+pub struct CastEvent {
+    pub caster: Entity,
+    pub ability: Ability,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect, FromReflect)]
