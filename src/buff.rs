@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{stats::{Stat}, ability::BuffEvent, player::BuffMap};
+use crate::{stats::{Stat}, ability::{BuffEvent, Ability}, player::BuffMap, game_manager::Team};
 use bevy::prelude::*;
 
 
@@ -19,8 +19,12 @@ pub struct BuffInfo{
     pub refresh: StackRefresh,
 }
 
-#[derive(Component, Default, Clone, Debug, Reflect)]
-pub struct UIBuffId(pub String);
+#[derive(Clone, Debug, Reflect, FromReflect)]
+pub struct AppliedBuff{
+    caster: Entity,
+    ability: Ability,
+    info: BuffInfo,
+}
 
 #[derive(Default, Clone, Debug, Reflect, FromReflect)]
 pub enum StackFalloff{
@@ -40,15 +44,22 @@ pub enum StackRefresh{
 
 pub fn apply_buffs(
     mut commands: Commands,
-    mut targets_query: Query<(Entity, &mut BuffMap)>,
+    mut targets_query: Query<(Entity, &mut BuffMap, &Team)>,
     mut buff_events: EventReader<BuffEvent>,
 ){
     for event in buff_events.iter(){
-        if let Ok((entity, mut buffs)) = targets_query.get_mut(event.entity){
-            buffs.map.insert(
-                event.info.stat.to_string(),
-                Timer::new(Duration::from_millis((event.info.duration * 1000.0) as u64), TimerMode::Once), 
-            );
+        if let Ok((entity, mut buffs, team)) = targets_query.get_mut(event.target){
+            let buff_id = event.info.stat.to_string();
+            if buffs.map.contains_key(&buff_id){
+                if event.team == *team{
+                    
+                }
+            } else{
+                buffs.map.insert(
+                    buff_id,
+                    Timer::new(Duration::from_millis((event.info.duration * 1000.0) as u64), TimerMode::Once), 
+                );
+            }
         }        
     }
 }

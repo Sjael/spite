@@ -7,7 +7,7 @@ use crate::{
     ui::ui_bundles::{PlayerUI, RespawnText,}, 
     stats::{Attribute, Health, Gold, Experience}, 
     player::{IncomingDamageLog, Player, SpawnEvent, cast_ability, Reticle}, GameState, 
-    ability::{Ability, ability_bundles::*, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagType, TagInfo, homing::Homing, TargetsHit}
+    ability::{Ability, ability_bundles::*, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo, homing::Homing, TargetsHit}, crowd_control::{CCType, CCInfo}
 };
 
 
@@ -120,7 +120,7 @@ fn place_ability(
 
         // Apply general components
         commands.entity(spawned).insert((
-            TEAM_2,
+            TEAM_NEUTRAL,
             ActiveEvents::COLLISION_EVENTS,
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
@@ -133,10 +133,7 @@ fn place_ability(
             }),
             Tags{
                 list: vec![
-                    TagInfo{
-                        tag: TagType::Damage(11.0),
-                        team:TEAM_2,
-                    }
+                    TagInfo::Damage(11.0),
                 ]
             },
             Homing(player_e),
@@ -246,6 +243,7 @@ pub struct CastEvent {
     pub caster: Entity,
     pub ability: Ability,
 }
+
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect, FromReflect)]
 pub struct Team(pub TeamMask);

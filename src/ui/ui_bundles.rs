@@ -139,20 +139,20 @@ pub fn minimap(images: &Res<Images>) -> impl Bundle {(
 )}
 
 #[derive(Component)]
-pub struct MinimapArrow;
+pub struct MinimapPlayerIcon;
 pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle{(    
     ImageBundle {
         style: Style {
-            max_size: Size::new(Val::Px(16.), Val::Px(20.)),
+            max_size: Size::new(Val::Px(16.), Val::Px(16.)),
             position_type: PositionType::Absolute,
             margin: UiRect::all(Val::Auto),
             position: UiRect::all(Val::Px(0.)),
             ..default()
         },
-        image: images.arrow.clone().into(),
+        image: images.circle.clone().into(),
         ..default()
     },
-    MinimapArrow,
+    MinimapPlayerIcon,
     Name::new("Arrow"),
 )}
 

@@ -4,7 +4,7 @@ use bevy_tweening::TweenCompleted;
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
     player::{IncomingDamageLog, OutgoingDamageLog, self, Player},  
-    ability::{AbilityInfo, ability_bundles::FloatingDamage, DamageInstance},
+    ability::{AbilityInfo, ability_bundles::FloatingDamage, HealthChangeEvent},
     game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::PlayerCam, 
     
 };
@@ -349,7 +349,7 @@ fn update_damage_log(
     outgoing_ui: Query<(Entity, Option<&Children>), With<OutgoingLogUi>>,
     mut commands: Commands,
     fonts: Res<Fonts>,
-    mut damage_events: EventReader<DamageInstance>,
+    mut damage_events: EventReader<HealthChangeEvent>,
 ){
     let Ok((incoming_log_entity, incoming_children)) = incoming_ui.get_single() else {return};
     let Ok((outgoing_log_entity, outgoing_children)) = outgoing_ui.get_single() else {return};
@@ -359,10 +359,10 @@ fn update_damage_log(
 
         }
         commands.entity(incoming_log_entity).with_children(|parent| {
-            parent.spawn(damage_entry(damage_instance.damage.clone().to_string(), &fonts));
+            parent.spawn(damage_entry((damage_instance.amount as u32).clone().to_string(), &fonts));
         });
         commands.entity(outgoing_log_entity).with_children(|parent| {
-            parent.spawn(damage_entry(damage_instance.damage.clone().to_string(), &fonts));
+            parent.spawn(damage_entry((damage_instance.amount as u32).clone().to_string(), &fonts));
         });
         if let Ok(defender_log) = incoming_logs.get(damage_instance.defender) {
             
@@ -484,12 +484,15 @@ pub fn button_actions(
 }
 
 pub fn minimap_track(
-    mut arrow_query: Query<(&Node, &mut Style, &mut Transform), With<MinimapArrow>>,
+    mut arrow_query: Query<(&Node, &mut Style, &mut Transform), With<MinimapPlayerIcon>>,
     player_query: Query<&GlobalTransform, With<Player>>
 ){
     let Ok((node, mut style, mut transform)) = arrow_query.get_single_mut() else { return };
     let Ok(player_transform) = player_query.get_single() else { return };
-    transform.rotation = Quat::from_rotation_z(player_transform.to_scale_rotation_translation().1.z);
+    //transform.translation = Quat::from_rotation_z(player_transform.to_scale_rotation_translation().1.z);
+    let (player_left, player_top) =  (player_transform.translation().x, player_transform.translation().z);
+    style.position.left = Val::Px(player_left);
+    style.position.top = Val::Px(player_top);
 }
 
 #[derive(Component, PartialEq, Eq)]

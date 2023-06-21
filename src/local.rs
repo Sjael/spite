@@ -12,11 +12,10 @@ use sacred_aurora::{
     stats::*, 
     assets::*, 
     GameState, 
-    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, TagType, ScanEffect, OnEnterEffect, Ticks, LastHitTimers, FilterTargets, TargetSelection, Ability
+    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, ScanEffect, OnEnterEffect, Ticks, LastHitTimers, FilterTargets, TargetSelection, Ability
 }, view::Spectatable, player::{CCMap, BuffMap, IncomingDamageLog}, buff::BuffInfoTest};
 
 fn main() {
-    //std::env::set_var("RUST_BACKTRACE", "1");
     let mut app = App::new();
     sacred_aurora::app_plugins_both(&mut app);
     // Systems
@@ -41,7 +40,6 @@ pub fn setup_map(
     models: Res<Models>,
     scenes: Res<Scenes>,
 ) {
-
     //ground
     commands.spawn((
         PbrBundle {
@@ -131,16 +129,11 @@ pub fn setup_map(
         }),
         TargetsInArea::default(),
         TargetsToEffect::default(),
+        TEAM_NEUTRAL,
         Tags{
             list: vec![
-                TagInfo{
-                    tag: TagType::Damage(3.0),
-                    team:TEAM_NEUTRAL,
-                },
-                TagInfo{
-                    tag: TagType::Homing(Ability::Fireball),
-                    team:TEAM_NEUTRAL,
-                },
+                TagInfo::Damage(3.0),
+                TagInfo::Homing(Ability::Fireball),
             ]
         },
         Name::new("Range Collider"),      
@@ -195,12 +188,10 @@ pub fn setup_map(
         EffectApplyType::Scan(ScanEffect::default()),
         TargetsInArea::default(),
         TargetsToEffect::default(),
+        TEAM_NEUTRAL,
         Tags{
             list: vec![
-                TagInfo{
-                    tag: TagType::Damage(12.0),
-                    team:TEAM_NEUTRAL,
-                }
+                TagInfo::Damage(12.0),
             ]
         },
         Name::new("DamageFountain"),
@@ -222,17 +213,11 @@ pub fn setup_map(
         Sensor,
         Tags{
             list: vec![
-                TagInfo{
-                    tag: TagType::Damage(4.0),
-                    team:TEAM_NEUTRAL,
-                },
-                TagInfo{
-                    tag: TagType::Buff(BuffInfoTest{
-                        stat: Stat::PhysicalPower,
-                        duration: 10.0
-                    }),
-                    team:TEAM_NEUTRAL,
-                }
+                TagInfo::Damage(40.0),
+                TagInfo::Buff(BuffInfoTest{
+                    stat: Stat::PhysicalPower,
+                    duration: 10.0
+                }),
             ]
         },
         EffectApplyType::OnEnter(OnEnterEffect{
@@ -240,6 +225,7 @@ pub fn setup_map(
             ticks: Ticks::Unlimited { interval: 500 },
             ..default()
         }),
+        TEAM_NEUTRAL,
         TargetsInArea::default(),
         TargetsToEffect::default(),
         Spectatable, 
@@ -261,6 +247,7 @@ pub fn setup_map(
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
         Fountain,
+        TEAM_1,
         EffectApplyType::Scan(ScanEffect{
             ticks: Ticks::Unlimited{
                 interval: 2000,
@@ -269,21 +256,12 @@ pub fn setup_map(
         }),
         Tags{
             list: vec![
-                TagInfo{
-                    tag: TagType::Heal(28.0),
-                    team:TEAM_1,
-                },
-                TagInfo{
-                    tag: TagType::Damage(44.0),
-                    team:TEAM_1,
-                },
-                TagInfo{
-                    tag: TagType::Buff(BuffInfoTest{
-                        stat: Stat::PhysicalPower,
-                        duration: 8.0
-                    }),
-                    team:TEAM_1,
-                }
+                TagInfo::Heal(28.0),
+                TagInfo::Damage(44.0),
+                TagInfo::Buff(BuffInfoTest{
+                    stat: Stat::PhysicalPower,
+                    duration: 8.0
+                }),
             ]
         },
         TargetsInArea::default(),
@@ -384,8 +362,8 @@ fn set_window_icon(
     windows: NonSend<WinitWindows>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
 ) {
-    let primary_entity = primary_window.single();
-    let primary = windows.get_window(primary_entity).unwrap();
+    let Ok(primary_entity) = primary_window.get_single() else {return};
+    let Some(primary) = windows.get_window(primary_entity) else {return};
     let icon_buf = Cursor::new(include_bytes!(
         "../assets/icons/fireball.png"
     ));

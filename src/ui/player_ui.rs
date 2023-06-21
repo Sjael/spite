@@ -6,7 +6,7 @@ use crate::{
     player::{Player, CooldownMap, BuffMap}, 
     input::SlotAbilityMap, 
     ability::{AbilityInfo, Ability, BuffEvent},
-    stats::*, assets::{Icons, Fonts}, buff::UIBuffId, game_manager::Team,    
+    stats::*, assets::{Icons, Fonts},  game_manager::Team,    
 };
 
 pub fn add_player_ui(
@@ -190,7 +190,6 @@ pub fn update_buff_timers(
 pub fn add_buffs(
     mut commands: Commands,
     targets_query: Query<(Entity, &Team), (With<Player>, With<BuffMap>)>,
-    mut buff_query: Query<(&mut Style, &UIBuffId)>,
     buff_bar_ui: Query<Entity, With<BuffBar>>,
     debuff_bar_ui: Query<Entity, With<DebuffBar>>,
     mut buff_events: EventReader<BuffEvent>,
@@ -198,7 +197,7 @@ pub fn add_buffs(
     fonts: Res<Fonts>,
 ){
     for event in buff_events.iter(){
-        let Ok((_, team)) = targets_query.get(event.entity) else {continue};
+        let Ok((_, team)) = targets_query.get(event.target) else {continue};
         let Ok(buff_bar) = buff_bar_ui.get_single() else {continue};
         let Ok(debuff_bar) = debuff_bar_ui.get_single() else {continue};
         let is_on_team = event.team.0 == team.0;
@@ -223,7 +222,6 @@ pub fn add_buffs(
 /* 
 pub fn update_buffs(
     buff_query: Query<(&Player, &BuffMap)>,
-    mut ui_query: Query<(&mut Style, &UIBuffId)>,
     mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
     mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
 ){

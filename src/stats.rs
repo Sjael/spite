@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{marker::PhantomData, ops::MulAssign};
 //use fixed::types::I40F24;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul};
-use crate::on_gametick;
+use crate::ability::HealthChangeEvent;
+use crate::{on_gametick, GameState};
 
 
 #[derive(Bundle)]
@@ -60,6 +61,10 @@ impl Plugin for StatsPlugin {
         app.register_type::<Attribute<Health>>();
         app.register_type::<Attribute<MovementSpeed>>();
         app.register_type::<Attribute<CharacterResource>>();
+
+        app.add_systems((
+            change_health,
+        ).in_set(OnUpdate(GameState::InGame)));
         app.add_systems((
             regen_unless_zero::<Health>.run_if(on_gametick),
             clamp_min::<Health>,
@@ -77,6 +82,23 @@ impl Plugin for StatsPlugin {
             clamp_max::<MovementSpeed>,
             basic_modifiers::<MovementSpeed>,
         ));
+    }
+}
+
+pub fn change_health(
+    mut health_events: EventReader<HealthChangeEvent>,
+    mut health_query: Query<&mut Attribute<Health>>,
+){
+    for event in health_events.iter(){
+        let Ok(mut health) = health_query.get_mut(event.defender) else {continue};
+        
+        if event.amount > 0.0{
+            println!("healing is {:?}", event.amount);
+        } else {
+            println!("damage is {:?}", event.amount);
+        }
+        let new_hp = health.amount() + event.amount; // Add since we flipped number back in team detection
+        health.set_amount(new_hp);
     }
 }
 

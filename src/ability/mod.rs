@@ -22,8 +22,9 @@ impl Plugin for AbilityPlugin {
         app.register_type::<TargetsInArea>();
         app.register_type::<TargetsToEffect>();
 
-        app.add_event::<DamageInstance>();
-        app.add_event::<BuffEvent>();
+        app.add_event::<HealthChangeEvent>();
+        app.add_event::<BuffEvent>();  
+        app.add_event::<CCEvent>();   
         
         app.add_systems((
             tick_lifetime,
@@ -34,14 +35,14 @@ impl Plugin for AbilityPlugin {
                 catch_collisions,
                 area_queue_targets,
                 filter_targets,
-                area_apply_effects,
+                area_apply_tags,
                 despawn_after_max_hits,
         ).chain());
     }
 }
 
 
-#[derive(Actionlike, Component, Reflect, FromReflect, Clone, Debug, Default, Display, Eq, PartialEq, Hash)]
+#[derive(Actionlike, Component, Reflect, FromReflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 #[reflect(Component)]
 pub enum Ability {
     Frostbolt,
@@ -163,15 +164,15 @@ pub struct TargetsToEffect{
 
 #[derive(Component, Debug, Clone, Reflect)]
 pub struct TargetsHit{
-    current: u8,
     max: u8,
+    current: u8,
 }
 
 impl TargetsHit{
     pub fn new(max: u8) -> Self{
-        TargetsHit{
+        Self{
             max,
-            ..default() 
+            current: 0,
         }
     }
 }
@@ -179,8 +180,8 @@ impl TargetsHit{
 impl Default for TargetsHit{
     fn default() -> Self {
         Self{
-            current:0,
             max: 1,
+            current:0,
         }
     }
 }
@@ -287,9 +288,8 @@ pub enum TargetSelection{
     All,
 }
 
-pub struct DamageInstance{
-    pub damage: u32,
-    pub mitigated: u32,
+pub struct HealthChangeEvent{
+    pub amount: f32,
     pub attacker: Entity,
     pub defender: Entity,
     pub when: Instant,
@@ -297,8 +297,15 @@ pub struct DamageInstance{
 
 pub struct BuffEvent{
     pub info: BuffInfoTest,
-    pub entity: Entity,
+    pub target: Entity,
+    pub caster: Entity,
+    pub ability: Ability,
     pub team: Team,
+}
+
+pub struct CCEvent{
+    pub target_entity: Entity,
+    pub ccinfo: CCInfo,
 }
 
 fn despawn_after_max_hits(
@@ -312,21 +319,23 @@ fn despawn_after_max_hits(
     }
 }
 
-fn area_apply_effects(
-    mut sensor_query: Query<(Entity, &mut TargetsToEffect, &Tags, Option<&mut TargetsHit>)>,
-    mut targets_query: Query<(Entity, &mut Attribute<Health>, &Team, &mut BuffMap, &mut CCMap, &mut IncomingDamageLog)>,
+fn area_apply_tags(
+    mut sensor_query: Query<(Entity, &Team, &mut TargetsToEffect, &Tags, Option<&mut TargetsHit>)>,
+    mut targets_query: Query<(Entity, &Team, Option<&Ability>)>,
     //rapier_context: Res<RapierContext>,
-    mut damage_events: EventWriter<DamageInstance>,
+    mut health_events: EventWriter<HealthChangeEvent>,
     mut buff_events: EventWriter<BuffEvent>,
+    mut cc_events: EventWriter<CCEvent>,
     mut cast_events: EventWriter<CastEvent>,
 ){
-    for (sensor_entity, mut targets_to_effect, tags, mut max_targets_hit) in sensor_query.iter_mut(){
+    for (sensor_entity, sensor_team, mut targets_to_effect, tags, mut max_targets_hit) in sensor_query.iter_mut(){
         for target_entity in targets_to_effect.list.iter_mut(){
             // double check they are intersecting, maybe dont even need since we are detecting enter and exit but im scared lol
             //if rapier_context.intersection_pair(sensor_entity, target_entity.clone()) == Some(true) {
-            let Ok((_, mut health, target_team, mut buffs, mut cc, mut inc_damage_log)) 
+            let Ok((_, target_team, ability)) 
                 = targets_query.get_mut(*target_entity) else { continue};
-            
+            let ability = ability.unwrap_or(&Ability::BasicAttack);
+
             if let Some(ref mut max_hits) = max_targets_hit{
                 max_hits.current += 1;
                 if max_hits.current > max_hits.max{
@@ -335,47 +344,47 @@ fn area_apply_effects(
             } 
 
             for taginfo in tags.list.iter(){
-                let on_same_team = taginfo.team.0 == target_team.0;
+                let on_same_team = sensor_team.0 == target_team.0;
                 // change to send events
-                match taginfo.tag {
-                    TagType::Heal(heal) => {                                
-                        if on_same_team{                                                         
-                            println!("healing is {:?}", heal);
-                            let new_hp = health.amount() + heal;
-                            health.set_amount(new_hp);
-                        }
-                    }
-                    TagType::Damage(damage) => {
-                        if !on_same_team{
-                            println!("damage is {:?}", damage);
-                            let new_hp = health.amount() - damage; //  send these to mitigation handler
-                            health.set_amount(new_hp);
-                            let damage_instance = DamageInstance{
-                                damage: damage as u32,
-                                mitigated: 0,
+                match taginfo {
+                    TagInfo::Heal(amount) => {                                
+                        if on_same_team{                
+                            let health_change = HealthChangeEvent{
+                                amount: *amount,
                                 attacker: sensor_entity,
                                 defender: *target_entity,
                                 when: Instant::now(),
                             };
-                            damage_events.send(damage_instance);
-                            //inc_damage_log.map.push(damage_instance);
+                            health_events.send(health_change);  
                         }
                     }
-                    TagType::Buff(ref buffinfo) => {
+                    TagInfo::Damage(amount) => {
+                        if !on_same_team{
+                            let health_change = HealthChangeEvent{
+                                amount: -amount,
+                                attacker: sensor_entity,
+                                defender: *target_entity,
+                                when: Instant::now(),
+                            };
+                            health_events.send(health_change);
+                        }
+                    }
+                    TagInfo::Buff(ref buffinfo) => {
                         buff_events.send(BuffEvent {
                             info: buffinfo.clone(),
-                            entity: *target_entity,
-                            team: taginfo.team,
+                            ability: *ability,
+                            caster: *target_entity,
+                            target: *target_entity,
+                            team: *sensor_team,
                         });
-                        dbg!(buffinfo.clone());
                     }
-                    TagType::CC(ref ccinfo) => {
-                        cc.map.insert(
-                            ccinfo.cctype.clone(),
-                            Timer::new(Duration::from_millis((ccinfo.duration * 1000.0) as u64), TimerMode::Once), 
-                        );
+                    TagInfo::CC(ref ccinfo) => {
+                        cc_events.send(CCEvent{
+                            target_entity: *target_entity,
+                            ccinfo: ccinfo.clone(),
+                        });
                     }
-                    TagType::Homing(ref projectile_to_spawn) => {                                
+                    TagInfo::Homing(ref projectile_to_spawn) => {                                
                         cast_events.send(CastEvent {
                             caster: sensor_entity,
                             ability: projectile_to_spawn.clone(),
@@ -568,14 +577,8 @@ pub struct Tags{
     pub list: Vec<TagInfo>
 }
 
-#[derive(Default, Clone, Debug, Reflect, FromReflect)]
-pub struct TagInfo{
-    pub tag:TagType,
-    pub team: Team,
-}
-
 #[derive(Clone, Debug, Reflect, FromReflect)]
-pub enum TagType{
+pub enum TagInfo{
     CC(CCInfo),
     Damage(f32),
     Buff(BuffInfoTest),
@@ -583,17 +586,12 @@ pub enum TagType{
     Homing(Ability),
 }
 
+
 #[derive(Default, Clone, Debug, Reflect, FromReflect)]
 pub struct HomingInfo{
     projectile_to_spawn: Ability,
 }
 
-
-impl Default for TagType{
-    fn default() -> Self {
-        Self::Damage(10.0)
-    }
-}
 
 
 pub mod ability_bundles;

@@ -8,7 +8,7 @@ use crate::{
     ui::mouse::MouseState, 
     ability::{
         Ability,
-        ability_bundles::{FrostboltInfo, DefaultAbilityInfo, FireballInfo}, DamageInstance, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo, TagType,
+        ability_bundles::{FrostboltInfo, DefaultAbilityInfo, FireballInfo}, HealthChangeEvent, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo,
     }, 
     input::{setup_player_slots, SlotAbilityMap}, 
     stats::*, 
@@ -204,7 +204,7 @@ impl Plugin for PlayerPlugin {
         app.register_type::<CooldownMap>();
         app.register_type::<CCMap>();
         app.register_type::<BuffMap>();
-        app.add_event::<SpawnEvent>();        
+        app.add_event::<SpawnEvent>();       
         
         //Plugins
 
@@ -241,13 +241,13 @@ pub struct SpawnEvent{
 
 #[derive(Component, Default)]
 pub struct OutgoingDamageLog{
-    pub map: Vec<DamageInstance>,
+    pub map: Vec<HealthChangeEvent>,
 }
 
 #[derive(Component, Default)]
 pub struct IncomingDamageLog{
-    pub map: Vec<DamageInstance>,
-    pub ui_entities: HashMap<Entity, DamageInstance>,
+    pub map: Vec<HealthChangeEvent>,
+    pub ui_entities: HashMap<Entity, HealthChangeEvent>,
 }
 
 #[derive(Component)]
@@ -489,6 +489,7 @@ fn trigger_cooldown(
     mut query: Query<(&Player, &mut CooldownMap, &SlotAbilityMap, Entity)>,
 ) {
     for event in cast_events.iter() {
+        
         for (_, mut cooldowns, _, _e) in &mut query {
             cooldowns.map.insert(
                 event.ability.clone(),

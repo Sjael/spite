@@ -87,24 +87,15 @@ impl FrostboltInfo {
             TargetsToEffect::default(),
             Tags{
                 list: vec![
-                    TagInfo{
-                        tag: TagType::Damage(44.0),
-                        team:TEAM_ALL,
-                    },
-                    TagInfo{
-                        tag: TagType::CC(CCInfo{
-                            cctype: CCType::Stun,
-                            duration: 20.0,
-                        }),
-                        team: TEAM_ALL,
-                    },
-                    TagInfo{
-                        tag: TagType::Buff(BuffInfoTest{
-                            stat: Stat::Health,
-                            duration: 20.0,
-                        }),
-                        team: TEAM_ALL,
-                    },
+                    TagInfo::Damage(44.0),
+                    TagInfo::CC(CCInfo{
+                        cctype: CCType::Stun,
+                        duration: 20.0,
+                    }),
+                    TagInfo::Buff(BuffInfoTest{
+                        stat: Stat::Health,
+                        duration: 20.0,
+                    }),
                 ]
             },
         )).id()

@@ -70,6 +70,7 @@ pub fn mouse_with_free_key(
     {
         next_state.set(MouseState::Locked);
     }
+    
     if kb.pressed(KeyCode::Space) 
         || tab_menu_open.0 == TabMenuOpen::Open 
         || ingame_menu_open.0 == InGameMenuOpen::Open
