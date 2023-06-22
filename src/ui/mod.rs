@@ -3,7 +3,7 @@ use bevy_tweening::TweenCompleted;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
-    player::{IncomingDamageLog, OutgoingDamageLog, self, Player},  
+    player::{IncomingDamageLog, OutgoingDamageLog, Player},  
     ability::{AbilityInfo, ability_bundles::FloatingDamage, HealthChangeEvent},
     game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::PlayerCam, 
     
@@ -36,7 +36,6 @@ impl Plugin for UiPlugin {
         app.add_systems((
             add_player_ui,
             add_ability_icons,
-            move_tooltip,
             update_cooldowns,
             spawn_floating_damage,
             follow_in_3d,
@@ -66,6 +65,7 @@ impl Plugin for UiPlugin {
         ).in_schedule(OnEnter(GameState::InGame)));
         app.add_systems((
             load_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
+            move_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
             hide_tooltip.in_schedule(OnExit(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
         ));
 
@@ -103,13 +103,13 @@ impl ItemId{
 pub struct BuyItem (ItemId);
 fn button_hovers(
     mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor, &Children),
+        (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>),
     >,
     //mut text_query: Query<&mut Text>,
     mut buy_events: EventWriter<BuyItem>,
 ) {
-    for (interaction, mut color, children) in &mut interaction_query {
+    for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
                 *color = PRESSED_BUTTON.into();
@@ -140,7 +140,9 @@ fn add_base_ui(
         parent.spawn(minimap(&images)).with_children(|parent| {
             parent.spawn(minimap_arrow(&images));
         });
-        parent.spawn(respawn_text(&fonts));
+        parent.spawn(respawn_holder()).with_children(|parent| {
+            parent.spawn(respawn_text(&fonts));
+        });
         parent.spawn(team_thumbs());
         parent.spawn(bottom_left_ui()).with_children(|parent| {
             parent.spawn(stats_ui());
@@ -200,9 +202,9 @@ fn draggables(
 ){
     if mouse_is_free.0 != MouseState::Free { return }
     let Ok(window) = windows.get_single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else { return };   
+    let Some(cursor_pos) = window.cursor_position() else { return };  
     for (handle_entity, interaction, handle_parent) in &handle_query {
-        if *interaction != Interaction::Clicked { 
+        if *interaction != Interaction::Clicked{ 
             continue
         };
         for draggable in [handle_entity, handle_parent.get()]{
@@ -484,12 +486,11 @@ pub fn button_actions(
 }
 
 pub fn minimap_track(
-    mut arrow_query: Query<(&Node, &mut Style, &mut Transform), With<MinimapPlayerIcon>>,
+    mut arrow_query: Query<&mut Style, With<MinimapPlayerIcon>>,
     player_query: Query<&GlobalTransform, With<Player>>
 ){
-    let Ok((node, mut style, mut transform)) = arrow_query.get_single_mut() else { return };
+    let Ok(mut style) = arrow_query.get_single_mut() else { return };
     let Ok(player_transform) = player_query.get_single() else { return };
-    //transform.translation = Quat::from_rotation_z(player_transform.to_scale_rotation_translation().1.z);
     let (player_left, player_top) =  (player_transform.translation().x, player_transform.translation().z);
     style.position.left = Val::Px(player_left);
     style.position.top = Val::Px(player_top);

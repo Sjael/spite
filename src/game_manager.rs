@@ -4,10 +4,10 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    ui::ui_bundles::{PlayerUI, RespawnText,}, 
+    ui::ui_bundles::{PlayerUI, RespawnText, RespawnHolder,}, 
     stats::{Attribute, Health, Gold, Experience}, 
     player::{IncomingDamageLog, Player, SpawnEvent, cast_ability, Reticle}, GameState, 
-    ability::{Ability, ability_bundles::*, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo, homing::Homing, TargetsHit}, crowd_control::{CCType, CCInfo}
+    ability::{Ability, ability_bundles::*, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo, homing::Homing, TargetsHit}, 
 };
 
 
@@ -27,6 +27,7 @@ impl Plugin for GameManagerPlugin {
             check_deaths,
             increment_bounty,
             handle_respawning,
+            show_respawn_ui,
             tick_respawn_ui,
             place_ability.after(cast_ability),
         ).in_set(OnUpdate(GameState::InGame)));
@@ -131,11 +132,6 @@ fn place_ability(
                 ticks: Ticks::Unlimited { interval: 500 },
                 ..default()
             }),
-            Tags{
-                list: vec![
-                    TagInfo::Damage(11.0),
-                ]
-            },
             Homing(player_e),
         ));
 
@@ -168,20 +164,35 @@ fn handle_respawning(
     });
 }
 
+fn show_respawn_ui(
+    mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
+    mut death_events: EventReader<DeathEvent>,
+    mut spawn_events: EventReader<SpawnEvent>,
+    local_player: Res<Player>,
+){
+    let Ok(mut vis) = death_timer.get_single_mut() else { return };
+    for event in spawn_events.iter(){
+        if event.player == *local_player{
+            *vis = Visibility::Hidden;
+        }
+    }
+    for event in death_events.iter(){        
+        if event.player == *local_player{
+            *vis = Visibility::Visible;
+        }
+    }
+}
+
 fn tick_respawn_ui(
-    mut death_timer: Query<(&mut Visibility, &mut Text), With<RespawnText>>,
+    mut death_timer: Query<&mut Text, With<RespawnText>>,
     gamemodedetails: ResMut<GameModeDetails>,
     local_player: Res<Player>,
 ){
-    let Ok((mut vis, mut respawn_text)) = death_timer.get_single_mut() else { return };
-    // match to player id later
+    let Ok(mut respawn_text) = death_timer.get_single_mut() else { return };
     if let Some(timer) = gamemodedetails.respawns.get(&*local_player) {
-        *vis = Visibility::Visible;
         let new_text = (timer.duration().as_secs() as f32 - timer.elapsed_secs()).floor() as u64;
         respawn_text.sections[1].value = new_text.to_string();
-    } else{
-        *vis = Visibility::Hidden;
-    }
+    } 
 }
 
 pub struct DeathEvent{

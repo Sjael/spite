@@ -8,12 +8,12 @@ use winit::window::Icon;
 use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
-    game_manager::{Fountain, CharacterState, Team, PLAYER_GROUPING, GROUND_GROUPING, TERRAIN_GROUPING, TEAM_ALL, TEAM_NEUTRAL, TEAM_1},  
+    game_manager::{Fountain, CharacterState, PLAYER_GROUPING, GROUND_GROUPING, TERRAIN_GROUPING, TEAM_NEUTRAL, TEAM_1, TEAM_2},  
     stats::*, 
     assets::*, 
     GameState, 
-    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, ScanEffect, OnEnterEffect, Ticks, LastHitTimers, FilterTargets, TargetSelection, Ability
-}, view::Spectatable, player::{CCMap, BuffMap, IncomingDamageLog}, buff::BuffInfoTest};
+    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, ScanEffect, OnEnterEffect, Ticks, FilterTargets, TargetSelection, Ability
+}, view::Spectatable, player::{CCMap, BuffMap, IncomingDamageLog}, buff::{BuffTargets, BuffType, BuffInfo}};
 
 fn main() {
     let mut app = App::new();
@@ -132,7 +132,6 @@ pub fn setup_map(
         TEAM_NEUTRAL,
         Tags{
             list: vec![
-                TagInfo::Damage(3.0),
                 TagInfo::Homing(Ability::Fireball),
             ]
         },
@@ -145,7 +144,7 @@ pub fn setup_map(
     commands.spawn((        
         SpatialBundle::from_transform(
             Transform {
-                translation: Vec3::new(-3.0, 0.5, -18.0),
+                translation: Vec3::new(-3.0, 0.5, -17.0),
                 ..default()
         }),
         meshes.add(shape::Capsule{
@@ -158,7 +157,7 @@ pub fn setup_map(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         PLAYER_GROUPING,
-        TEAM_NEUTRAL,
+        TEAM_2,
         CCMap::default(),
         BuffMap::default(),
         IncomingDamageLog::default(),       
@@ -214,9 +213,11 @@ pub fn setup_map(
         Tags{
             list: vec![
                 TagInfo::Damage(40.0),
-                TagInfo::Buff(BuffInfoTest{
+                TagInfo::Buff(BuffInfo{
                     stat: Stat::PhysicalPower,
-                    duration: 10.0
+                    amount: 10,
+                    duration: 10.0,
+                    ..default()
                 }),
             ]
         },
@@ -258,9 +259,13 @@ pub fn setup_map(
             list: vec![
                 TagInfo::Heal(28.0),
                 TagInfo::Damage(44.0),
-                TagInfo::Buff(BuffInfoTest{
+                TagInfo::Buff(BuffInfo{
                     stat: Stat::PhysicalPower,
-                    duration: 8.0
+                    amount: 5,
+                    duration: 8.0,
+                    bufftargets: BuffTargets::Allies,
+                    bufftype: BuffType::Buff,
+                    ..default()
                 }),
             ]
         },

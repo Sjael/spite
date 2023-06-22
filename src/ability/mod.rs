@@ -1,5 +1,5 @@
 
-use std::{collections::{HashMap, VecDeque}, time::{Duration, Instant}, cmp::Ordering};
+use std::{collections::{HashMap}, time::{Duration, Instant}, cmp::Ordering};
 
 use bevy_rapier3d::prelude::{Velocity, RigidBody, Sensor};
 use derive_more::Display;
@@ -8,7 +8,7 @@ use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::Actionlike;
 use rand::Rng;
 
-use crate::{stats::{Health, Attribute}, crowd_control::{CCInfo}, buff::{BuffInfo, BuffInfoTest}, player::{BuffMap, CCMap, IncomingDamageLog}, game_manager::{Team, CastEvent}};
+use crate::{crowd_control::{CCInfo}, buff::{BuffInfo, BuffTargets}, game_manager::{Team, CastEvent}};
 use shape::AbilityShape;
 use homing::track_homing;
 
@@ -186,6 +186,7 @@ impl Default for TargetsHit{
     }
 }
 
+// Probably need to combine this with QueueTargets and Tags so that we dont need to filter in last step
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component)]
 pub enum EffectApplyType{
@@ -201,7 +202,6 @@ impl Default for EffectApplyType{
 
 #[derive(Debug, Clone, Default, Reflect, FromReflect)]
 pub struct OnEnterEffect{
-    // how many targets it can hit before despawning
     pub target_penetration: u32,
     pub ticks: Ticks,
     pub hittimers: LastHitTimers,
@@ -296,11 +296,11 @@ pub struct HealthChangeEvent{
 }
 
 pub struct BuffEvent{
-    pub info: BuffInfoTest,
+    pub info: BuffInfo,
     pub target: Entity,
+    pub buff_originator: Entity,
     pub caster: Entity,
     pub ability: Ability,
-    pub team: Team,
 }
 
 pub struct CCEvent{
@@ -332,23 +332,16 @@ fn area_apply_tags(
         for target_entity in targets_to_effect.list.iter_mut(){
             // double check they are intersecting, maybe dont even need since we are detecting enter and exit but im scared lol
             //if rapier_context.intersection_pair(sensor_entity, target_entity.clone()) == Some(true) {
-            let Ok((_, target_team, ability)) 
-                = targets_query.get_mut(*target_entity) else { continue};
+            let Ok((_, target_team, ability)) = targets_query.get_mut(*target_entity) else { continue };
             let ability = ability.unwrap_or(&Ability::BasicAttack);
+            let on_same_team = sensor_team.0 == target_team.0;
 
-            if let Some(ref mut max_hits) = max_targets_hit{
-                max_hits.current += 1;
-                if max_hits.current > max_hits.max{
-                    continue;
-                }
-            } 
-
+            let mut hit_a_target = false;
             for taginfo in tags.list.iter(){
-                let on_same_team = sensor_team.0 == target_team.0;
-                // change to send events
                 match taginfo {
                     TagInfo::Heal(amount) => {                                
-                        if on_same_team{                
+                        if on_same_team{               
+                            hit_a_target = true; 
                             let health_change = HealthChangeEvent{
                                 amount: *amount,
                                 attacker: sensor_entity,
@@ -359,7 +352,8 @@ fn area_apply_tags(
                         }
                     }
                     TagInfo::Damage(amount) => {
-                        if !on_same_team{
+                        if !on_same_team{     
+                            hit_a_target = true; 
                             let health_change = HealthChangeEvent{
                                 amount: -amount,
                                 attacker: sensor_entity,
@@ -370,26 +364,45 @@ fn area_apply_tags(
                         }
                     }
                     TagInfo::Buff(ref buffinfo) => {
-                        buff_events.send(BuffEvent {
+                        let buffing_ally = (buffinfo.bufftargets == BuffTargets::Allies) && on_same_team;
+                        let debuffing_enemy = (buffinfo.bufftargets == BuffTargets::Enemies) && !on_same_team;
+                        let buffing_anyone = buffinfo.bufftargets == BuffTargets::All;
+                        
+                        let buff_to_send = BuffEvent {
                             info: buffinfo.clone(),
                             ability: *ability,
-                            caster: *target_entity,
+                            buff_originator: sensor_entity, // TODO can be a specific ability, or an item
+                            caster: sensor_entity,
                             target: *target_entity,
-                            team: *sensor_team,
-                        });
+                        };
+                        if buffing_ally || debuffing_enemy || buffing_anyone {                            
+                            hit_a_target = true; 
+                            buff_events.send(buff_to_send);
+                        } 
+
                     }
-                    TagInfo::CC(ref ccinfo) => {
+                    TagInfo::CC(ref ccinfo) => {                           
+                        hit_a_target = true; 
                         cc_events.send(CCEvent{
                             target_entity: *target_entity,
                             ccinfo: ccinfo.clone(),
                         });
                     }
-                    TagInfo::Homing(ref projectile_to_spawn) => {                                
+                    TagInfo::Homing(ref projectile_to_spawn) => { 
+                        hit_a_target = true;                                
                         cast_events.send(CastEvent {
                             caster: sensor_entity,
                             ability: projectile_to_spawn.clone(),
                         });
                     }
+                }
+            }
+            if let Some(ref mut max_hits) = max_targets_hit{
+                if hit_a_target{
+                    max_hits.current += 1;
+                }
+                if max_hits.current > max_hits.max{
+                    continue;
                 }
             }
         }
@@ -437,9 +450,9 @@ fn filter_targets(
 }
 
 fn area_queue_targets(
-    mut sensor_query: Query<(&mut EffectApplyType, &mut TargetsInArea, &mut TargetsToEffect)>,
+    mut sensor_query: Query<(&mut EffectApplyType, &TargetsInArea, &mut TargetsToEffect)>,
 ){
-    for (mut effect_apply_type, mut targets_in_area, mut targets_to_effect) in sensor_query.iter_mut(){
+    for (mut effect_apply_type, targets_in_area, mut targets_to_effect) in sensor_query.iter_mut(){
         targets_to_effect.list = Vec::new();
         match *effect_apply_type{
             EffectApplyType::Scan(ref scaninfo) => {
@@ -579,10 +592,10 @@ pub struct Tags{
 
 #[derive(Clone, Debug, Reflect, FromReflect)]
 pub enum TagInfo{
-    CC(CCInfo),
-    Damage(f32),
-    Buff(BuffInfoTest),
     Heal(f32),
+    Damage(f32),
+    Buff(BuffInfo),
+    CC(CCInfo),
     Homing(Ability),
 }
 

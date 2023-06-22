@@ -7,14 +7,13 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     ui::mouse::MouseState, 
     ability::{
-        Ability,
-        ability_bundles::{FrostboltInfo, DefaultAbilityInfo, FireballInfo}, HealthChangeEvent, TargetsInArea, TargetsToEffect, EffectApplyType, OnEnterEffect, Ticks, Tags, TagInfo,
+        Ability, HealthChangeEvent,
     }, 
     input::{setup_player_slots, SlotAbilityMap}, 
     stats::*, 
     crowd_control::CCType, 
-    game_manager::{Bounty, CharacterState, Team, PLAYER_GROUPING, TEAM_1, CastEvent}, 
-    GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}};
+    game_manager::{Bounty, CharacterState, PLAYER_GROUPING, TEAM_1, CastEvent}, 
+    GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}, buff::BuffInfoApplied};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[reflect(Component)]
@@ -532,9 +531,9 @@ fn tick_buffs(
     mut query: Query<&mut BuffMap>,
 ) {
     for mut buffs in &mut query {
-        buffs.map.retain(|_, timer| {
-            timer.tick(time.delta());
-            !timer.finished()
+        buffs.map.retain(|_, buff| {
+            buff.timer.tick(time.delta());
+            !buff.timer.finished()
         });
     }
 }
@@ -555,7 +554,7 @@ pub struct CCMap {
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect]
 pub struct BuffMap {
-    pub map: HashMap<String, Timer>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
+    pub map: HashMap<String, BuffInfoApplied>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
 }
 
 

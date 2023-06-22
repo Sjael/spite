@@ -1,6 +1,6 @@
 
 use bevy::prelude::*;
-use crate::{crowd_control::{CCType, CCInfo}, stats::Stat, buff::BuffInfoTest, game_manager::TEAM_ALL};
+use crate::{crowd_control::{CCType, CCInfo}, stats::Stat, buff::{BuffInfo, BuffTargets, BuffType}};
 use bevy_rapier3d::prelude::{Velocity, RigidBody, Sensor, ActiveEvents};
 
 use super::*;
@@ -92,9 +92,11 @@ impl FrostboltInfo {
                         cctype: CCType::Stun,
                         duration: 20.0,
                     }),
-                    TagInfo::Buff(BuffInfoTest{
+                    TagInfo::Buff(BuffInfo{
                         stat: Stat::Health,
-                        duration: 20.0,
+                        amount: 10,
+                        duration: 10.0,
+                        ..default()
                     }),
                 ]
             },
@@ -146,6 +148,11 @@ impl FireballInfo {
             },
             Sensor,
             CastingLifetime { seconds: 5.0 },
+            Tags{
+                list: vec![
+                    TagInfo::Damage(11.0),
+                ]
+            },
         )).id()
     }
 }

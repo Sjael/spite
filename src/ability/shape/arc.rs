@@ -5,7 +5,6 @@ use bevy::{
 
 use bevy_rapier3d::prelude::*;
 
-use crate::ability::shape::arc;
 
 use super::cross_product;
 

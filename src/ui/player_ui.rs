@@ -6,7 +6,7 @@ use crate::{
     player::{Player, CooldownMap, BuffMap}, 
     input::SlotAbilityMap, 
     ability::{AbilityInfo, Ability, BuffEvent},
-    stats::*, assets::{Icons, Fonts},  game_manager::Team,    
+    stats::*, assets::{Icons, Fonts},  game_manager::Team, buff::BuffType,    
 };
 
 pub fn add_player_ui(
@@ -34,7 +34,7 @@ pub fn add_player_ui(
                             parent.spawn(hp_bar_text(&fonts));
                         });
                     });
-                    parent.spawn(hp_bar(12.0)).with_children(|parent| {
+                    parent.spawn(hp_bar(14.0)).with_children(|parent| {
                         parent.spawn(resource_bar_color());
                         parent.spawn(hp_bar_inner()).with_children(|parent| {
                             parent.spawn(resource_bar_text(&fonts));
@@ -198,20 +198,23 @@ pub fn add_buffs(
 ){
     for event in buff_events.iter(){
         let Ok((_, team)) = targets_query.get(event.target) else {continue};
+        // adding buffs no matter who theyre on
+        // in the future add only if on the possessed entity
         let Ok(buff_bar) = buff_bar_ui.get_single() else {continue};
         let Ok(debuff_bar) = debuff_bar_ui.get_single() else {continue};
-        let is_on_team = event.team.0 == team.0;
+        let is_buff = event.info.bufftype == BuffType::Buff;
         let holder_ui: Entity;
-        if is_on_team{
+        if is_buff{
             holder_ui = buff_bar;
         } else{
             holder_ui = debuff_bar;
         }
         commands.entity(holder_ui).with_children(|parent| {
             parent.spawn(buff_holder(event.info.duration)).with_children(|parent| {
-                parent.spawn(buff_timer(&fonts));
-                parent.spawn(buff_border(is_on_team)).with_children(|parent| {
+                parent.spawn(buff_timer(&fonts, is_buff));
+                parent.spawn(buff_border(is_buff)).with_children(|parent| {
                     parent.spawn(buff_image(Ability::Frostbolt, &icons));
+                    parent.spawn(buff_stacks(&fonts));
                 });
             });
         });

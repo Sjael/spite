@@ -1,9 +1,15 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, ui::FocusPolicy};
+use bevy_editor_pls::egui::Align;
 use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens}, EaseFunction, Tween, Delay};
 
 use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item};
+
+
+const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
+const ALLY_COLOR: Color = Color::rgb(0.24, 0.18, 0.80);
+const NEUTRAL_COLOR: Color = Color::rgb(0.7, 0.7, 0.2);
 
 //
 // Player UI Components
@@ -41,11 +47,32 @@ pub fn editing_ui_handle() -> impl Bundle {(
             ..default()
         },
         background_color: Color::rgba(0.1, 0.2, 0.8, 0.5).into(),
+        focus_policy: FocusPolicy::Block,
         ..default()
     },
     DragHandle,
     Interaction::default(),
     EditingUIHandle,
+)}
+
+pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle{
+    let text = text.into();
+    (
+    TextBundle {
+        style: Style {
+            margin: UiRect::all(Val::Px(15.)),
+            ..default()
+        },
+        text: Text::from_section(
+            text,
+            TextStyle {
+                font: fonts.exo_bold.clone(),
+                font_size: 16.0,
+                color: Color::WHITE,
+            },
+        ),
+        ..default()
+    },
 )}
 
 #[derive(Component, Debug)]
@@ -66,24 +93,34 @@ pub struct CooldownIconText;
 #[derive(Component, Debug)]
 pub struct InGameClock;
 #[derive(Component, Debug)]
+pub struct RespawnHolder;
+#[derive(Component, Debug)]
 pub struct RespawnText;
 
-pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
-    TextBundle {
+pub fn respawn_holder() -> impl Bundle{(
+    NodeBundle{
         style: Style {
-            margin: UiRect {
-                left: Val::Auto,
-                right:Val::Auto,
-                ..default()
-            },
+            size: Size::new(Val::Px(200.), Val::Px(150.)),
             position_type: PositionType::Absolute,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
             position: UiRect {
+                left: Val::Percent(20.),
                 bottom: Val::Percent(10.),
-                left: Val::Percent(-20.),
                 ..default()
             },
             ..default()
         },
+        visibility: Visibility::Hidden,
+        ..default()
+    },
+    RespawnHolder,
+    EditableUI,
+    Name::new("Respawn Text"),
+)}
+
+pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
+    TextBundle {
         text: Text::from_sections([
             TextSection {
                 value: "Respawning in\n".to_string(),
@@ -94,7 +131,7 @@ pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
                 },
             },
             TextSection {
-                value: "12".to_string(),
+                value: "0".to_string(),
                 style: TextStyle {
                     font: fonts.exo_bold.clone(),
                     font_size: 36.0,
@@ -102,12 +139,9 @@ pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
                 },
             },
         ]).with_alignment(TextAlignment::Center),
-        visibility: Visibility::Hidden,
-        background_color: Color::rgba(0.8, 0.7, 0.2, 0.4).into(),
         ..default()
     },
     RespawnText,
-    EditableUI,
 )}
 
 #[derive(Component)]
@@ -171,7 +205,6 @@ pub fn killfeed() -> impl Bundle {(
             },
             ..default()
         },
-        background_color: Color::rgba(0.9, 0.2, 0.2, 0.4).into(),
         ..default()
     },
     Killfeed,
@@ -182,9 +215,6 @@ pub fn killfeed() -> impl Bundle {(
 #[derive(Component)]
 pub struct KillNotification;
 pub fn kill_notification() -> impl Bundle{
-    const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
-    const ALLY_COLOR: Color = Color::rgb(0.3, 0.1, 0.94);
-    const NEUTRAL_COLOR: Color = Color::rgb(0.7, 0.7, 0.2);
     let killer_on_team = false;
     let mut selected_color : Color;
     if killer_on_team {
@@ -278,7 +308,7 @@ pub fn bottom_left_ui() -> impl Bundle {(
         },
         ..default()
     },
-    Name::new("Bottomleft"),
+    Name::new("Stats / Build / KDA"),
     EditableUI,
 )}
 pub fn stats_ui() -> impl Bundle {(
@@ -288,7 +318,7 @@ pub fn stats_ui() -> impl Bundle {(
             flex_direction:FlexDirection::Column,
             ..default()
         },
-        background_color: Color::rgba(0.9, 0.1, 0.9, 0.2).into(),
+        //background_color: Color::rgba(0.9, 0.1, 0.9, 0.2).into(),
         ..default()
     },
     Name::new("Stats"),
@@ -312,7 +342,7 @@ pub fn build_ui() -> impl Bundle {(
             size: Size::new(Val::Percent(100.), Val::Percent(100.)),
             ..default()
         },
-        background_color: Color::rgba(0.9, 0.6, 0.1, 0.2).into(),
+        //background_color: Color::rgba(0.9, 0.6, 0.1, 0.2).into(),
         ..default()
     },
     BuildUI,
@@ -324,7 +354,7 @@ pub fn kda_ui() -> impl Bundle {(
             size: Size::new(Val::Percent(100.), Val::Px(40.)),
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.6, 0.9, 0.2).into(),
+        //background_color: Color::rgba(0.1, 0.6, 0.9, 0.2).into(),
         ..default()
     },
     Name::new("KDA"),
@@ -345,7 +375,7 @@ pub fn team_thumbs() -> impl Bundle {(
             },
             ..default()
         },
-        background_color: Color::rgba(0.9, 0.9, 0.2, 0.4).into(),
+        //background_color: Color::rgba(0.9, 0.9, 0.2, 0.4).into(),
         ..default()
     },
     TeammateThumbs,
@@ -369,7 +399,7 @@ pub fn header() -> impl Bundle {(
             },
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.2, 0.7, 0.4).into(),
+        //background_color: Color::rgba(0.1, 0.2, 0.7, 0.4).into(),
         ..default()
     },
     HeaderUI,
@@ -424,7 +454,7 @@ pub struct PlayerUI;
 pub fn player_bottom_container() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(28.), Val::Auto),
+            size: Size::new(Val::Px(320.), Val::Auto),
             position_type: PositionType::Absolute,
             position: UiRect{
                 bottom: Val::Px(0.),
@@ -509,11 +539,9 @@ pub fn buff_holder(time: f32) -> impl Bundle{(
     ),
 )}
 
-pub fn buff_border(is_on_team: bool) -> impl Bundle{
-    const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
-    const ALLY_COLOR: Color = Color::rgb(0.34, 0.28, 0.78);
+pub fn buff_border(is_buff: bool) -> impl Bundle{
     let color: Color;
-    if is_on_team{
+    if is_buff{
         color = ALLY_COLOR;
     }else {
         color = ENEMY_COLOR;
@@ -521,7 +549,7 @@ pub fn buff_border(is_on_team: bool) -> impl Bundle{
     (
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(32.), Val::Px(32.)),
+            size: Size::new(Val::Px(28.), Val::Px(28.)),
             ..default()
         },
         background_color: color.into(),
@@ -532,7 +560,7 @@ pub fn buff_border(is_on_team: bool) -> impl Bundle{
 pub fn buff_image(ability: Ability, icons: &Res<Icons>,) -> impl Bundle{(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Percent(85.), Val::Percent(85.)),
+            size: Size::new(Val::Percent(90.), Val::Percent(90.)),
             margin: UiRect::all(Val::Auto),
             ..default()
         },
@@ -552,7 +580,14 @@ pub fn buff_image(ability: Ability, icons: &Res<Icons>,) -> impl Bundle{(
 pub struct BuffDurationText;
 
 
-pub fn buff_timer(fonts: &Res<Fonts>) -> impl Bundle{(
+pub fn buff_timer(fonts: &Res<Fonts>, is_buff: bool) -> impl Bundle{
+    let color: Color;
+    if is_buff{
+        color = ALLY_COLOR;
+    }else {
+        color = ENEMY_COLOR;
+    }
+    (
     TextBundle {
         style: Style {
             margin: UiRect{
@@ -565,14 +600,43 @@ pub fn buff_timer(fonts: &Res<Fonts>) -> impl Bundle{(
             "8",
             TextStyle {
                 font: fonts.exo_semibold.clone(),
-                font_size: 12.0,
-                color: Color::WHITE,
+                font_size: 16.0,
+                color,
             },
         ),
         ..default()
     },
     BuffDurationText,
     Name::new("Buff Duration"),
+)}
+
+#[derive(Component)]
+pub struct BuffStackNumber;
+
+pub fn buff_stacks(fonts: &Res<Fonts>) -> impl Bundle{(
+    TextBundle {
+        style: Style {
+            position_type: PositionType::Absolute,
+            position: UiRect{
+                bottom: Val::Px(5.0),
+                right: Val::Px(5.0),
+                ..default()
+            },
+            ..default()
+        },
+        text: Text::from_section(
+            "2",
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: 14.0,
+                color: Color::WHITE,
+            },
+        ),
+        visibility: Visibility::Hidden,
+        ..default()
+    },
+    BuffStackNumber,
+    Name::new("Buff stack number"),
 )}
 
 pub fn bar_wrapper() -> impl Bundle{(
@@ -600,14 +664,14 @@ pub fn hp_bar(height: f32) -> impl Bundle {(
             justify_content: JustifyContent::FlexStart,
             size: Size::new(Val::Percent(100.0), Val::Px(height)),
             margin: UiRect {
-                bottom: Val::Px(3.),
+                bottom: Val::Px(4.),
                 left: Val::Auto,
                 right: Val::Auto,
                 ..default()
             },
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.1, 0.2, 0.1).into(),
+        background_color: Color::rgba(0.1, 0.1, 0.2, 0.6).into(),
         ..default()
     }
 )}
@@ -629,7 +693,7 @@ pub fn resource_bar_color() -> impl Bundle {(
             size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
             ..default()
         },
-        background_color: Color::rgb(0.88, 0.67, 0.01).into(),
+        background_color: Color::rgb(0.92, 0.24, 0.01).into(),
         ..default()
     },
     ResourceBar,
@@ -676,7 +740,7 @@ pub fn resource_bar_text(fonts: &Res<Fonts>) -> impl Bundle {(
         text: Text::from_section(
             "100",
             TextStyle {
-                font: fonts.exo_regular.clone(),
+                font: fonts.exo_semibold.clone(),
                 font_size: 14.0,
                 color: Color::WHITE,
             },
@@ -698,7 +762,7 @@ pub fn ability_holder() -> impl Bundle {(
                 bottom: Val::Px(30.),
                 ..default()
             },
-            gap:Size::new(Val::Px(10.), Val::Auto),
+            gap:Size::new(Val::Px(6.), Val::Auto),
             ..default()
         },
         ..default()
@@ -710,7 +774,7 @@ pub fn ability_holder() -> impl Bundle {(
 pub fn ability_image(icons: &Res<Icons>, ability: Ability) -> impl Bundle {(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(48.), Val::Px(48.)),
+            size: Size::new(Val::Px(40.), Val::Px(40.)),
             ..default()
         },
         image: match ability{
@@ -739,7 +803,7 @@ pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {(
             "",
             TextStyle {
                 font: fonts.exo_bold.clone(),
-                font_size: 30.0,
+                font_size: 24.0,
                 color: Color::WHITE,
             },
         ),

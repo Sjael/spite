@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use super::ui_bundles::{Draggable, EditableUI, editing_ui_handle, EditingUIHandle};
+use crate::assets::Fonts;
+
+use super::ui_bundles::{Draggable, EditableUI, editing_ui_handle, EditingUIHandle, editing_ui_label};
 
 
 #[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
@@ -20,26 +22,44 @@ impl EditingHUD{
     }
 }
 
+#[derive(Component)]
+pub struct WasHidden;
+
 pub struct EditUIEvent;
 
 pub fn give_editable_ui(
     mut commands: Commands,
-    draggables: Query<(Entity, Option<&Name>), With<EditableUI>>,
+    mut editables: Query<(Entity, Option<&Name>, &mut Visibility), With<EditableUI>>,
+    fonts: Res<Fonts>,
 ){
-    for (entity, name) in draggables.iter(){
+    for (entity, name, mut vis) in editables.iter_mut(){
+
+        if *vis == Visibility::Hidden{            
+            *vis = Visibility::Visible;
+            commands.entity(entity).insert(WasHidden);
+        }
         commands.entity(entity).insert(Draggable);
         commands.entity(entity).with_children(|parent|{
-            parent.spawn(editing_ui_handle());
+            parent.spawn(editing_ui_handle()).with_children(|parent| {
+                if let Some(name) = name{
+                    parent.spawn(editing_ui_label(name.as_str().to_string(), &fonts));
+                }
+            });
         });
     }
 }
 
+
 pub fn remove_editable_ui(
     mut commands: Commands,
-    draggables: Query<Entity, (With<EditableUI>, With<Draggable>)>,
+    mut editables: Query<(Entity, &mut Visibility, Option<&WasHidden>), (With<EditableUI>, With<Draggable>)>,
     edit_handles: Query<Entity, With<EditingUIHandle>>,
 ){
-    for entity in draggables.iter(){
+    for (entity, mut vis, was_hidden) in editables.iter_mut(){
+        if let Some(_) = was_hidden{
+            commands.entity(entity).remove::<WasHidden>();
+            *vis = Visibility::Hidden;
+        }
         commands.entity(entity).remove::<Draggable>();
     }
     for handle in edit_handles.iter(){

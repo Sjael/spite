@@ -7,6 +7,7 @@ use bevy_editor_pls::prelude::*;
 use ability::{AbilityPlugin, shape::load_ability_shape};
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
+use buff::BuffPlugin;
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use player::PlayerPlugin;
@@ -50,12 +51,14 @@ pub fn app_plugins_both(app: &mut App) {
             //mode: DebugRenderMode::COLLIDER_SHAPES,
             ..default()
         })
-        .add_plugin(TweeningPlugin)
-        .add_plugin(GameAssetPlugin)
+        .add_plugin(TweeningPlugin);
+    
+    app.add_plugin(GameAssetPlugin)
         .add_plugin(GameManagerPlugin)
         .add_plugin(ViewPlugin)
         .add_plugin(UiPlugin)
         .add_plugin(PlayerPlugin)
+        .add_plugin(BuffPlugin)
         .add_plugin(StatsPlugin)
         .add_plugin(AbilityPlugin)
         .add_plugin(InputPlugin)
