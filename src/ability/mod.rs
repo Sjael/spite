@@ -401,7 +401,7 @@ fn area_apply_tags(
                 if hit_a_target{
                     max_hits.current += 1;
                 }
-                if max_hits.current > max_hits.max{
+                if max_hits.current >= max_hits.max{
                     continue;
                 }
             }

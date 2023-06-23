@@ -13,7 +13,7 @@ use crate::{
     stats::*, 
     crowd_control::CCType, 
     game_manager::{Bounty, CharacterState, PLAYER_GROUPING, TEAM_1, CastEvent}, 
-    GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}, buff::BuffInfoApplied};
+    GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}, buff::{BuffInfoApplied, BuffMap}};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[reflect(Component)]
@@ -551,11 +551,6 @@ pub struct CCMap {
     pub map: HashMap<CCType, Timer>,
 }
 
-#[derive(Component, Reflect, Default, Debug, Clone)]
-#[reflect]
-pub struct BuffMap {
-    pub map: HashMap<String, BuffInfoApplied>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
-}
 
 
 

@@ -13,7 +13,7 @@ use sacred_aurora::{
     assets::*, 
     GameState, 
     ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, ScanEffect, OnEnterEffect, Ticks, FilterTargets, TargetSelection, Ability
-}, view::Spectatable, player::{CCMap, BuffMap, IncomingDamageLog}, buff::{BuffTargets, BuffType, BuffInfo}};
+}, view::Spectatable, player::{CCMap, IncomingDamageLog}, buff::{BuffTargets, BuffType, BuffInfo, BuffMap}};
 
 fn main() {
     let mut app = App::new();
@@ -212,10 +212,11 @@ pub fn setup_map(
         Sensor,
         Tags{
             list: vec![
-                TagInfo::Damage(40.0),
+                TagInfo::Damage(23.0),
                 TagInfo::Buff(BuffInfo{
                     stat: Stat::PhysicalPower,
                     amount: 10,
+                    max_stacks: 3,
                     duration: 10.0,
                     ..default()
                 }),
@@ -262,6 +263,7 @@ pub fn setup_map(
                 TagInfo::Buff(BuffInfo{
                     stat: Stat::PhysicalPower,
                     amount: 5,
+                    max_stacks: 6,
                     duration: 8.0,
                     bufftargets: BuffTargets::Allies,
                     bufftype: BuffType::Buff,

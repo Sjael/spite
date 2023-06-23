@@ -521,7 +521,12 @@ pub fn debuff_bar() -> impl Bundle {(
     DebuffBar,
 )}
 
-pub fn buff_holder(time: f32) -> impl Bundle{(
+#[derive(Component)]
+pub struct BuffId{
+    pub id: String,
+}
+
+pub fn buff_holder(time: f32, id: String) -> impl Bundle{(
     NodeBundle {
         style: Style {
             margin: UiRect {
@@ -534,6 +539,7 @@ pub fn buff_holder(time: f32) -> impl Bundle{(
         },
         ..default()
     },
+    BuffId { id },
     DespawnTimer(
         Timer::new(Duration::from_millis((time * 1000.0)as u64), TimerMode::Once)
     ),
@@ -570,6 +576,7 @@ pub fn buff_image(ability: Ability, icons: &Res<Icons>,) -> impl Bundle{(
             Ability::Dash => icons.dash.clone().into(),
             _ => icons.basic_attack.clone().into(),
         },
+        background_color: Color::rgba(1.0, 1.0, 1.0, 0.95).into(),
         ..default()
     },
     Interaction::None,
@@ -929,7 +936,7 @@ pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {(
         },
         image: match path.to_lowercase().as_str(){
             "frostbolt" => icons.frostbolt.clone().into(),
-            "dash" => icons.dash.clone().into(),
+            "driving strike" => icons.dash.clone().into(),
             "fireball" => icons.fireball.clone().into(),
             _ => icons.basic_attack.clone().into(),
         },

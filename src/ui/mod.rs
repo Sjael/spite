@@ -57,6 +57,7 @@ impl Plugin for UiPlugin {
             toggle_ingame_menu,
             add_buffs,
             update_buff_timers,
+            update_buff_stacks,
         ).in_set(OnUpdate(GameState::InGame)));
         
         app.add_systems((
@@ -77,6 +78,7 @@ impl Plugin for UiPlugin {
         app.add_systems((
             give_editable_ui.in_schedule(OnEnter(EditingHUD::Yes)),
             remove_editable_ui.in_schedule(OnEnter(EditingHUD::No)),
+            scale_ui.in_set(OnUpdate(GameState::InGame)),
         ));
 
     }

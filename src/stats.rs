@@ -93,9 +93,9 @@ pub fn change_health(
         let Ok(mut health) = health_query.get_mut(event.defender) else {continue};
         
         if event.amount > 0.0{
-            println!("healing is {:?}", event.amount);
+            //println!("healing is {:?}", event.amount);
         } else {
-            println!("damage is {:?}", event.amount);
+            //println!("damage is {:?}", event.amount);
         }
         let new_hp = health.amount() + event.amount; // Add since we flipped number back in team detection
         health.set_amount(new_hp);

@@ -3,10 +3,10 @@ use bevy::{prelude::*, ui::RelativeCursorPosition};
 
 use crate::{
     ui::{ui_bundles::*, },
-    player::{Player, CooldownMap, BuffMap}, 
+    player::{Player, CooldownMap}, 
     input::SlotAbilityMap, 
     ability::{AbilityInfo, Ability, BuffEvent},
-    stats::*, assets::{Icons, Fonts},  game_manager::Team, buff::BuffType,    
+    stats::*, assets::{Icons, Fonts},  game_manager::Team, buff::{BuffType, BuffStackEvent, BuffMap, BuffAddEvent},    
 };
 
 pub fn add_player_ui(
@@ -175,7 +175,9 @@ pub fn update_cooldowns(
     }
 }
 
-// limit this to only be every few frames?
+// limit this to only be every few frames? Dont need to constantly be checking, setting and truncating f32s
+// have a sleep component with a 1s timer that returns early if not finished?
+// OR have a u32 'SecTracker' component that returns early, dont have to parse string
 pub fn update_buff_timers(   
     mut text_query: Query<(&mut Text, &Parent), With<BuffDurationText>>,
     timer_query: Query<&DespawnTimer>,
@@ -187,22 +189,43 @@ pub fn update_buff_timers(
     }
 }
 
+pub fn update_buff_stacks(
+    mut stacks: Query<(&mut Text, &mut Visibility), With<BuffStackNumber>>,
+    children_query: Query<&Children>,
+    mut buff_holders: Query<(Entity, &BuffId, &mut DespawnTimer)>,
+    mut stack_events: EventReader<BuffStackEvent>,
+){
+    for stack_change in stack_events.iter(){
+        for (buff_ui_entity, buff_id, mut despawn_timer) in buff_holders.iter_mut(){
+            if buff_id.id != stack_change.id { continue }
+            despawn_timer.0.reset();
+            for descendant in children_query.iter_descendants(buff_ui_entity){
+                let Ok((mut text, mut vis)) = stacks.get_mut(descendant) else {continue};
+                text.sections[0].value = stack_change.stacks.to_string();
+                if stack_change.stacks != 1{
+                    *vis = Visibility::Visible;
+                }
+            }
+        }
+    }
+}
+
 pub fn add_buffs(
     mut commands: Commands,
-    targets_query: Query<(Entity, &Team), (With<Player>, With<BuffMap>)>,
+    targets_query: Query<Entity, (With<Player>, With<BuffMap>)>,
     buff_bar_ui: Query<Entity, With<BuffBar>>,
     debuff_bar_ui: Query<Entity, With<DebuffBar>>,
-    mut buff_events: EventReader<BuffEvent>,
+    mut buff_events: EventReader<BuffAddEvent>,
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ){
     for event in buff_events.iter(){
-        let Ok((_, team)) = targets_query.get(event.target) else {continue};
+        let Ok(_) = targets_query.get(event.target) else {continue};
         // adding buffs no matter who theyre on
         // in the future add only if on the possessed entity
         let Ok(buff_bar) = buff_bar_ui.get_single() else {continue};
         let Ok(debuff_bar) = debuff_bar_ui.get_single() else {continue};
-        let is_buff = event.info.bufftype == BuffType::Buff;
+        let is_buff = event.bufftype == BuffType::Buff;
         let holder_ui: Entity;
         if is_buff{
             holder_ui = buff_bar;
@@ -210,7 +233,7 @@ pub fn add_buffs(
             holder_ui = debuff_bar;
         }
         commands.entity(holder_ui).with_children(|parent| {
-            parent.spawn(buff_holder(event.info.duration)).with_children(|parent| {
+            parent.spawn(buff_holder(event.duration, event.id.clone())).with_children(|parent| {
                 parent.spawn(buff_timer(&fonts, is_buff));
                 parent.spawn(buff_border(is_buff)).with_children(|parent| {
                     parent.spawn(buff_image(Ability::Frostbolt, &icons));

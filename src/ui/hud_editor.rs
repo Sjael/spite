@@ -1,8 +1,8 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, input::mouse::MouseWheel, window::PrimaryWindow};
 
 use crate::assets::Fonts;
 
-use super::ui_bundles::{Draggable, EditableUI, editing_ui_handle, EditingUIHandle, editing_ui_label};
+use super::{ui_bundles::{Draggable, EditableUI, editing_ui_handle, EditingUIHandle, editing_ui_label}, mouse::MouseState};
 
 
 #[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
@@ -49,6 +49,28 @@ pub fn give_editable_ui(
     }
 }
 
+pub fn scale_ui(
+    windows: Query<&mut Window, With<PrimaryWindow>>,
+    mut editables: Query<&mut Transform, With<EditableUI>>,
+    edit_handles: Query<(&Parent, &Interaction), With<EditingUIHandle>>,
+    mut scroll_events: EventReader<MouseWheel>,
+    mouse_is_free: Res<State<MouseState>>,
+){
+    if mouse_is_free.0 != MouseState::Free { return }
+    let Ok(window) = windows.get_single() else { return };
+    let Some(cursor_pos) = window.cursor_position() else { return };  
+    for event in scroll_events.iter(){
+        for (parent, interaction) in edit_handles.iter(){
+            if interaction != &Interaction::Hovered { continue }
+            let Ok(mut transform) = editables.get_mut(parent.get()) else { continue };
+            if event.y > 0.0 {
+                transform.scale += Vec3::splat(0.05);
+            } else {
+                transform.scale += Vec3::splat(-0.05);
+            }
+        }
+    }
+}
 
 pub fn remove_editable_ui(
     mut commands: Commands,
