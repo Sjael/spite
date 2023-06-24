@@ -6,6 +6,8 @@ use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens}, E
 
 use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item};
 
+use super::ButtonAction;
+
 
 const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
 const ALLY_COLOR: Color = Color::rgb(0.24, 0.18, 0.80);
@@ -38,6 +40,10 @@ pub struct EditableUI;
 
 #[derive(Component, Debug)]
 pub struct EditingUIHandle;
+#[derive(Component, Debug)]
+pub struct EditingUILabel;
+#[derive(Component, Debug)]
+pub struct UiForEditingUi;
 
 pub fn editing_ui_handle() -> impl Bundle {(
     NodeBundle {
@@ -73,7 +79,40 @@ pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bun
         ),
         ..default()
     },
+    EditingUILabel,
 )}
+
+pub fn editable_ui_wrapper() -> impl Bundle{(
+    NodeBundle{
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            position_type: PositionType::Absolute,
+            ..default()
+        },
+        ..default()
+    },
+    EditableUI,
+    Name::new("Editable wrapper"),
+)}
+
+pub fn editing_ui() -> impl Bundle{(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            position_type: PositionType::Absolute,
+            position: UiRect{
+                right: Val::Px(30.),
+                bottom: Val::Px(30.),
+                ..default()
+            },
+            ..default()
+        },
+        z_index: ZIndex::Global(11),
+        ..default()
+    },
+    UiForEditingUi,
+)}
+
 
 #[derive(Component, Debug)]
 pub struct HealthBarText;
@@ -115,7 +154,6 @@ pub fn respawn_holder() -> impl Bundle{(
         ..default()
     },
     RespawnHolder,
-    EditableUI,
     Name::new("Respawn Text"),
 )}
 
@@ -144,13 +182,10 @@ pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
     RespawnText,
 )}
 
-#[derive(Component)]
-pub struct Minimap;
-
-pub fn minimap(images: &Res<Images>) -> impl Bundle {(
-    ImageBundle {
+pub fn minimap_holder() -> impl Bundle{(
+    NodeBundle{
         style: Style {
-            max_size: Size::new(Val::Px(300.), Val::Px(300.)),
+            size: Size::new(Val::Px(300.), Val::Px(300.)),
             position_type: PositionType::Absolute,
             margin: UiRect {
                 right: Val::Percent(20.),
@@ -162,14 +197,26 @@ pub fn minimap(images: &Res<Images>) -> impl Bundle {(
             },
             ..default()
         },
-        background_color: Color::rgba(0.8, 1., 0.8, 1.0).into(),
+        ..default()
+    },
+    Name::new("Minimap"),
+)}
+
+#[derive(Component)]
+pub struct Minimap;
+
+pub fn minimap(images: &Res<Images>) -> impl Bundle {(
+    ImageBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            ..default()
+        },
         image: images.minimap.clone().into(),
         ..default()
     },
     Interaction::None,
     Minimap,
-    EditableUI,
-    Name::new("Minimap"),
+    Name::new("Minimap Image"),
 )}
 
 #[derive(Component)]
@@ -190,15 +237,11 @@ pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle{(
     Name::new("Arrow"),
 )}
 
-#[derive(Component)]
-pub struct Killfeed;
-
-pub fn killfeed() -> impl Bundle {(
+pub fn killfeed_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(150.), Val::Percent(50.)),
+            size: Size::new(Val::Px(150.), Val::Percent(45.)),
             position_type: PositionType::Absolute,
-            flex_direction: FlexDirection::Column,
             margin: UiRect {
                 right: Val::Px(30.),
                 ..UiRect::all(Val::Auto)
@@ -207,9 +250,23 @@ pub fn killfeed() -> impl Bundle {(
         },
         ..default()
     },
-    Killfeed,
     Name::new("Killfeed"),
-    EditableUI,
+)}
+
+#[derive(Component)]
+pub struct Killfeed;
+
+pub fn killfeed() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            flex_direction: FlexDirection::Column,
+            ..default()
+        },
+        ..default()
+    },
+    Killfeed,
+    Name::new("Killfeed list"),
 )}
 
 #[derive(Component)]
@@ -294,7 +351,7 @@ impl TryFrom<u64> for TweenEvents{
     }
 }
 
-pub fn bottom_left_ui() -> impl Bundle {(
+pub fn bottom_left_ui_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
             size: Size::new(Val::Px(220.), Val::Px(140.)),
@@ -309,7 +366,17 @@ pub fn bottom_left_ui() -> impl Bundle {(
         ..default()
     },
     Name::new("Stats / Build / KDA"),
-    EditableUI,
+)}
+
+pub fn bottom_left_ui() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            ..default()
+        },
+        ..default()
+    },
+    Name::new("Bottom Left Ui"),
 )}
 pub fn stats_ui() -> impl Bundle {(
     NodeBundle {
@@ -363,7 +430,7 @@ pub fn kda_ui() -> impl Bundle {(
 #[derive(Component)]
 pub struct TeammateThumbs;
 
-pub fn team_thumbs() -> impl Bundle {(
+pub fn team_thumbs_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
             size: Size::new(Val::Px(200.), Val::Px(80.)),
@@ -375,12 +442,40 @@ pub fn team_thumbs() -> impl Bundle {(
             },
             ..default()
         },
+        ..default()
+    },
+    Name::new("Team thumbs"),
+)}
+
+pub fn team_thumbs() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            ..default()
+        },
         //background_color: Color::rgba(0.9, 0.9, 0.2, 0.4).into(),
         ..default()
     },
     TeammateThumbs,
-    Name::new("Team thumbs"),
-    EditableUI,
+    Name::new("Team thumbs UI"),
+)}
+
+
+pub fn header_holder() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(35.), Val::Px(80.)),
+            position_type: PositionType::Absolute,
+            margin: UiRect {
+                left: Val::Auto,
+                right: Val::Auto,
+                ..default()
+            },
+            ..default()
+        },
+        ..default()
+    },
+    Name::new("Header"),
 )}
 
 #[derive(Component)]
@@ -404,7 +499,6 @@ pub fn header() -> impl Bundle {(
     },
     HeaderUI,
     Name::new("Header UI"),
-    EditableUI,
 )}
 
 pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {(
@@ -1159,13 +1253,16 @@ pub fn store() -> impl Bundle {(
         visibility: Visibility::Hidden,
         ..default()
     },
-    Draggable,
+    Draggable::BoundByParent,
     StoreMain,
     Name::new("Store"),
 )}
 
-#[derive(Component, Debug)]
-pub struct Draggable;
+#[derive(Component, Debug, PartialEq)]
+pub enum Draggable{
+    Unbound,
+    BoundByParent,
+}
 
 #[derive(Component, Debug)]
 pub struct DragHandle;
@@ -1266,7 +1363,7 @@ pub fn item_image(items: &Res<Items>, item: Item) -> impl Bundle {(
         focus_policy: FocusPolicy::Block,
         ..default()
     },
-    Draggable,
+    Draggable::BoundByParent,
     DragHandle,
     Interaction::default(),
 )}
@@ -1277,11 +1374,15 @@ pub struct HoverButton;
 pub fn button() -> impl Bundle {(
     ButtonBundle {
         style: Style {
-            size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+            size: Size::new(Val::Px(120.0), Val::Px(50.0)),
             // horizontally center child text
             justify_content: JustifyContent::Center,
             // vertically center child text
             align_items: AlignItems::Center,
+            margin: UiRect{
+                bottom: Val::Px(10.),
+                ..default()
+            },
             ..default()
         },
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
@@ -1296,7 +1397,7 @@ pub fn button_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {(
         text.to_owned(),
         TextStyle {
             font: fonts.exo_regular.clone(),
-            font_size: 40.0,
+            font_size: 36.0,
             color: Color::rgb(0.9, 0.9, 0.9),
         },
     )

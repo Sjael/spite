@@ -39,7 +39,7 @@ pub fn add_ingame_menu(
         });      
         parent.spawn(ingame_menu_button())
         .insert(
-            ButtonAction::EditHUD
+            ButtonAction::EditUi
         ).with_children(|parent| {   
             parent.spawn(ingame_menu_button_text("Hud Editor".to_string(),&fonts));    
         });      

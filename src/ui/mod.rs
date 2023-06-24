@@ -1,5 +1,6 @@
 use bevy::{prelude::*, window::PrimaryWindow, app::AppExit};
 use bevy_tweening::TweenCompleted;
+use ui_bundles::team_thumbs_holder;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
@@ -18,7 +19,7 @@ impl Plugin for UiPlugin {
         app.add_state::<InGameMenuOpen>();
         app.add_state::<EditingHUD>();
 
-        app.add_event::<EditUIEvent>();
+        app.add_event::<ResetUiEvent>();
         app.add_event::<MenuEvent>();
         app.add_event::<BuyItem>();
 
@@ -79,6 +80,7 @@ impl Plugin for UiPlugin {
             give_editable_ui.in_schedule(OnEnter(EditingHUD::Yes)),
             remove_editable_ui.in_schedule(OnEnter(EditingHUD::No)),
             scale_ui.in_set(OnUpdate(GameState::InGame)),
+            reset_editable_ui.in_set(OnUpdate(EditingHUD::Yes))
         ));
 
     }
@@ -135,22 +137,44 @@ fn add_base_ui(
 ){
     commands.spawn(root_ui()).with_children(|parent| {
         // can be edited in HUD editor
-        parent.spawn(header()).with_children(|parent| {
-            parent.spawn(timer_ui(&fonts));          
+        parent.spawn(header_holder()).with_children(|parent| {
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(header()).with_children(|parent| {
+                    parent.spawn(timer_ui(&fonts));          
+                });
+            });
         });
-        parent.spawn(killfeed());
-        parent.spawn(minimap(&images)).with_children(|parent| {
-            parent.spawn(minimap_arrow(&images));
+        parent.spawn(killfeed_holder()).with_children(|parent| {
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(killfeed());
+            });
+        });
+        parent.spawn(minimap_holder()).with_children(|parent| {
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(minimap(&images)).with_children(|parent| {
+                    parent.spawn(minimap_arrow(&images));
+                });
+            });
         });
         parent.spawn(respawn_holder()).with_children(|parent| {
-            parent.spawn(respawn_text(&fonts));
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(respawn_text(&fonts));
+            });
         });
-        parent.spawn(team_thumbs());
-        parent.spawn(bottom_left_ui()).with_children(|parent| {
-            parent.spawn(stats_ui());
-            parent.spawn(build_and_kda()).with_children(|parent| {
-                parent.spawn(kda_ui());
-                parent.spawn(build_ui());
+        parent.spawn(team_thumbs_holder()).with_children(|parent| {
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(team_thumbs());
+            });
+        });
+        parent.spawn(bottom_left_ui_holder()).with_children(|parent| {
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(bottom_left_ui()).with_children(|parent| {
+                    parent.spawn(stats_ui());
+                    parent.spawn(build_and_kda()).with_children(|parent| {
+                        parent.spawn(kda_ui());
+                        parent.spawn(build_ui());
+                    });
+                });
             });
         });
         // non editable ui
@@ -193,8 +217,8 @@ fn add_base_ui(
 fn draggables(
     windows: Query<&mut Window, With<PrimaryWindow>>,
     // both queries can be the same entity or different
-    handle_query: Query<(Entity, &Interaction, &Parent), With<DragHandle>>,
-    mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform), With<Draggable>>,
+    handle_query: Query<(Entity, &Interaction, &Parent,), With<DragHandle>>,
+    mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform, &Draggable)>,
     parent_query: Query<(&Node, &GlobalTransform)>,
     mut offset: Local<Vec2>,
     mut parent_offset: Local<Vec2>,
@@ -210,7 +234,7 @@ fn draggables(
             continue
         };
         for draggable in [handle_entity, handle_parent.get()]{
-            let Ok((mut style, parent, node, gt)) = draggable_query.get_mut(draggable) else { 
+            let Ok((mut style, parent, node, gt, draggable)) = draggable_query.get_mut(draggable) else { 
                 continue 
             };
             // cursor is from bottom left, ui is from top left so we need to flip  
@@ -224,13 +248,17 @@ fn draggables(
                 offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
                 offset.y = cursor_y_flip - (gt.translation().y - node.size().y/2.0);
             }   
-            let left_position = cursor_pos.x - parent_offset.x - offset.x;
-            let top_position = cursor_y_flip - parent_offset.y - offset.y;
+            let mut left_position = cursor_pos.x - parent_offset.x - offset.x;
+            let mut top_position = cursor_y_flip - parent_offset.y - offset.y;
             // clamp cant go outside bounds
+            if *draggable != Draggable::Unbound{
+                left_position = left_position.clamp(0.0, max_offset.x);
+                top_position = top_position.clamp(0.0, max_offset.y);
+            }
             style.margin = UiRect::default();
             style.position = UiRect::all(Val::Px(0.));
-            style.position.left = Val::Px(left_position.clamp(0.0, max_offset.x));
-            style.position.top = Val::Px(top_position.clamp(0.0, max_offset.y));
+            style.position.left = Val::Px(left_position);
+            style.position.top = Val::Px(top_position);
             style.position_type = PositionType::Absolute;
         } 
     }
@@ -438,7 +466,6 @@ fn tick_clock_ui(
     } 
 
     text.sections[0].value = format!("{}{:02}:{:02}", sign, minute, second);
-
 }
 
 
@@ -453,50 +480,51 @@ pub fn button_actions(
     ingamemenu_state: Res<State<InGameMenuOpen>>,
     editing_hud_state: Res<State<EditingHUD>>,
     mut app_exit_writer: EventWriter<AppExit>,
+    mut reset_ui_events: EventWriter<ResetUiEvent>,
 ) {
     for (button_action, interaction) in &mut interaction_query {
-        match *interaction {
-            Interaction::Clicked => {
-                match button_action {
-                    ButtonAction::Play => {
-                        game_state_next.set(GameState::InGame);
-                    }
-                    ButtonAction::Settings => {
+        if *interaction != Interaction::Clicked {continue};
+        match button_action {
+            ButtonAction::Play => {
+                game_state_next.set(GameState::InGame);
+            }
+            ButtonAction::Settings => {
 
-                    }
-                    ButtonAction::Lobby => {
-                        game_state_next.set(GameState::MainMenu);
-                    }
-                    ButtonAction::Resume => {
-                        ingamemenu_next.set(ingamemenu_state.0.toggle());
-                    }
-                    ButtonAction::Exit => {
-                        app_exit_writer.send(AppExit);
-                    }
-                    ButtonAction::EditHUD => {
-                        editing_hud_next.set(editing_hud_state.0.toggle());
-                        ingamemenu_next.set(ingamemenu_state.0.toggle());
-                    },
-                }
             }
-            Interaction::Hovered => {
+            ButtonAction::Lobby => {
+                game_state_next.set(GameState::MainMenu);
             }
-            Interaction::None => {
+            ButtonAction::Resume => {
+                ingamemenu_next.set(ingamemenu_state.0.toggle());
             }
+            ButtonAction::Exit => {
+                app_exit_writer.send(AppExit);
+            }
+            ButtonAction::EditUi => {
+                editing_hud_next.set(editing_hud_state.0.toggle());
+                ingamemenu_next.set(InGameMenuOpen::Closed);
+            },
+            ButtonAction::ResetUi => {
+                reset_ui_events.send(ResetUiEvent);
+            },
         }
     }
 }
 
 pub fn minimap_track(
     mut arrow_query: Query<&mut Style, With<MinimapPlayerIcon>>,
-    player_query: Query<&GlobalTransform, With<Player>>
+    trackables: Query<&GlobalTransform, With<Trackable>>
 ){
     let Ok(mut style) = arrow_query.get_single_mut() else { return };
-    let Ok(player_transform) = player_query.get_single() else { return };
-    let (player_left, player_top) =  (player_transform.translation().x, player_transform.translation().z);
-    style.position.left = Val::Px(player_left);
-    style.position.top = Val::Px(player_top);
+    for tracking in trackables.iter(){
+        let (player_left, player_top) =  (tracking.translation().x, tracking.translation().z);
+        style.position.left = Val::Px(player_left);
+        style.position.top = Val::Px(player_top);
+    }
 }
+
+#[derive(Component)]
+pub struct Trackable;
 
 #[derive(Component, PartialEq, Eq)]
 pub enum ButtonAction{
@@ -505,7 +533,8 @@ pub enum ButtonAction{
     Exit,
     Resume,
     Lobby,
-    EditHUD,
+    EditUi,
+    ResetUi
 }
 
 

@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    ui::mouse::MouseState, 
+    ui::{mouse::MouseState, Trackable}, 
     ability::{
         Ability, HealthChangeEvent,
     }, 
@@ -323,6 +323,7 @@ fn spawn_player(
             BuffMap::default(),
             NetworkOwner,
             Spectatable,
+            Trackable,
         ))
         .id();
 
