@@ -1,35 +1,47 @@
-use std::{fmt::Debug, f32::consts::PI, collections::{HashMap}, time::{Duration}};
-use bevy::{prelude::*, input::mouse::MouseMotion,};
-use leafwing_input_manager::prelude::ActionState;
-use serde::{Serialize, Deserialize};
+use bevy::{input::mouse::MouseMotion, prelude::*};
 use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, f32::consts::PI, fmt::Debug, time::Duration};
 
 use crate::{
-    ui::{mouse::MouseState, Trackable}, 
-    ability::{
-        Ability, HealthChangeEvent,
-    }, 
-    input::{setup_player_slots, SlotAbilityMap}, 
-    stats::*, 
-    crowd_control::CCType, 
-    game_manager::{Bounty, CharacterState, PLAYER_GROUPING, TEAM_1, CastEvent}, 
-    GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}, buff::{BuffInfoApplied, BuffMap}};
+    ability::{Ability, HealthChangeEvent},
+    buff::{BuffInfoApplied, BuffMap},
+    crowd_control::CCType,
+    game_manager::{Bounty, CastEvent, CharacterState, PLAYER_GROUPING, TEAM_1},
+    input::{setup_player_slots, SlotAbilityMap},
+    stats::*,
+    ui::{mouse::MouseState, Trackable},
+    view::{camera_swivel_and_tilt, PossessEvent, Spectatable},
+    GameState,
+};
 
-#[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut)]
+#[derive(
+    Component,
+    Resource,
+    Reflect,
+    FromReflect,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Eq,
+    Hash,
+    Deref,
+    DerefMut,
+)]
 #[reflect(Component)]
 pub struct Player {
     pub id: u32,
 }
 
-impl Player{
-    pub fn new(id: u32) -> Self{
-        Self {
-            id
-        }
+impl Player {
+    pub fn new(id: u32) -> Self {
+        Self { id }
     }
 }
-
-
 
 #[derive(Component, Debug)]
 pub struct Reticle {
@@ -39,7 +51,6 @@ pub struct Reticle {
 
 #[derive(Component, Debug, Default)]
 pub struct HoveredAbility(pub Ability);
-
 
 #[derive(Component, Resource, Reflect, Clone, Copy, Default, Serialize, Deserialize)]
 #[reflect(Resource)]
@@ -196,53 +207,64 @@ impl Debug for Radians {
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-
         //Resources
         app.insert_resource(PlayerInput::default());
         app.register_type::<PlayerInput>();
         app.register_type::<CooldownMap>();
         app.register_type::<CCMap>();
-        app.register_type::<BuffMap>();
-        app.add_event::<SpawnEvent>();       
-        
+        app.add_event::<SpawnEvent>();
+
         //Plugins
 
         //Systems
         app.add_system(setup_player.in_schedule(OnEnter(GameState::InGame)));
-        app.add_systems((
-            player_keys_input.run_if(in_state(GameState::InGame)),
-            player_mouse_input.run_if(in_state(GameState::InGame)),
-            select_ability.run_if(in_state(GameState::InGame)),
-        ).in_base_set(CoreSet::PreUpdate));
-        app.add_systems((
-            cast_ability,
-            trigger_cooldown.after(cast_ability),
-            tick_cooldowns.after(trigger_cooldown),
-            spawn_player,
-        ).in_set(OnUpdate(GameState::InGame)));
+        app.add_systems(
+            (
+                player_keys_input.run_if(in_state(GameState::InGame)),
+                player_mouse_input.run_if(in_state(GameState::InGame)),
+                select_ability.run_if(in_state(GameState::InGame)),
+            )
+                .in_base_set(CoreSet::PreUpdate),
+        );
+        app.add_systems(
+            (
+                cast_ability,
+                trigger_cooldown.after(cast_ability),
+                tick_cooldowns.after(trigger_cooldown),
+                spawn_player,
+            )
+                .in_set(OnUpdate(GameState::InGame)),
+        );
         // Process transforms always after inputs
-        app.add_systems((
-            player_swivel,
-            // Process translations after rotations 
-            player_movement.after(player_swivel).run_if(in_state(GameState::InGame)),
-            reticle_move.after(camera_swivel_and_tilt).run_if(in_state(GameState::InGame)),
-            update_local_player_inputs,
-        ).in_base_set(CoreSet::PostUpdate));
+        app.add_systems(
+            (
+                player_swivel,
+                // Process translations after rotations
+                player_movement
+                    .after(player_swivel)
+                    .run_if(in_state(GameState::InGame)),
+                reticle_move
+                    .after(camera_swivel_and_tilt)
+                    .run_if(in_state(GameState::InGame)),
+                update_local_player_inputs,
+            )
+                .in_base_set(CoreSet::PostUpdate),
+        );
     }
 }
 
-pub struct SpawnEvent{
+pub struct SpawnEvent {
     pub player: Player,
     pub transform: Transform,
 }
 
 #[derive(Component, Default)]
-pub struct OutgoingDamageLog{
+pub struct OutgoingDamageLog {
     pub map: Vec<HealthChangeEvent>,
 }
 
 #[derive(Component, Default)]
-pub struct IncomingDamageLog{
+pub struct IncomingDamageLog {
     pub map: Vec<HealthChangeEvent>,
     pub ui_entities: HashMap<Entity, HealthChangeEvent>,
 }
@@ -258,108 +280,122 @@ fn spawn_player(
     mut possess_events: EventWriter<PossessEvent>,
     mut next_state: ResMut<NextState<CharacterState>>,
     local_player: Res<Player>,
-){
-    for event in spawn_events.iter(){
+) {
+    for event in spawn_events.iter() {
         next_state.set(CharacterState::Alive);
         // reset the rotation so you dont spawn looking the other way
         commands.insert_resource(PlayerInput::default());
 
-        
         let mut material = StandardMaterial::default();
         material.base_color = Color::hex("208000").unwrap().into();
         material.perceptual_roughness = 0.97;
         material.reflectance = 0.0;
         let green = materials.add(material);
 
-        let spawning_id  = event.player.id.clone();
+        let spawning_id = event.player.id.clone();
         info!("spawning player {}", spawning_id);
-        let player_entity = commands.spawn((
-            SpatialBundle::from_transform(event.transform.clone()),
-            _meshes.add(shape::Capsule{
-                radius: 0.4,
-                ..default()
-            }.into()),       
-            green.clone(), 
-            Player { id: spawning_id },
-            Name::new(format!("Player {}", spawning_id.to_string())),
-            
-            setup_player_slots(), // Has all the keybinding -> action logic
-            PlayerInput::default(),
-        
-            Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
-            ActiveEvents::COLLISION_EVENTS,
-            RigidBody::Dynamic,
-            LockedAxes::ROTATION_LOCKED,
-            Velocity::default(),
-            PLAYER_GROUPING,
-        ))
-        .insert((
-            Attribute::<Health>::new(33.0),
-            Attribute::<Min<Health>>::new(0.0),
-            Attribute::<Max<Health>>::new(235.0),
-            Attribute::<Regen<Health>>::new(9.5),
-        ))
-        .insert((
-            Attribute::<CharacterResource>::new(175.0),
-            Attribute::<Min<CharacterResource>>::new(0.0),
-            Attribute::<Max<CharacterResource>>::new(400.0),
-            Attribute::<Regen<CharacterResource>>::new(2.0),
-        ))
-        .insert((
-            Attribute::<MovementSpeed>::new(2.0),
-            Attribute::<Base<MovementSpeed>>::new(5.0),
-            Attribute::<Plus<MovementSpeed>>::new(1.0),
-            Attribute::<Mult<MovementSpeed>>::new(1.0),
-        ))
-        .insert((
-            TEAM_1,
-            HoveredAbility::default(),
-            IncomingDamageLog::default(),
-            OutgoingDamageLog::default(),
-            Bounty::default(),
-            CooldownMap::default(),
-            CCMap::default(),
-            BuffMap::default(),
-            NetworkOwner,
-            Spectatable,
-            Trackable,
-        ))
-        .id();
+        let player_entity = commands
+            .spawn((
+                SpatialBundle::from_transform(event.transform.clone()),
+                _meshes.add(
+                    shape::Capsule {
+                        radius: 0.4,
+                        ..default()
+                    }
+                    .into(),
+                ),
+                green.clone(),
+                Player { id: spawning_id },
+                Name::new(format!("Player {}", spawning_id.to_string())),
+                setup_player_slots(), // Has all the keybinding -> action logic
+                PlayerInput::default(),
+                Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
+                ActiveEvents::COLLISION_EVENTS,
+                RigidBody::Dynamic,
+                LockedAxes::ROTATION_LOCKED,
+                Velocity::default(),
+                PLAYER_GROUPING,
+            ))
+            .insert({
+                let mut attributes = Attributes::default();
+                *attributes.entry(Stat::Health.into()).or_default() = 33.0;
+                *attributes
+                    .entry(AttributeTag::Modifier {
+                        modifier: Modifier::Max,
+                        target: Box::new(Stat::Health.into()),
+                    })
+                    .or_default() = 235.0;
+                *attributes
+                    .entry(AttributeTag::Modifier {
+                        modifier: Modifier::Min,
+                        target: Box::new(Stat::Health.into()),
+                    })
+                    .or_default() = 0.0;
+                *attributes.entry(Stat::Speed.into()).or_default() = 5.0;
+                attributes
+            })
+            /*
+                   .insert((
+                       Attribute::<Health>::new(33.0),
+                       Attribute::<Min<Health>>::new(0.0),
+                       Attribute::<Max<Health>>::new(235.0),
+                       Attribute::<Regen<Health>>::new(9.5),
+                   ))
+                   .insert((
+                       Attribute::<CharacterResource>::new(175.0),
+                       Attribute::<Min<CharacterResource>>::new(0.0),
+                       Attribute::<Max<CharacterResource>>::new(400.0),
+                       Attribute::<Regen<CharacterResource>>::new(2.0),
+                   ))
+                   .insert((
+                       Attribute::<MovementSpeed>::new(2.0),
+                       Attribute::<Base<MovementSpeed>>::new(5.0),
+                       Attribute::<Plus<MovementSpeed>>::new(1.0),
+                       Attribute::<Mult<MovementSpeed>>::new(1.0),
+                   ))
+            */
+            .insert((
+                TEAM_1,
+                HoveredAbility::default(),
+                IncomingDamageLog::default(),
+                OutgoingDamageLog::default(),
+                Bounty::default(),
+                CooldownMap::default(),
+                CCMap::default(),
+                BuffMap::default(),
+                NetworkOwner,
+                Spectatable,
+                Trackable,
+            ))
+            .id();
 
         let player_is_owned = local_player.id == spawning_id; // make it check if you are that player
         if player_is_owned {
-            possess_events.send(PossessEvent{
+            possess_events.send(PossessEvent {
                 entity: player_entity,
             })
         }
-        
     }
-   
 }
 
-
-fn setup_player(
-    mut spawn_events: EventWriter<SpawnEvent>,
-    local_player: Res<Player>,
-){    
-    spawn_events.send(SpawnEvent{
+fn setup_player(mut spawn_events: EventWriter<SpawnEvent>, local_player: Res<Player>) {
+    spawn_events.send(SpawnEvent {
         player: local_player.clone(),
         transform: Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
             ..default()
         },
-    });   
+    });
 }
-
-
 
 fn player_mouse_input(
     mut ev_mouse: EventReader<MouseMotion>,
     mut player_input: ResMut<PlayerInput>,
     mouse_state: Res<State<MouseState>>,
 ) {
-    if mouse_state.0 == MouseState::Free{ // if mouse is free, dont turn character
+    if mouse_state.0 == MouseState::Free {
+        // if mouse is free, dont turn character
         return;
     }
     let mut cumulative_delta = Vec2::ZERO;
@@ -371,18 +407,19 @@ fn player_mouse_input(
     player_input.pitch -= sens * cumulative_delta.y / 180.0;
     player_input.pitch = player_input.pitch.clamp(-PI / 2.0, PI / 2.0);
     player_input.yaw -= sens * cumulative_delta.x / 180.0;
-    player_input.yaw = player_input.yaw.rem_euclid(std::f32::consts::TAU);    
+    player_input.yaw = player_input.yaw.rem_euclid(std::f32::consts::TAU);
 }
 
-fn player_keys_input(
-    keyboard_input: Res<Input<KeyCode>>, 
-    mut player_input: ResMut<PlayerInput>,
-) {    
+fn player_keys_input(keyboard_input: Res<Input<KeyCode>>, mut player_input: ResMut<PlayerInput>) {
     // only 1 player right now
-    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
-    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
-    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
-    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+    player_input
+        .set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
+    player_input
+        .set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
+    player_input
+        .set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
+    player_input
+        .set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
     player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
     player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
     player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
@@ -401,17 +438,15 @@ pub fn update_local_player_inputs(
     }
 }
 
-fn player_swivel(
-    mut players: Query<(&mut Transform, &PlayerInput), With<Player>>,
-){
+fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput), With<Player>>) {
     for (mut player_transform, inputs) in players.iter_mut() {
         player_transform.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
     }
 }
 
-
-pub fn player_movement(mut query: Query<(&Attribute<MovementSpeed>, &mut Velocity, &PlayerInput)>) {
-    for (speed, mut velocity, player_input) in query.iter_mut() {
+pub fn player_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput)>) {
+    for (attributes, mut velocity, player_input) in query.iter_mut() {
+        let speed = *attributes.get(&Stat::Speed.into()).unwrap_or(&0.0);
         //dbg!(player_input);
         let mut direction = Vec3::new(0.0, 0.0, 0.0);
         if player_input.left() {
@@ -429,7 +464,7 @@ pub fn player_movement(mut query: Query<(&Attribute<MovementSpeed>, &mut Velocit
 
         let direction_normalized = direction.normalize_or_zero();
         let movement_vector =
-            Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * *speed.amount();
+            Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
 
         // don't effect the y direction since you can't move in that direction.
         velocity.linvel.x = movement_vector.x;
@@ -448,14 +483,12 @@ fn reticle_move(
             let current_angle = player_input.pitch.clamp(-1.57, 0.);
             // new poggers way
             transform.translation.z = (1.57 + current_angle).tan() * -reticle.from_height;
-            transform.translation.z = transform.translation.z.clamp(-reticle.max_distance, 0.);            
-        }        
+            transform.translation.z = transform.translation.z.clamp(-reticle.max_distance, 0.);
+        }
     }
 }
 
-fn select_ability(
-    mut query: Query<(&mut HoveredAbility, &ActionState<Ability>)>,
-) {
+fn select_ability(mut query: Query<(&mut HoveredAbility, &ActionState<Ability>)>) {
     // TODO get specific player
     for (mut hover, ab_state) in &mut query {
         for ability in ab_state.get_just_pressed() {
@@ -467,13 +500,19 @@ fn select_ability(
 }
 
 pub fn cast_ability(
-    players: Query<(&CooldownMap, &Player, Entity, &ActionState<Ability>, &Children)>,
+    players: Query<(
+        &CooldownMap,
+        &Player,
+        Entity,
+        &ActionState<Ability>,
+        &Children,
+    )>,
     //reticle: Query<(&GlobalTransform, &Reticle), Without<Player>>,
     mut cast_event: EventWriter<CastEvent>,
-){
+) {
     for (cooldowns, _, player_entity, ability_actions, _) in &players {
         for ability in ability_actions.get_just_pressed() {
-            if !cooldowns.map.contains_key(&ability){
+            if !cooldowns.map.contains_key(&ability) {
                 cast_event.send(CastEvent {
                     caster: player_entity,
                     ability: ability.clone(),
@@ -483,21 +522,20 @@ pub fn cast_ability(
     }
 }
 
-
-fn trigger_cooldown(
-    mut cast_events: EventReader<CastEvent>,
-    mut query: Query<&mut CooldownMap>,
-) {
+fn trigger_cooldown(mut cast_events: EventReader<CastEvent>, mut query: Query<&mut CooldownMap>) {
     for event in cast_events.iter() {
         let Ok(mut cooldowns) = query.get_mut(event.caster) else { continue };
         cooldowns.map.insert(
             event.ability.clone(),
-            Timer::new(Duration::from_millis((event.ability.get_cooldown() * 1000.) as u64), TimerMode::Once),
+            Timer::new(
+                Duration::from_millis((event.ability.get_cooldown() * 1000.) as u64),
+                TimerMode::Once,
+            ),
         );
     }
 }
 
-// Move these to character file, since mobs will be cc'd and buffed/cooldowns too AND MAKE GENERIC 
+// Move these to character file, since mobs will be cc'd and buffed/cooldowns too AND MAKE GENERIC
 // ⬇️⬇️⬇️
 
 fn tick_cooldowns(
@@ -514,8 +552,6 @@ fn tick_cooldowns(
     }
 }
 
-
-
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect]
 pub struct CooldownMap {
@@ -527,7 +563,3 @@ pub struct CooldownMap {
 pub struct CCMap {
     pub map: HashMap<CCType, Timer>,
 }
-
-
-
-

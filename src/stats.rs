@@ -1,62 +1,49 @@
-
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 use std::{marker::PhantomData, ops::MulAssign};
 //use fixed::types::I40F24;
-use std::ops::{Add, AddAssign, Deref, DerefMut, Mul};
 use crate::ability::HealthChangeEvent;
-use crate::buff::BuffMap;
+//use crate::buff::BuffMap;
 use crate::{on_gametick, GameState};
-
-
-#[derive(Bundle)]
-pub struct StatsBundle{
-    health: Attribute::<Health>,
-    resource: Attribute::<CharacterResource>,
-}
-
-impl Default for StatsBundle{
-    fn default() -> Self{
-        Self{
-            health: Attribute::<Health>::new(250.),
-            resource: Attribute::<CharacterResource>::new(6.),
-        }
-    }
-}
+use std::ops::{Add, AddAssign, Deref, DerefMut, Mul};
 
 // Use enum as stat instead of unit structs?
 //
 //
-#[derive(Reflect, Debug, Default, Clone, FromReflect)]
-pub enum Stat{
+#[derive(Reflect, Debug, Default, Clone, FromReflect, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Stat {
     #[default]
     Health,
+    Speed,
+    Gold,
+    Xp,
+    PhysicalPower,
     CharacterResource,
 }
 
-impl Stat {
-    pub fn to_attribute(&self, amount: f32) -> Box<dyn IsAStat>{
-        match self{
-            Stat::Health => Box::new(Attribute::<Health>::new(amount)) ,
-            Stat::CharacterResource => Box::new(Attribute::<CharacterResource>::new(amount)) ,
-        }
+impl Into<AttributeTag> for Stat {
+    fn into(self) -> AttributeTag {
+        AttributeTag::Stat(self)
     }
 }
 
+#[derive(Reflect, Debug, Default, Clone, FromReflect, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Modifier {
+    #[default]
+    Add,
+    Mul,
+    Sub,
+    Div,
+    Base,
+    Max,
+    Min,
+}
 
 impl std::fmt::Display for Stat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-
-
-pub trait IsAStat{}
-
-impl<A> IsAStat for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect{}
-
 
 #[derive(Reflect, Debug, FromReflect)]
 pub struct Health;
@@ -74,333 +61,123 @@ pub struct PhysicalPower;
 pub struct StatsPlugin;
 impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<Attribute<Health>>();
-        app.register_type::<Attribute<MovementSpeed>>();
-        app.register_type::<Attribute<CharacterResource>>();
-
-        app.add_systems((
-            change_health,
-        ).in_set(OnUpdate(GameState::InGame)));
-        app.add_systems((
-            regen_unless_zero::<Health>.run_if(on_gametick),
-            clamp_min::<Health>,
-            clamp_max::<Health>,
-            basic_modifiers::<Health>,
-        ));
-        app.add_systems((
-            regen::<CharacterResource>.run_if(on_gametick),
-            clamp_min::<CharacterResource>,
-            clamp_max::<CharacterResource>,
-            basic_modifiers::<CharacterResource>,
-        ));
-        app.add_systems((
-            clamp_min::<MovementSpeed>,
-            clamp_max::<MovementSpeed>,
-            basic_modifiers::<MovementSpeed>,
-        ));
+        app.register_type::<Vec<String>>();
+        app.add_system(change_health.in_set(OnUpdate(GameState::InGame)));
+        app.add_system(calculate_attributes.in_set(OnUpdate(GameState::InGame)));
     }
 }
 
 pub fn change_health(
     mut health_events: EventReader<HealthChangeEvent>,
-    mut health_query: Query<&mut Attribute<Health>>,
-){
-    for event in health_events.iter(){
-        let Ok(mut health) = health_query.get_mut(event.defender) else {continue};
-        
-        if event.amount > 0.0{
+    mut health_query: Query<&mut Attributes>,
+) {
+    for event in health_events.iter() {
+        let Ok(mut attributes) = health_query.get_mut(event.defender) else {continue};
+        let health = attributes.entry(Stat::Health.into()).or_default();
+
+        if event.amount > 0.0 {
             //println!("healing is {:?}", event.amount);
         } else {
             //println!("damage is {:?}", event.amount);
         }
-        let new_hp = health.amount() + event.amount; // Add since we flipped number back in team detection
-        health.set_amount(new_hp);
+        let new_hp = *health + event.amount; // Add since we flipped number back in team detection
+        *health = new_hp;
     }
 }
 
+/*
+basic case:
+Mul<Base<Health>> = 1.1;
+Base<Health> = 110.0;
+Health = 110.0;
 
-pub fn regen_unless_zero<A>(
-    mut query: Query<(
-        &mut Attribute<A>,
-        &Attribute<Regen<A>>,
-        Option<&Attribute<Max<A>>>,
-    )>,
-    time: Res<Time>,
-) where
-    A: 'static + Send + Sync + Reflect,
-{
-    for (mut attribute, regen, max) in query.iter_mut() {
-        if *attribute.amount() <= 0.0 {
-            continue;
-        }
-        let mut result = attribute.amount() + (regen.amount() * time.delta_seconds()) ;
-        if let Some(max) = max {
-            if result > *max.amount() {
-                result = *max.amount();
+regen case:
+Add<Health> = 1.0;
+Health = 50.0;
+Max<Health> = 100.0;
+
+fetch Add<Health>, fetch Health
+Health = 50.0 + 1.0;
+fetch Max<Health>, fetch Health
+Health = 51.0.max(100.0) == 51.0;
+ */
+#[derive(Component, Debug, Default, Clone, Deref, DerefMut)]
+pub struct Attributes(HashMap<AttributeTag, f32>);
+
+pub fn calculate_attributes(mut attributes: Query<&mut Attributes>) {
+    for mut attributes in &mut attributes {
+        // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before Mul<Base<Health>>
+        let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
+        tags.sort_by(|a, b| a.deepness().cmp(&b.deepness()));
+
+        for tag in tags {
+            match tag.clone() {
+                AttributeTag::Modifier { modifier, target } => {
+                    let modifier_attr = attributes.entry(tag).or_default().clone();
+
+                    let target_attr = attributes.entry(*target).or_default();
+
+                    let modified = match modifier {
+                        Modifier::Add => *target_attr + modifier_attr,
+                        Modifier::Mul => *target_attr * modifier_attr,
+                        Modifier::Sub => *target_attr - modifier_attr,
+                        Modifier::Div => *target_attr / modifier_attr,
+                        Modifier::Base => *target_attr,
+                        Modifier::Min => target_attr.max(modifier_attr),
+                        Modifier::Max => target_attr.min(modifier_attr),
+                    };
+
+                    *target_attr = modified;
+                }
+                AttributeTag::Stat(stat) => {}
             }
         }
-        if *attribute.amount() != result {
-            attribute.set_amount(result);
-        }
     }
 }
 
-pub fn regen<A>(
-    mut query: Query<(
-        &mut Attribute<A>,
-        &Attribute<Regen<A>>,
-        Option<&Attribute<Max<A>>>,
-    )>,
-    time: Res<Time>,
-) where
-    A: 'static + Send + Sync + Reflect,
-{
-    for (mut attribute, regen, max) in query.iter_mut() {
-        let mut result = attribute.amount() + (regen.amount() * time.delta_seconds()) ;
-        if let Some(max) = max {
-            if result > *max.amount() {
-                result = *max.amount();
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub enum AttributeTag {
+    Modifier {
+        modifier: Modifier,
+        target: Box<AttributeTag>,
+    },
+    Stat(Stat),
+}
+
+impl AttributeTag {
+    pub fn ordering(&self) -> usize {
+        match self {
+            Self::Modifier { modifier, .. } => match modifier {
+                // do these first
+                Modifier::Add => 1,
+                Modifier::Sub => 1,
+
+                // do these second
+                Modifier::Mul => 10,
+                Modifier::Div => 10,
+
+                // Do these second to last
+                Modifier::Max => 100,
+                Modifier::Min => 100,
+
+                // Do these last
+                Modifier::Base => 1000,
+            },
+            Self::Stat(..) => 0,
+        }
+    }
+
+    pub fn deepness(&self) -> usize {
+        self.deepness_from(0)
+    }
+
+    pub fn deepness_from(&self, mut current: usize) -> usize {
+        match self {
+            Self::Modifier { target, .. } => {
+                current += 1;
+                target.deepness_from(current)
             }
-        }
-        if *attribute.amount() != result {
-            attribute.set_amount(result);
+            Self::Stat(..) => current,
         }
     }
 }
-
-pub fn clamp_max<A>(
-    mut attributes: Query<
-        (&mut Attribute<A>, &Attribute<Max<A>>),
-        Or<(Changed<Attribute<A>>, Changed<Attribute<Max<A>>>)>,
-    >,
-) where
-    A: 'static + Send + Sync + Reflect,
-{
-    for (mut current, max) in attributes.iter_mut() {
-        if current.amount() > max.amount() {
-            current.set_amount(*max.amount());
-        }
-    }
-}
-
-pub fn clamp_min<A>(
-    mut attributes: Query<
-        (&mut Attribute<A>, &Attribute<Min<A>>),
-        Or<(Changed<Attribute<A>>, Changed<Attribute<Min<A>>>)>,
-    >,
-) where
-    A: 'static + Send + Sync + Reflect,
-{
-    for (mut current, min) in attributes.iter_mut() {
-        if current.amount() < min.amount() {
-            current.set_amount(*min.amount());
-        }
-    }
-}
-
-pub fn basic_modifiers<A>(
-    mut attributes: Query<
-        (
-            &mut Attribute<A>,
-            Option<&Attribute<Base<A>>>,
-            Option<&Attribute<Plus<A>>>,
-            Option<&Attribute<Mult<A>>>,
-        ),
-        Or<(
-            Changed<Attribute<Base<A>>>,
-            Changed<Attribute<Plus<A>>>,
-            Changed<Attribute<Mult<A>>>,
-        )>,
-    >,
-) where
-    A: 'static + Send + Sync + Reflect,
-{
-    for (mut current, base, plus, mult) in attributes.iter_mut() {
-        let base = base.map(|base| base.amount()).unwrap_or(&0.0f32);
-        let mult = mult.map(|mult| mult.amount()).unwrap_or(&1.0f32);
-        let plus = plus.map(|plus| plus.amount()).unwrap_or(&0.0f32);
-        let result = (base + plus) * mult;
-
-        if *current.amount() != result {
-            current.set_amount(result);
-        }
-    }
-}
-
-
-// Switch to I40f24 later for accuracy
-pub type Amount = f32;
-
-
-#[derive(Component, Debug, Copy, Serialize, Deserialize, Reflect, FromReflect)]
-#[reflect(Component)]
-pub struct Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    amount: Amount,
-    #[serde(skip, default)]
-    #[reflect(ignore)]
-    phantom: PhantomData<A>,
-}
-
-impl<A> Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    pub fn new<I: Into<Amount>>(amount: I) -> Self {
-        Self {
-            amount: amount.into(),
-            phantom: PhantomData,
-        }
-    }
-    pub fn amount(&self) -> &Amount {
-        &self.amount
-    }
-
-    pub fn set_amount(&mut self, amount: Amount) {
-        self.amount = amount;
-    }    
-}
-
-
-impl<A> From<f32> for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    fn from(num: f32) -> Self{
-        Self{
-            amount: num.into(),
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<A> Into<Amount> for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    fn into(self) -> Amount {
-        self.amount
-    }
-}
-
-impl<Rhs, A> Mul<Rhs> for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-    Rhs: Into<Amount>,
-{
-    type Output = Self;
-    fn mul(self, rhs: Rhs) -> Self::Output {
-        let fixed = rhs.into();
-        Attribute {
-            amount: self.amount * fixed,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<Rhs, A> Add<Rhs> for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-    Rhs: Into<Amount>,
-{
-    type Output = Self;
-    fn add(self, rhs: Rhs) -> Self::Output {
-        let fixed = rhs.into();
-        Attribute {
-            amount: self.amount + fixed,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<Rhs, A> MulAssign<Rhs> for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-    Rhs: Into<Amount>,
-{
-    fn mul_assign(&mut self, rhs: Rhs) {
-        self.amount = self.amount * rhs.into();
-    }
-}
-
-impl<Rhs, A> AddAssign<Rhs> for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-    Rhs: Into<Amount>,
-{
-    fn add_assign(&mut self, rhs: Rhs) {
-        self.amount = self.amount + rhs.into();
-    }
-}
-
-impl<A> Clone for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    fn clone(&self) -> Self {
-        Self {
-            amount: self.amount.clone(),
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<A> Default for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    fn default() -> Self {
-        Self { amount: 0., phantom: PhantomData::<A> }
-    }
-}
-
-impl<A> PartialEq for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.amount == other.amount
-    }
-}
-
-impl<A> Deref for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    type Target = Amount;
-    fn deref(&self) -> &Self::Target {
-        &self.amount
-    }
-}
-
-impl<A> DerefMut for Attribute<A>
-where
-    A: 'static + Send + Sync + Reflect,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.amount
-    }
-}
-
-
-
-#[derive(Default, Debug, Clone, Reflect)]
-pub struct Min<A: 'static + Send + Sync + Reflect>(#[reflect(ignore)]PhantomData<A>);
-
-#[derive(Default, Debug, Clone, Reflect)]
-pub struct Max<A: 'static + Send + Sync + Reflect>(#[reflect(ignore)]PhantomData<A>);
-
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
-pub struct Regen<A: 'static + Send + Sync + Reflect>(#[reflect(ignore)]PhantomData<A>);
-
-#[derive(Default, Debug, Clone, Reflect)]
-pub struct Base<A: 'static + Send + Sync + Reflect>(#[reflect(ignore)]PhantomData<A>);
-
-#[derive(Default, Debug, Clone, Reflect)]
-pub struct Plus<A: 'static + Send + Sync + Reflect>(#[reflect(ignore)]PhantomData<A>);
-
-#[derive(Default, Debug, Clone, Reflect)]
-pub struct Mult<A: 'static + Send + Sync + Reflect>(#[reflect(ignore)]PhantomData<A>);
-

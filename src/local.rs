@@ -1,19 +1,34 @@
 use std::{io::Cursor, time::Duration};
 
 use bevy::{
+    core_pipeline::{
+        fxaa::Fxaa,
+        tonemapping::{DebandDither, Tonemapping},
+    },
     pbr::{NotShadowCaster, NotShadowReceiver},
-    prelude::*, core_pipeline::{fxaa::Fxaa, tonemapping::{Tonemapping, DebandDither}}, winit::WinitWindows, window::PrimaryWindow
+    prelude::*,
+    window::PrimaryWindow,
+    winit::WinitWindows,
 };
-use winit::window::Icon;
-use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
+//use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
-    game_manager::{Fountain, CharacterState, PLAYER_GROUPING, GROUND_GROUPING, TERRAIN_GROUPING, TEAM_NEUTRAL, TEAM_1, TEAM_2},  
-    stats::*, 
-    assets::*, 
-    GameState, 
-    ability::{EffectApplyType, TargetsInArea, TargetsToEffect, Tags, TagInfo, ScanEffect, OnEnterEffect, Ticks, FilterTargets, TargetSelection, Ability
-}, view::Spectatable, player::{CCMap, IncomingDamageLog}, buff::{BuffTargets, BuffType, BuffInfo, BuffMap}};
+    ability::{
+        Ability, EffectApplyType, FilterTargets, OnEnterEffect, ScanEffect, TagInfo, Tags,
+        TargetSelection, TargetsInArea, TargetsToEffect, Ticks,
+    },
+    assets::*,
+    buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
+    game_manager::{
+        CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
+        TERRAIN_GROUPING,
+    },
+    player::{CCMap, IncomingDamageLog},
+    stats::*,
+    view::Spectatable,
+    GameState,
+};
+use winit::window::Icon;
 
 fn main() {
     let mut app = App::new();
@@ -21,13 +36,13 @@ fn main() {
     // Systems
     app.add_system(setup_map.in_schedule(OnEnter(GameState::InGame)));
     app.add_system(setup_camera.on_startup());
-    app.add_systems((
-        camera_movement_system, 
-        mouse_motion_system
-        )
-        .in_set(OnUpdate(CharacterState::Dead))
-        .in_set(OnUpdate(GameState::InGame))
+    /*
+    app.add_systems(
+        (camera_movement_system, mouse_motion_system)
+            .in_set(OnUpdate(CharacterState::Dead))
+            .in_set(OnUpdate(GameState::InGame)),
     );
+    */
     app.add_system(set_window_icon.on_startup());
     app.run();
 }
@@ -82,100 +97,106 @@ pub fn setup_map(
         Name::new("Platform"),
     ));
 
-    let tower = commands.spawn((        
-        SpatialBundle::from_transform(
-            Transform {
+    let tower = commands
+        .spawn((
+            SpatialBundle::from_transform(Transform {
                 translation: Vec3::new(-3.0, 0.5, -22.0),
                 ..default()
-        }),
-        meshes.add(shape::Capsule{
-            radius: 0.7,
-            depth: 2.0,
-            ..default()
-        }.into()),
-        materials.add(StandardMaterial::from(Color::RED)),
-        
-        Collider::capsule(Vec3::ZERO, Vec3::Y, 0.7),
-        RigidBody::Fixed,
-        TERRAIN_GROUPING,
-        TEAM_NEUTRAL,
-        ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-        Attribute::<Health>::new(4000.0),
-        Attribute::<Min<Health>>::new(0.0),
-        Attribute::<Max<Health>>::new(10000.0),
-        Attribute::<Regen<Health>>::new(0.0),
-        Name::new("Tower"),       
-        Spectatable, 
-    )).id();
-
-    let tower_range = commands.spawn((
-        SpatialBundle::default(),
-        Collider::cylinder(1.0, 7.),
-        ActiveEvents::COLLISION_EVENTS,
-        ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-        Sensor,
-        FilterTargets{
-            number_of_targets: 1,
-            target_selection: TargetSelection::Closest,
-        },
-        EffectApplyType::Scan(ScanEffect{
-            ticks: Ticks::Unlimited{
-                interval: 5000,
-            },
-            timer: Timer::new(
-                Duration::from_millis(5000 as u64),
-                TimerMode::Repeating,
+            }),
+            meshes.add(
+                shape::Capsule {
+                    radius: 0.7,
+                    depth: 2.0,
+                    ..default()
+                }
+                .into(),
             ),
-        }),
-        TargetsInArea::default(),
-        TargetsToEffect::default(),
-        TEAM_NEUTRAL,
-        Tags{
-            list: vec![
-                TagInfo::Homing(Ability::Fireball),
-            ]
-        },
-        Name::new("Range Collider"),      
-    )).id();
-    
+            materials.add(StandardMaterial::from(Color::RED)),
+            Collider::capsule(Vec3::ZERO, Vec3::Y, 0.7),
+            RigidBody::Fixed,
+            TERRAIN_GROUPING,
+            TEAM_NEUTRAL,
+            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+            /*
+            Attribute::<Health>::new(4000.0),
+            Attribute::<Min<Health>>::new(0.0),
+            Attribute::<Max<Health>>::new(10000.0),
+            Attribute::<Regen<Health>>::new(0.0),
+            */
+            Attributes::default(),
+            Name::new("Tower"),
+            Spectatable,
+        ))
+        .id();
+
+    let tower_range = commands
+        .spawn((
+            SpatialBundle::default(),
+            Collider::cylinder(1.0, 7.),
+            ActiveEvents::COLLISION_EVENTS,
+            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+            Sensor,
+            FilterTargets {
+                number_of_targets: 1,
+                target_selection: TargetSelection::Closest,
+            },
+            EffectApplyType::Scan(ScanEffect {
+                ticks: Ticks::Unlimited { interval: 5000 },
+                timer: Timer::new(Duration::from_millis(5000 as u64), TimerMode::Repeating),
+            }),
+            TargetsInArea::default(),
+            TargetsToEffect::default(),
+            TEAM_NEUTRAL,
+            Tags {
+                list: vec![TagInfo::Homing(Ability::Fireball)],
+            },
+            Name::new("Range Collider"),
+        ))
+        .id();
+
     commands.entity(tower).push_children(&[tower_range]);
 
     // target dummy
-    commands.spawn((        
-        SpatialBundle::from_transform(
-            Transform {
+    commands
+        .spawn((
+            SpatialBundle::from_transform(Transform {
                 translation: Vec3::new(-3.0, 0.5, -17.0),
                 ..default()
-        }),
-        meshes.add(shape::Capsule{
-            radius: 0.4,
-            ..default()
-        }.into()),
-        materials.add(StandardMaterial::from(Color::INDIGO)),
-        
-        Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
-        RigidBody::Dynamic,
-        LockedAxes::ROTATION_LOCKED,
-        PLAYER_GROUPING,
-        TEAM_2,
-        CCMap::default(),
-        BuffMap::default(),
-        IncomingDamageLog::default(),       
-        Spectatable, 
-        Name::new("Target Dummy"),
-    )).insert((
-        Attribute::<Health>::new(4000.0),
-        Attribute::<Min<Health>>::new(0.0),
-        Attribute::<Max<Health>>::new(10000.0),
-        Attribute::<Regen<Health>>::new(0.0),
-    ));
+            }),
+            meshes.add(
+                shape::Capsule {
+                    radius: 0.4,
+                    ..default()
+                }
+                .into(),
+            ),
+            materials.add(StandardMaterial::from(Color::INDIGO)),
+            Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
+            RigidBody::Dynamic,
+            LockedAxes::ROTATION_LOCKED,
+            PLAYER_GROUPING,
+            TEAM_2,
+            CCMap::default(),
+            BuffMap::default(),
+            IncomingDamageLog::default(),
+            Spectatable,
+            Name::new("Target Dummy"),
+        ))
+        .insert((
+            Attributes::default(),
+            /*
+            Attribute::<Health>::new(4000.0),
+            Attribute::<Min<Health>>::new(0.0),
+            Attribute::<Max<Health>>::new(10000.0),
+            Attribute::<Regen<Health>>::new(0.0),
+            */
+        ));
 
     // Scanning Damage zone
     commands.spawn((
-        SpatialBundle::from_transform(
-            Transform {
-                translation: Vec3::new(-10.0, 0.0, 10.0),
-                ..default()
+        SpatialBundle::from_transform(Transform {
+            translation: Vec3::new(-10.0, 0.0, 10.0),
+            ..default()
         }),
         meshes.add(Mesh::from(shape::Plane {
             size: 4.0,
@@ -188,20 +209,17 @@ pub fn setup_map(
         TargetsInArea::default(),
         TargetsToEffect::default(),
         TEAM_NEUTRAL,
-        Tags{
-            list: vec![
-                TagInfo::Damage(12.0),
-            ]
+        Tags {
+            list: vec![TagInfo::Damage(12.0)],
         },
         Name::new("DamageFountain"),
     ));
 
     // Damage zone
     commands.spawn((
-        SpatialBundle::from_transform(
-            Transform {
-                translation: Vec3::new(10.0, 0.0, 10.0),
-                ..default()
+        SpatialBundle::from_transform(Transform {
+            translation: Vec3::new(10.0, 0.0, 10.0),
+            ..default()
         }),
         meshes.add(Mesh::from(shape::Plane {
             size: 4.0,
@@ -210,19 +228,19 @@ pub fn setup_map(
         materials.add(StandardMaterial::from(Color::GOLD)),
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
-        Tags{
+        Tags {
             list: vec![
                 TagInfo::Damage(23.0),
-                TagInfo::Buff(BuffInfo{
-                    stat: Stat::PhysicalPower,
+                TagInfo::Buff(BuffInfo {
+                    stat: Stat::PhysicalPower.into(),
                     amount: 10,
                     max_stacks: 3,
                     duration: 10.0,
                     ..default()
                 }),
-            ]
+            ],
         },
-        EffectApplyType::OnEnter(OnEnterEffect{
+        EffectApplyType::OnEnter(OnEnterEffect {
             target_penetration: 2,
             ticks: Ticks::Unlimited { interval: 500 },
             ..default()
@@ -230,16 +248,15 @@ pub fn setup_map(
         TEAM_NEUTRAL,
         TargetsInArea::default(),
         TargetsToEffect::default(),
-        Spectatable, 
+        Spectatable,
         Name::new("DamageFountain2"),
     ));
 
-    // Fountain 
+    // Fountain
     commands.spawn((
-        SpatialBundle::from_transform(
-            Transform {
-                translation: Vec3::new(10.0, 0.0, -10.0),
-                ..default()
+        SpatialBundle::from_transform(Transform {
+            translation: Vec3::new(10.0, 0.0, -10.0),
+            ..default()
         }),
         meshes.add(Mesh::from(shape::Plane {
             size: 4.0,
@@ -250,18 +267,16 @@ pub fn setup_map(
         Sensor,
         Fountain,
         TEAM_1,
-        EffectApplyType::Scan(ScanEffect{
-            ticks: Ticks::Unlimited{
-                interval: 2000,
-            },
+        EffectApplyType::Scan(ScanEffect {
+            ticks: Ticks::Unlimited { interval: 2000 },
             ..default()
         }),
-        Tags{
+        Tags {
             list: vec![
                 TagInfo::Heal(28.0),
                 TagInfo::Damage(44.0),
-                TagInfo::Buff(BuffInfo{
-                    stat: Stat::PhysicalPower,
+                TagInfo::Buff(BuffInfo {
+                    stat: Stat::PhysicalPower.into(),
                     amount: 5,
                     max_stacks: 6,
                     duration: 8.0,
@@ -269,30 +284,31 @@ pub fn setup_map(
                     bufftype: BuffType::Buff,
                     ..default()
                 }),
-            ]
+            ],
         },
         TargetsInArea::default(),
         TargetsToEffect::default(),
-        Spectatable, 
+        Spectatable,
         Name::new("Healing Fountain"),
     ));
 
-    // sky 
-    let _sky = commands.spawn((
-        SceneBundle {
-            scene: models.skybox.clone(),
-            transform: Transform {
-                //scale: Vec3::splat(3.0),
+    // sky
+    let _sky = commands
+        .spawn((
+            SceneBundle {
+                scene: models.skybox.clone(),
+                transform: Transform {
+                    //scale: Vec3::splat(3.0),
+                    ..default()
+                },
+                // make unlit might make fog work? need to apply standardmaterial
+                //unlit: true,
                 ..default()
             },
-            // make unlit might make fog work? need to apply standardmaterial
-            //unlit: true,
-            ..default()
-        },
-        Name::new("Sky"),
-    ))
-    .insert((NotShadowCaster, NotShadowReceiver))
-    .id();
+            Name::new("Sky"),
+        ))
+        .insert((NotShadowCaster, NotShadowReceiver))
+        .id();
 
     //lighting
     commands.spawn((
@@ -327,23 +343,24 @@ pub fn setup_map(
     ));
 
     // arena
-    commands.spawn((
-        SpatialBundle {
-            transform: Transform {
-                translation: Vec3::new(0., -0.5, 0.),
-                scale: Vec3::new(4., 4., 4.),
+    commands
+        .spawn((
+            SpatialBundle {
+                transform: Transform {
+                    translation: Vec3::new(0., -0.5, 0.),
+                    scale: Vec3::new(4., 4., 4.),
+                    ..default()
+                },
                 ..default()
             },
-            ..default()
-        },
-        Name::new("Arena"),
-    ))
-    .with_children(|commands| {
-        commands.spawn(SceneBundle {
-            scene: scenes.arena_map.clone(),
-            ..default()
+            Name::new("Arena"),
+        ))
+        .with_children(|commands| {
+            commands.spawn(SceneBundle {
+                scene: scenes.arena_map.clone(),
+                ..default()
+            });
         });
-    });
 }
 
 pub fn setup_camera(mut commands: Commands) {
@@ -357,13 +374,14 @@ pub fn setup_camera(mut commands: Commands) {
         },
         Fxaa::default(),
         Name::new("Spectator Camera"),
-        FlyCamera{
+        /*
+        FlyCamera {
             sensitivity: 12.0,
             ..default()
         },
+        */
     ));
 }
-
 
 fn set_window_icon(
     windows: NonSend<WinitWindows>,
@@ -371,9 +389,7 @@ fn set_window_icon(
 ) {
     let Ok(primary_entity) = primary_window.get_single() else {return};
     let Some(primary) = windows.get_window(primary_entity) else {return};
-    let icon_buf = Cursor::new(include_bytes!(
-        "../assets/icons/fireball.png"
-    ));
+    let icon_buf = Cursor::new(include_bytes!("../assets/icons/fireball.png"));
     if let Ok(image) = image::load(icon_buf, image::ImageFormat::Png) {
         let image = image.into_rgba8();
         let (width, height) = image.dimensions();
