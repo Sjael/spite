@@ -1,12 +1,10 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, ui::FocusPolicy};
-use bevy_editor_pls::egui::Align;
 use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens}, EaseFunction, Tween, Delay};
 
 use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item};
 
-use super::ButtonAction;
 
 
 const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);

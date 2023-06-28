@@ -15,7 +15,7 @@ use crate::{
     game_manager::{Bounty, CharacterState, PLAYER_GROUPING, TEAM_1, CastEvent}, 
     GameState, view::{PossessEvent, Spectatable, camera_swivel_and_tilt}, buff::{BuffInfoApplied, BuffMap}};
 
-#[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut)]
 #[reflect(Component)]
 pub struct Player {
     pub id: u32,
@@ -218,8 +218,6 @@ impl Plugin for PlayerPlugin {
             cast_ability,
             trigger_cooldown.after(cast_ability),
             tick_cooldowns.after(trigger_cooldown),
-            tick_ccs,
-            tick_buffs,
             spawn_player,
         ).in_set(OnUpdate(GameState::InGame)));
         // Process transforms always after inputs
@@ -259,6 +257,7 @@ fn spawn_player(
     mut spawn_events: EventReader<SpawnEvent>,
     mut possess_events: EventWriter<PossessEvent>,
     mut next_state: ResMut<NextState<CharacterState>>,
+    local_player: Res<Player>,
 ){
     for event in spawn_events.iter(){
         next_state.set(CharacterState::Alive);
@@ -272,8 +271,8 @@ fn spawn_player(
         material.reflectance = 0.0;
         let green = materials.add(material);
 
-        let id  = event.player.id.clone();
-        info!("spawning player {}", id);
+        let spawning_id  = event.player.id.clone();
+        info!("spawning player {}", spawning_id);
         let player_entity = commands.spawn((
             SpatialBundle::from_transform(event.transform.clone()),
             _meshes.add(shape::Capsule{
@@ -281,8 +280,8 @@ fn spawn_player(
                 ..default()
             }.into()),       
             green.clone(), 
-            Player { id },
-            Name::new(format!("Player {}", id.to_string())),
+            Player { id: spawning_id },
+            Name::new(format!("Player {}", spawning_id.to_string())),
             
             setup_player_slots(), // Has all the keybinding -> action logic
             PlayerInput::default(),
@@ -327,7 +326,7 @@ fn spawn_player(
         ))
         .id();
 
-        let player_is_owned = true; // make it check if you are that player
+        let player_is_owned = local_player.id == spawning_id; // make it check if you are that player
         if player_is_owned {
             possess_events.send(PossessEvent{
                 entity: player_entity,
@@ -341,9 +340,10 @@ fn spawn_player(
 
 fn setup_player(
     mut spawn_events: EventWriter<SpawnEvent>,
+    local_player: Res<Player>,
 ){    
     spawn_events.send(SpawnEvent{
-        player: Player{ id: 1507 },
+        player: local_player.clone(),
         transform: Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
@@ -486,16 +486,14 @@ pub fn cast_ability(
 
 fn trigger_cooldown(
     mut cast_events: EventReader<CastEvent>,
-    mut query: Query<(&Player, &mut CooldownMap, &SlotAbilityMap, Entity)>,
+    mut query: Query<&mut CooldownMap>,
 ) {
     for event in cast_events.iter() {
-        
-        for (_, mut cooldowns, _, _e) in &mut query {
-            cooldowns.map.insert(
-                event.ability.clone(),
-                Timer::new(Duration::from_millis((event.ability.get_cooldown() * 1000.) as u64), TimerMode::Once),
-            );
-        }
+        let Ok(mut cooldowns) = query.get_mut(event.caster) else { continue };
+        cooldowns.map.insert(
+            event.ability.clone(),
+            Timer::new(Duration::from_millis((event.ability.get_cooldown() * 1000.) as u64), TimerMode::Once),
+        );
     }
 }
 
@@ -516,28 +514,6 @@ fn tick_cooldowns(
     }
 }
 
-fn tick_ccs(
-    time: Res<Time>,
-    mut query: Query<&mut CCMap>,
-) {
-    for mut ccs in &mut query {
-        ccs.map.retain(|_, timer| {
-            timer.tick(time.delta());
-            !timer.finished()
-        });
-    }
-}
-fn tick_buffs(
-    time: Res<Time>,
-    mut query: Query<&mut BuffMap>,
-) {
-    for mut buffs in &mut query {
-        buffs.map.retain(|_, buff| {
-            buff.timer.tick(time.delta());
-            !buff.timer.finished()
-        });
-    }
-}
 
 
 #[derive(Component, Reflect, Default, Debug, Clone)]

@@ -1,6 +1,6 @@
 
 use bevy::prelude::*;
-use crate::{crowd_control::{CCType, CCInfo}, stats::Stat, buff::{BuffInfo, BuffTargets, BuffType}};
+use crate::{crowd_control::{CCType, CCInfo}, stats::{Stat, Attribute, Health}, buff::{BuffInfo, BuffTargets, BuffType}};
 use bevy_rapier3d::prelude::{Velocity, RigidBody, Sensor, ActiveEvents};
 
 use super::*;

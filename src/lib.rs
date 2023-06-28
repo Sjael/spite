@@ -7,7 +7,8 @@ use bevy_editor_pls::prelude::*;
 use ability::{AbilityPlugin, shape::load_ability_shape};
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
-use buff::BuffPlugin;
+use buff::{BuffPlugin, BuffMap};
+use crowd_control::{tick_ccs, CCMap};
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use player::PlayerPlugin;
@@ -63,10 +64,15 @@ pub fn app_plugins_both(app: &mut App) {
         .add_plugin(AbilityPlugin)
         .add_plugin(InputPlugin)
 
+        // move buffs / cc into character plugin at some point
         .add_systems((
             load_ability_shape,
             tick_game,
+            buff::tick_buffs,
+            tick_ccs,
         ));
+        app.register_type::<CCMap>();
+        app.register_type::<BuffMap>();
 }
 
 

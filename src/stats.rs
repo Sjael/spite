@@ -5,6 +5,7 @@ use std::{marker::PhantomData, ops::MulAssign};
 //use fixed::types::I40F24;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul};
 use crate::ability::HealthChangeEvent;
+use crate::buff::BuffMap;
 use crate::{on_gametick, GameState};
 
 
@@ -31,22 +32,35 @@ pub enum Stat{
     #[default]
     Health,
     CharacterResource,
-    Gold,
-    Experience,
-    PhysicalPower,
 }
+
+impl Stat {
+    pub fn to_attribute(&self, amount: f32) -> Box<dyn IsAStat>{
+        match self{
+            Stat::Health => Box::new(Attribute::<Health>::new(amount)) ,
+            Stat::CharacterResource => Box::new(Attribute::<CharacterResource>::new(amount)) ,
+        }
+    }
+}
+
+
 impl std::fmt::Display for Stat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-//
-// Makes buffing easier, dont need generic type in buffinfo
-//
 
-#[derive(Reflect, Debug)]
+
+pub trait IsAStat{}
+
+impl<A> IsAStat for Attribute<A>
+where
+    A: 'static + Send + Sync + Reflect{}
+
+
+#[derive(Reflect, Debug, FromReflect)]
 pub struct Health;
-#[derive(Reflect, Debug)]
+#[derive(Reflect, Debug, FromReflect)]
 pub struct CharacterResource;
 #[derive(Reflect, Debug)]
 pub struct Gold;
@@ -54,6 +68,8 @@ pub struct Gold;
 pub struct Experience;
 #[derive(Reflect, Debug)]
 pub struct MovementSpeed;
+#[derive(Reflect, Debug)]
+pub struct PhysicalPower;
 
 pub struct StatsPlugin;
 impl Plugin for StatsPlugin {
@@ -101,6 +117,7 @@ pub fn change_health(
         health.set_amount(new_hp);
     }
 }
+
 
 pub fn regen_unless_zero<A>(
     mut query: Query<(
@@ -214,7 +231,8 @@ pub fn basic_modifiers<A>(
 // Switch to I40f24 later for accuracy
 pub type Amount = f32;
 
-#[derive(Component, Debug, Copy, Serialize, Deserialize, Reflect)]
+
+#[derive(Component, Debug, Copy, Serialize, Deserialize, Reflect, FromReflect)]
 #[reflect(Component)]
 pub struct Attribute<A>
 where

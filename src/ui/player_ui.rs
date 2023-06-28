@@ -5,8 +5,8 @@ use crate::{
     ui::{ui_bundles::*, },
     player::{Player, CooldownMap}, 
     input::SlotAbilityMap, 
-    ability::{AbilityInfo, Ability, BuffEvent},
-    stats::*, assets::{Icons, Fonts},  game_manager::Team, buff::{BuffType, BuffStackEvent, BuffMap, BuffAddEvent},    
+    ability::{AbilityInfo, Ability},
+    stats::*, assets::{Icons, Fonts}, buff::{BuffType, BuffStackEvent, BuffMap, BuffAddEvent}, view::Spectating,    
 };
 
 pub fn add_player_ui(
@@ -97,21 +97,26 @@ pub fn update_health(
     >,
     mut text_query: Query<&mut Text, With<HealthBarText>>,
     mut bar_query: Query<&mut Style, With<HealthBar>>,
+    spectating: Res<Spectating>,
 ) {
+    let Some(spectating) = spectating.0 else {return};
     match (text_query.get_single_mut(), bar_query.get_single_mut()) {
         (Ok(mut text), Ok(mut bar)) => {
-            for (hp, regen, max) in query.iter() {
-                let current_amount = *hp.amount();
-                let regen_amount = *regen.amount();
-                let max_amount = *max.amount();
+            let Ok((
+                hp, 
+                regen, 
+                max
+            )) = query.get(spectating) else { return };
+            let current_amount = *hp.amount();
+            let regen_amount = *regen.amount();
+            let max_amount = *max.amount();
 
-                text.sections[0].value =
-                    format!("{} / {} (+{})", current_amount.trunc(), max_amount.trunc(), regen_amount.trunc());
+            text.sections[0].value =
+                format!("{} / {} (+{})", current_amount.trunc(), max_amount.trunc(), regen_amount.trunc());
 
-                let new_size = current_amount as f32 / max_amount as f32;
-                //let new_size = (current_amount / max_amount).to_num::<f32>();
-                bar.size.width = Val::Percent(new_size * 100.0);
-            }
+            let new_size = current_amount as f32 / max_amount as f32;
+            //let new_size = (current_amount / max_amount).to_num::<f32>();
+            bar.size.width = Val::Percent(new_size * 100.0);
         }
         _ => {}
     }
@@ -132,21 +137,26 @@ pub fn update_character_resource(
     >,
     mut text_query: Query<&mut Text, With<ResourceBarText>>,
     mut bar_query: Query<&mut Style, With<ResourceBar>>,
+    spectating: Res<Spectating>,
 ) {
+    let Some(spectating) = spectating.0 else {return};
     match (text_query.get_single_mut(), bar_query.get_single_mut()) {
         (Ok(mut text), Ok(mut bar)) => {
-            for (resource, regen, max) in query.iter() {
-                let current_amount = *resource.amount();
-                let regen_amount = *regen.amount();
-                let max_amount = *max.amount();
+            let Ok((
+                resource, 
+                regen, 
+                max
+            )) = query.get(spectating) else { return };
+            let current_amount = *resource.amount();
+            let regen_amount = *regen.amount();
+            let max_amount = *max.amount();
 
-                text.sections[0].value =
-                    format!("{} / {} (+{})", current_amount.trunc(), max_amount.trunc(), regen_amount.trunc());
+            text.sections[0].value =
+                format!("{} / {} (+{})", current_amount.trunc(), max_amount.trunc(), regen_amount.trunc());
 
-                let new_size = current_amount as f32 / max_amount as f32;
-                //let new_size = (current_amount / max_amount).to_num::<f32>();
-                bar.size.width = Val::Percent(new_size * 100.0);
-            }
+            let new_size = current_amount as f32 / max_amount as f32;
+            //let new_size = (current_amount / max_amount).to_num::<f32>();
+            bar.size.width = Val::Percent(new_size * 100.0);
         }
         _ => {}
     }
@@ -154,30 +164,30 @@ pub fn update_character_resource(
 
 pub fn update_cooldowns(
     mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
-    cooldown_query: Query<(&Player, &CooldownMap)>,
+    cooldown_query: Query<&CooldownMap>,
     mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
+    spectating: Res<Spectating>,
 ){
+    let Some(spectating) = spectating.0 else {return};
+    let Ok(cooldowns) = cooldown_query.get(spectating) else {return};
+
     for (mut text, ability, parent) in text_query.iter_mut() {
         let Ok(mut background_color) = image_query.get_mut(parent.get()) else{
             continue
         };
-        for (_, cooldowns) in cooldown_query.iter() {
-            if !cooldowns.map.contains_key(ability) {
-                text.sections[0].value = String::from("");
-                *background_color = Color::WHITE.into();
-            } else {
-                let timer = cooldowns.map.get(ability).unwrap();
-                let newcd = timer.remaining_secs() as u32;
-                text.sections[0].value = newcd.to_string();
-                *background_color = Color::rgb(0.2, 0.2, 0.2).into();
-            }
+        if !cooldowns.map.contains_key(ability) {
+            text.sections[0].value = String::from("");
+            *background_color = Color::WHITE.into();
+        } else {
+            let Some(timer) = cooldowns.map.get(ability) else {continue};
+            let newcd = timer.remaining_secs() as u32;
+            text.sections[0].value = newcd.to_string();
+            *background_color = Color::rgb(0.2, 0.2, 0.2).into();
         }
     }
 }
 
-// limit this to only be every few frames? Dont need to constantly be checking, setting and truncating f32s
-// have a sleep component with a 1s timer that returns early if not finished?
-// OR have a u32 'SecTracker' component that returns early, dont have to parse string
+
 pub fn update_buff_timers(   
     mut text_query: Query<(&mut Text, &Parent), With<BuffDurationText>>,
     timer_query: Query<&DespawnTimer>,
@@ -194,8 +204,11 @@ pub fn update_buff_stacks(
     children_query: Query<&Children>,
     mut buff_holders: Query<(Entity, &BuffId, &mut DespawnTimer)>,
     mut stack_events: EventReader<BuffStackEvent>,
+    spectating: Res<Spectating>,
 ){
+    let Some(spectating) = spectating.0 else {return};
     for stack_change in stack_events.iter(){
+        if stack_change.target != spectating { continue }
         for (buff_ui_entity, buff_id, mut despawn_timer) in buff_holders.iter_mut(){
             if buff_id.id != stack_change.id { continue }
             despawn_timer.0.reset();
@@ -212,17 +225,18 @@ pub fn update_buff_stacks(
 
 pub fn add_buffs(
     mut commands: Commands,
-    targets_query: Query<Entity, (With<Player>, With<BuffMap>)>,
+    targets_query: Query<Entity, (With<Player>)>,
     buff_bar_ui: Query<Entity, With<BuffBar>>,
     debuff_bar_ui: Query<Entity, With<DebuffBar>>,
     mut buff_events: EventReader<BuffAddEvent>,
     icons: Res<Icons>,
     fonts: Res<Fonts>,
+    spectating: Res<Spectating>,
 ){
+    let Some(spectating) = spectating.0 else {return};
     for event in buff_events.iter(){
+        if event.target != spectating { continue }
         let Ok(_) = targets_query.get(event.target) else {continue};
-        // adding buffs no matter who theyre on
-        // in the future add only if on the possessed entity
         let Ok(buff_bar) = buff_bar_ui.get_single() else {continue};
         let Ok(debuff_bar) = debuff_bar_ui.get_single() else {continue};
         let is_buff = event.bufftype == BuffType::Buff;

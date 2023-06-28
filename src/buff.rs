@@ -1,6 +1,6 @@
 use std::{time::Duration, collections::HashMap};
 
-use crate::{stats::{Stat}, ability::{BuffEvent, Ability}, game_manager::Team, GameState};
+use crate::{stats::{Stat, Attribute, Health, MovementSpeed}, ability::{BuffEvent, Ability}, game_manager::Team, GameState};
 use bevy::prelude::*;
 
 
@@ -60,7 +60,11 @@ impl Default for BuffInfo{
 }
 
 #[derive(Reflect, FromReflect, Debug, Clone)]
-pub struct BuffInfoApplied{
+pub struct BuffInfoApplied<A>
+where
+    A: 'static + Send + Sync + Reflect,
+{
+    pub attribute: Attribute<A>,
     pub info: BuffInfo,
     pub stacks: u32,
     pub timer: Timer, // change to vec of timers for individual falloff
@@ -74,7 +78,8 @@ impl Plugin for BuffPlugin {
         app.add_event::<BuffStackEvent>();
 
         app.add_systems((
-            apply_buffs,
+            apply_buffs::<Attribute<Health>>,
+            apply_buffs::<Attribute<MovementSpeed>>,
         ).in_set(OnUpdate(GameState::InGame)));
     }
 }
@@ -82,6 +87,7 @@ impl Plugin for BuffPlugin {
 pub struct BuffStackEvent{
     pub id: String,
     pub stacks: u32,
+    pub target: Entity,
 }
 
 pub struct BuffAddEvent{
@@ -91,17 +97,24 @@ pub struct BuffAddEvent{
     pub duration: f32,
 }
 
-pub fn apply_buffs(
-    mut targets_query: Query<(Entity, &mut BuffMap, &Team)>,
+pub fn apply_buffs<A>(
+    mut commands: Commands,
+    mut targets_query: Query<(Entity, &mut BuffMap<A>, &Team, Option<&mut Attribute<A>>)>,
     mut buff_events: EventReader<BuffEvent>,
     mut stack_events: EventWriter<BuffStackEvent>,
     mut add_events: EventWriter<BuffAddEvent>,
-){
+)
+    where
+    A: 'static + Send + Sync + Reflect,
+{
     for event in buff_events.iter(){
-        if let Ok((entity, mut buffs, team)) = targets_query.get_mut(event.target){
+        if let Ok((entity, mut buffs, team, attribute)) = targets_query.get_mut(event.target){
             let originator = format!("{}v{}", event.buff_originator.index(), event.buff_originator.generation());
             let caster = format!("{}v{}", event.caster.index(), event.caster.generation());
             let buff_id = format!("{}_{}_{}", caster, originator, event.info.stat.to_string());
+            let new_attribute = event.info.stat.to_attribute(event.info.amount as f32);
+
+            
             
             if buffs.map.contains_key(&buff_id){
                 let Some(applied) = buffs.map.get_mut(&buff_id) else {continue}; 
@@ -112,12 +125,14 @@ pub fn apply_buffs(
                 stack_events.send(BuffStackEvent { 
                     id: buff_id,
                     stacks: applied.stacks, 
+                    target: event.target,
                 });
-            } else{
+            } else {
                 buffs.map.insert(
                     buff_id.clone(),
                     BuffInfoApplied{
                         info: event.info.clone(),
+                        attribute: event.info.stat.to_attribute(event.info.amount as f32),
                         stacks: 1,
                         timer: Timer::new(Duration::from_millis((event.info.duration * 1000.0) as u64), TimerMode::Once),
                     }                     
@@ -129,7 +144,27 @@ pub fn apply_buffs(
                     duration: event.info.duration,
                 });
             }
+            if let Some(mut attribute) = attribute{
+                attribute += *new_attribute;
+            } else {
+                commands.entity(entity).insert(Attribute::<A>::new(event.info.amount as f32));
+            }
         }        
+    }
+}
+
+pub fn tick_buffs<A>(
+    time: Res<Time>,
+    mut query: Query<&mut BuffMap<A>>,
+) 
+    where
+        A: 'static + Send + Sync + Reflect,
+{
+    for mut buffs in &mut query {
+        buffs.map.retain(|_, buff| {
+            buff.timer.tick(time.delta());
+            !buff.timer.finished()
+        });
     }
 }
 
@@ -139,6 +174,9 @@ pub fn apply_buffs(
 
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect]
-pub struct BuffMap {
-    pub map: HashMap<String, BuffInfoApplied>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
+pub struct BuffMap<A> 
+    where
+        A: 'static + Send + Sync + Reflect,
+{
+    pub map: HashMap<String, BuffInfoApplied<A>>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
 }

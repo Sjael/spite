@@ -1,8 +1,8 @@
-use std::time::Duration;
+use std::{time::Duration, collections::HashMap};
 
 use bevy::prelude::*;
 
-use crate::{player::CCMap, ability::CCEvent};
+use crate::{ability::CCEvent};
 
 
 #[derive(Debug, Clone, Reflect, FromReflect, Copy)]
@@ -41,4 +41,22 @@ pub fn apply_ccs(
             );
         }        
     }
+}
+
+pub fn tick_ccs(
+    time: Res<Time>,
+    mut query: Query<&mut CCMap>,
+) {
+    for mut ccs in &mut query {
+        ccs.map.retain(|_, timer| {
+            timer.tick(time.delta());
+            !timer.finished()
+        });
+    }
+}
+
+#[derive(Component, Reflect, Default, Debug, Clone)]
+#[reflect]
+pub struct CCMap {
+    pub map: HashMap<CCType, Timer>,
 }
