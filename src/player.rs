@@ -6,10 +6,10 @@ use std::{collections::HashMap, f32::consts::PI, fmt::Debug, time::Duration};
 
 use crate::{
     ability::{Ability, HealthChangeEvent},
-    buff::{BuffInfoApplied, BuffMap},
+    buff::{BuffMap},
     crowd_control::CCType,
     game_manager::{Bounty, CastEvent, CharacterState, PLAYER_GROUPING, TEAM_1},
-    input::{setup_player_slots, SlotAbilityMap},
+    input::{setup_player_slots},
     stats::*,
     ui::{mouse::MouseState, Trackable},
     view::{camera_swivel_and_tilt, PossessEvent, Spectatable},
@@ -331,7 +331,24 @@ fn spawn_player(
                         target: Box::new(Stat::Health.into()),
                     })
                     .or_default() = 0.0;
+                *attributes.entry(Stat::HealthMax.into()).or_default() = 220.0;
+                *attributes.entry(Stat::HealthRegen.into()).or_default() = 5.0;
                 *attributes.entry(Stat::Speed.into()).or_default() = 5.0;
+                *attributes.entry(Stat::CharacterResource.into()).or_default() = 33.0;
+                *attributes
+                    .entry(AttributeTag::Modifier {
+                        modifier: Modifier::Max,
+                        target: Box::new(Stat::CharacterResource.into()),
+                    })
+                    .or_default() = 127.0;
+                *attributes
+                    .entry(AttributeTag::Modifier {
+                        modifier: Modifier::Min,
+                        target: Box::new(Stat::CharacterResource.into()),
+                    })
+                    .or_default() = 0.0;
+                *attributes.entry(Stat::CharacterResource.into()).or_default() = 67.0;
+                *attributes.entry(Stat::CharacterResourceRegen.into()).or_default() = 5.0;
                 attributes
             })
             /*

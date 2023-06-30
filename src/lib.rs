@@ -6,7 +6,7 @@ use std::time::Duration;
 use ability::{shape::load_ability_shape, AbilityPlugin};
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
-use buff::{BuffMap, BuffPlugin};
+use buff::{BuffPlugin};
 use crowd_control::{tick_ccs, CCMap};
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;

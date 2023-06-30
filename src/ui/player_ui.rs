@@ -79,7 +79,7 @@ pub fn add_ability_icons(
 
 // Change these to generics later, requires Bar<Health> and BarText<Health>
 pub fn update_health(
-    query: Query<&Attributes, With<Player>>,
+    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
     mut text_query: Query<&mut Text, With<HealthBarText>>,
     mut bar_query: Query<&mut Style, With<HealthBar>>,
     spectating: Res<Spectating>,
@@ -89,18 +89,11 @@ pub fn update_health(
         (Ok(mut text), Ok(mut bar)) => {
             let Ok(attributes) = query.get(spectating) else { return };
             let current_amount = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
-            let regen_amount = *attributes
-                .get(&AttributeTag::Modifier {
-                    modifier: Modifier::Add,
-                    target: Box::new(Stat::Health.into()),
-                })
-                .unwrap_or(&0.0);
-            let max_amount = *attributes
-                .get(&AttributeTag::Modifier {
-                    modifier: Modifier::Max,
-                    target: Box::new(Stat::Health.into()),
-                })
-                .unwrap_or(&0.0);
+            let regen_amount = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
+            let max_amount = *attributes.get(&AttributeTag::Modifier {
+                modifier: Modifier::Max,
+                target: Box::new(Stat::Health.into()),
+            }).unwrap_or(&100.0);
 
             text.sections[0].value = format!(
                 "{} / {} (+{})",
@@ -117,20 +110,8 @@ pub fn update_health(
     }
 }
 
-/*
 pub fn update_character_resource(
-    query: Query<
-        (
-            &Attribute<CharacterResource>,
-            &Attribute<Regen<CharacterResource>>,
-            &Attribute<Max<CharacterResource>>,
-        ),
-        Or<(
-            Changed<Attribute<CharacterResource>>,
-            Changed<Attribute<Regen<CharacterResource>>>,
-            Changed<Attribute<Max<CharacterResource>>>,
-        )>,
-    >,
+    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
     mut text_query: Query<&mut Text, With<ResourceBarText>>,
     mut bar_query: Query<&mut Style, With<ResourceBar>>,
     spectating: Res<Spectating>,
@@ -138,26 +119,28 @@ pub fn update_character_resource(
     let Some(spectating) = spectating.0 else {return};
     match (text_query.get_single_mut(), bar_query.get_single_mut()) {
         (Ok(mut text), Ok(mut bar)) => {
-            let Ok((
-                resource,
-                regen,
-                max
-            )) = query.get(spectating) else { return };
-            let current_amount = *resource.amount();
-            let regen_amount = *regen.amount();
-            let max_amount = *max.amount();
+            let Ok(attributes) = query.get(spectating) else { return };
+            let current_amount = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
+            let regen_amount = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
+            let max_amount = *attributes.get(&AttributeTag::Modifier {
+                modifier: Modifier::Max,
+                target: Box::new(Stat::CharacterResource.into()),
+            }).unwrap_or(&100.0);
 
-            text.sections[0].value =
-                format!("{} / {} (+{})", current_amount.trunc(), max_amount.trunc(), regen_amount.trunc());
+            text.sections[0].value = format!(
+                "{} / {} (+{})",
+                current_amount.trunc(),
+                max_amount.trunc(),
+                regen_amount.trunc()
+            );
 
-            let new_size = current_amount as f32 / max_amount as f32;
+            let new_size = current_amount / max_amount;
             //let new_size = (current_amount / max_amount).to_num::<f32>();
             bar.size.width = Val::Percent(new_size * 100.0);
         }
         _ => {}
     }
 }
-*/
 
 pub fn update_cooldowns(
     mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,

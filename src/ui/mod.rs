@@ -41,7 +41,7 @@ impl Plugin for UiPlugin {
             spawn_floating_damage,
             follow_in_3d,
             update_health,
-            //update_character_resource,
+            update_character_resource,
             tick_clock_ui,
             draggables,
             free_mouse,

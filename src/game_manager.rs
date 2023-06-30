@@ -3,16 +3,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bevy::prelude::*;
+use bevy::{prelude::*, ecs::{component::TableStorage}};
 use bevy_rapier3d::prelude::*;
 
 use crate::{
     ability::{
-        ability_bundles::*, homing::Homing, Ability, EffectApplyType, OnEnterEffect, TagInfo, Tags,
-        TargetsHit, TargetsInArea, TargetsToEffect, Ticks,
+        ability_bundles::*, homing::Homing, Ability, TickBehavior, 
+        TargetsHit, TargetsInArea, TargetsHittable, Ticks, 
     },
     player::{cast_ability, IncomingDamageLog, Player, Reticle, SpawnEvent},
-    stats::{Attributes, Experience, Gold, Health, Stat},
+    stats::{Attributes, Stat},
     ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
     GameState,
 };
@@ -27,6 +27,7 @@ impl Plugin for GameManagerPlugin {
 
         app.add_event::<DeathEvent>();
         app.add_event::<CastEvent>();
+        app.add_event::<CastHomingEvent>();
 
         app.add_systems(
             (
@@ -36,6 +37,7 @@ impl Plugin for GameManagerPlugin {
                 show_respawn_ui,
                 tick_respawn_ui,
                 place_ability.after(cast_ability),
+                place_homing_ability,
             )
                 .in_set(OnUpdate(GameState::InGame)),
         );
@@ -93,52 +95,98 @@ impl Default for Bounty {
     }
 }
 
-// TODO implement player id for multiplayer, and its child reticle
-fn place_ability(
+fn place_homing_ability(
     mut commands: Commands,
-    mut cast_events: EventReader<CastEvent>,
-    caster: Query<&GlobalTransform>,
-    reticle: Query<&GlobalTransform, With<Reticle>>,
-    player: Query<Entity, With<Player>>,
-) {
-    let Ok(reticle_transform) = reticle.get_single() else {return};
-    let Ok(player_e) = player.get_single() else {return};
+    mut cast_events: EventReader<CastHomingEvent>,
+    caster: Query<(&GlobalTransform, &Team)>,
+){
     for event in cast_events.iter() {
-        let Ok(caster_transform) = caster.get(event.caster) else {return};
-
-        // Get ability-specific components
-        let spawned = match event.ability {
-            Ability::Frostbolt => {
-                let blueprint = FrostboltInfo::default();
-                blueprint.fire(&mut commands, &reticle_transform.compute_transform())
-            }
-            Ability::Fireball => {
-                let blueprint = FireballInfo::default();
-                blueprint.fire(&mut commands, &caster_transform.compute_transform())
-            }
-            _ => {
-                let blueprint = DefaultAbilityInfo::default();
-                blueprint.fire(&mut commands, &caster_transform.compute_transform())
-            }
-        };
-
+        let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
         // Apply general components
+        let spawned = commands.spawn((
+            Name::new("Tower shot"),
+            team.clone(),
+            Homing(event.target)
+        )).id();
+
+        
+        // if has a shape
         commands.entity(spawned).insert((
-            TEAM_NEUTRAL,
             ActiveEvents::COLLISION_EVENTS,
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
-            TargetsToEffect::default(),
+            TargetsHittable::default(),
             TargetsHit::new(1),
-            EffectApplyType::OnEnter(OnEnterEffect {
-                target_penetration: 2,
-                ticks: Ticks::Unlimited { interval: 500 },
-                ..default()
-            }),
-            Homing(player_e),
+            TickBehavior::individual(),
         ));
 
-        // Apply special components
+        let blueprint = FireballInfo::default();
+        blueprint.fire(&mut commands, spawned, &caster_transform.compute_transform());
+    }
+}
+
+
+fn place_ability(
+    mut commands: Commands,
+    mut cast_events: EventReader<CastEvent>,
+    caster: Query<(&GlobalTransform, &Team)>,
+    reticle: Query<&GlobalTransform, With<Reticle>>,
+    procmaps: Query<&ProcMap>,
+) {
+    let Ok(reticle_transform) = reticle.get_single() else {return};
+    for event in cast_events.iter() {
+        let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
+
+        // Apply general components
+        let spawned = commands.spawn((
+            Name::new("ability #tick number"),
+            team.clone(),
+        )).id();
+        
+
+        // if has a shape
+        commands.entity(spawned).insert((
+            ActiveEvents::COLLISION_EVENTS,
+            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+            TargetsInArea::default(),
+            TargetsHittable::default(),
+            TargetsHit::new(1),
+            TickBehavior::individual(),
+        ));
+
+        // Get ability-specific components
+        match event.ability {
+            Ability::Frostbolt => {
+                let blueprint = FrostboltInfo::default();
+                blueprint.fire(&mut commands, spawned, &reticle_transform.compute_transform())
+            }
+            Ability::Fireball => {
+                let blueprint = FireballInfo::default();
+                blueprint.fire(&mut commands, spawned, &caster_transform.compute_transform())
+            }
+            _ => {
+                let blueprint = DefaultAbilityInfo::default();
+                blueprint.fire(&mut commands, spawned, &caster_transform.compute_transform())
+            }
+        };
+
+
+        let mut additional_components: Vec<&dyn Component<Storage = TableStorage>> = Vec::new();
+
+        // Apply special proc components
+        if let Ok(procmap) = procmaps.get(event.caster){
+            if let Some(behaviors) = procmap.0.get(&event.ability) {
+                for behavior in behaviors{
+                    match behavior{
+                        AbilityBehavior::Homing => (),
+                        AbilityBehavior::OnHit => (),
+                    }
+                }
+            }
+        }
+        for comp in additional_components.iter(){
+            //commands.entity(spawned).insert((*comp));
+        }
     }
 }
 
@@ -264,6 +312,12 @@ pub struct CastEvent {
     pub ability: Ability,
 }
 
+pub struct CastHomingEvent {
+    pub caster: Entity,
+    pub ability: Ability,
+    pub target: Entity,
+}
+
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect, FromReflect)]
 pub struct Team(pub TeamMask);
 // Team masks
@@ -330,3 +384,13 @@ pub const CAMERA_GROUPING: CollisionGroups = CollisionGroups::new(
     Group::from_bits_truncate(Groups::GROUND.bits()),
     Group::from_bits_truncate(Groups::CAMERA_FILTER.bits()),
 );
+
+
+#[derive(Component)]
+pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);
+
+pub enum AbilityBehavior{
+    Homing,
+    OnHit,
+    
+}

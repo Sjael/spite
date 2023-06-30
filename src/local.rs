@@ -10,12 +10,12 @@ use bevy::{
     window::PrimaryWindow,
     winit::WinitWindows,
 };
-//use bevy_fly_camera::{camera_movement_system, mouse_motion_system, FlyCamera};
+use bevy_fly_camera::{camera_movement_system, mouse_motion_system};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
     ability::{
-        Ability, EffectApplyType, FilterTargets, OnEnterEffect, ScanEffect, TagInfo, Tags,
-        TargetSelection, TargetsInArea, TargetsToEffect, Ticks,
+        Ability, TickBehavior, TargetFilter, FilteredTargets, TagInfo, Tags,
+        TargetSelection, TargetsInArea, TargetsHittable, Ticks, PausesWhenEmpty, FiringInterval,
     },
     assets::*,
     buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
@@ -36,13 +36,11 @@ fn main() {
     // Systems
     app.add_system(setup_map.in_schedule(OnEnter(GameState::InGame)));
     app.add_system(setup_camera.on_startup());
-    /*
     app.add_systems(
         (camera_movement_system, mouse_motion_system)
             .in_set(OnUpdate(CharacterState::Dead))
             .in_set(OnUpdate(GameState::InGame)),
     );
-    */
     app.add_system(set_window_icon.on_startup());
     app.run();
 }
@@ -75,27 +73,6 @@ pub fn setup_map(
         Name::new("Plane"),
     ));
 
-    //moving platform
-    commands.spawn((
-        GlobalTransform::default(),
-        Transform::default(),
-        meshes.add(Mesh::from(shape::Plane {
-            size: 10.0,
-            subdivisions: 2,
-        })),
-        //Loader::<StandardMaterial>::new("icons/frostbolt.png"),
-        Visibility::default(),
-        ComputedVisibility::default(),
-        //RigidBody::KinematicVelocityBased,
-        //Collider::cuboid(5.0, 0.1, 5.0),
-        /*
-        Friction {
-            coefficient: 0.0,
-            ..default() //combine_rule: CoefficientCombineRule::Max,
-        },
-        */
-        Name::new("Platform"),
-    ));
 
     let tower = commands
         .spawn((
@@ -117,12 +94,6 @@ pub fn setup_map(
             TERRAIN_GROUPING,
             TEAM_NEUTRAL,
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-            /*
-            Attribute::<Health>::new(4000.0),
-            Attribute::<Min<Health>>::new(0.0),
-            Attribute::<Max<Health>>::new(10000.0),
-            Attribute::<Regen<Health>>::new(0.0),
-            */
             Attributes::default(),
             Name::new("Tower"),
             Spectatable,
@@ -132,25 +103,27 @@ pub fn setup_map(
     let tower_range = commands
         .spawn((
             SpatialBundle::default(),
+            TEAM_NEUTRAL,
+            Name::new("Range Collider"),
+        )).insert((
             Collider::cylinder(1.0, 7.),
             ActiveEvents::COLLISION_EVENTS,
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             Sensor,
-            FilterTargets {
+            TargetsInArea::default(),
+            FiringInterval(5000),
+            Ticks::Unlimited,
+            TickBehavior::static_timer(),
+            PausesWhenEmpty,
+            TargetFilter {
                 number_of_targets: 1,
                 target_selection: TargetSelection::Closest,
             },
-            EffectApplyType::Scan(ScanEffect {
-                ticks: Ticks::Unlimited { interval: 5000 },
-                timer: Timer::new(Duration::from_millis(5000 as u64), TimerMode::Repeating),
-            }),
-            TargetsInArea::default(),
-            TargetsToEffect::default(),
-            TEAM_NEUTRAL,
+            FilteredTargets::default(),
+            TargetsHittable::default(),
             Tags {
                 list: vec![TagInfo::Homing(Ability::Fireball)],
             },
-            Name::new("Range Collider"),
         ))
         .id();
 
@@ -173,6 +146,7 @@ pub fn setup_map(
             materials.add(StandardMaterial::from(Color::INDIGO)),
             Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
             RigidBody::Dynamic,
+            Friction::coefficient(2.0),
             LockedAxes::ROTATION_LOCKED,
             PLAYER_GROUPING,
             TEAM_2,
@@ -205,9 +179,11 @@ pub fn setup_map(
         materials.add(StandardMaterial::from(Color::MAROON)),
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
-        EffectApplyType::Scan(ScanEffect::default()),
+        FiringInterval(2000),
+        Ticks::Unlimited,
+        TickBehavior::static_timer(),
         TargetsInArea::default(),
-        TargetsToEffect::default(),
+        TargetsHittable::default(),
         TEAM_NEUTRAL,
         Tags {
             list: vec![TagInfo::Damage(12.0)],
@@ -233,21 +209,19 @@ pub fn setup_map(
                 TagInfo::Damage(23.0),
                 TagInfo::Buff(BuffInfo {
                     stat: Stat::PhysicalPower.into(),
-                    amount: 10,
+                    amount: 10.0,
                     max_stacks: 3,
                     duration: 10.0,
                     ..default()
                 }),
             ],
         },
-        EffectApplyType::OnEnter(OnEnterEffect {
-            target_penetration: 2,
-            ticks: Ticks::Unlimited { interval: 500 },
-            ..default()
-        }),
+        FiringInterval(1000),
+        TickBehavior::individual(),
+        Ticks::Unlimited,
         TEAM_NEUTRAL,
         TargetsInArea::default(),
-        TargetsToEffect::default(),
+        TargetsHittable::default(),
         Spectatable,
         Name::new("DamageFountain2"),
     ));
@@ -267,17 +241,17 @@ pub fn setup_map(
         Sensor,
         Fountain,
         TEAM_1,
-        EffectApplyType::Scan(ScanEffect {
-            ticks: Ticks::Unlimited { interval: 2000 },
-            ..default()
-        }),
+        TargetsInArea::default(),
+        TickBehavior::individual(),
+        Ticks::Unlimited,
+        FiringInterval(1000),
         Tags {
             list: vec![
                 TagInfo::Heal(28.0),
                 TagInfo::Damage(44.0),
                 TagInfo::Buff(BuffInfo {
                     stat: Stat::PhysicalPower.into(),
-                    amount: 5,
+                    amount: 5.0,
                     max_stacks: 6,
                     duration: 8.0,
                     bufftargets: BuffTargets::Allies,
@@ -286,8 +260,7 @@ pub fn setup_map(
                 }),
             ],
         },
-        TargetsInArea::default(),
-        TargetsToEffect::default(),
+        TargetsHittable::default(),
         Spectatable,
         Name::new("Healing Fountain"),
     ));
