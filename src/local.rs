@@ -111,7 +111,7 @@ pub fn setup_map(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             Sensor,
             TargetsInArea::default(),
-            FiringInterval(5000),
+            FiringInterval(2000),
             Ticks::Unlimited,
             TickBehavior::static_timer(),
             PausesWhenEmpty,
@@ -206,10 +206,13 @@ pub fn setup_map(
         Sensor,
         Tags {
             list: vec![
-                TagInfo::Damage(23.0),
+                TagInfo::Damage(17.0),
                 TagInfo::Buff(BuffInfo {
-                    stat: Stat::PhysicalPower.into(),
-                    amount: 10.0,
+                    stat: AttributeTag::Modifier {
+                        modifier: Modifier::Mul,
+                        target: Box::new(Stat::Speed.into()),
+                    },
+                    amount: 20.0,
                     max_stacks: 3,
                     duration: 10.0,
                     ..default()

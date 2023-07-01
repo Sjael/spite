@@ -9,7 +9,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     ability::{
         ability_bundles::*, homing::Homing, Ability, TickBehavior, 
-        TargetsHit, TargetsInArea, TargetsHittable, Ticks, 
+        MaxTargetsHit, TargetsInArea, TargetsHittable, Ticks, 
     },
     player::{cast_ability, IncomingDamageLog, Player, Reticle, SpawnEvent},
     stats::{Attributes, Stat},
@@ -116,7 +116,7 @@ fn place_homing_ability(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
             TargetsHittable::default(),
-            TargetsHit::new(1),
+            MaxTargetsHit::new(1),
             TickBehavior::individual(),
         ));
 
@@ -150,7 +150,7 @@ fn place_ability(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
             TargetsHittable::default(),
-            TargetsHit::new(1),
+            MaxTargetsHit::new(1),
             TickBehavior::individual(),
         ));
 

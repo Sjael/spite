@@ -194,18 +194,18 @@ pub struct TargetsHittable {
 }
 
 #[derive(Component, Debug, Clone, Reflect)]
-pub struct TargetsHit {
+pub struct MaxTargetsHit {
     max: u8,
     current: u8,
 }
 
-impl TargetsHit {
+impl MaxTargetsHit {
     pub fn new(max: u8) -> Self {
         Self { max, current: 0 }
     }
 }
 
-impl Default for TargetsHit {
+impl Default for MaxTargetsHit {
     fn default() -> Self {
         Self { max: 255, current: 0 }
     }
@@ -282,7 +282,7 @@ pub struct CCEvent {
 }
 
 
-fn despawn_after_max_hits(mut commands: Commands, max_hits_query: Query<(Entity, &TargetsHit)>) {
+fn despawn_after_max_hits(mut commands: Commands, max_hits_query: Query<(Entity, &MaxTargetsHit)>) {
     for (entity, max_targets_hit) in max_hits_query.iter() {
         if max_targets_hit.current >= max_targets_hit.max {
             commands.entity(entity).despawn_recursive();
@@ -297,7 +297,7 @@ fn area_apply_tags(
         &TargetsHittable,
         &Tags,
         Option<&FiringInterval>,
-        Option<&mut TargetsHit>,
+        Option<&mut MaxTargetsHit>,
         Option<&mut TickBehavior>,
         Option<&mut UniqueTargetsHit>,
     )>,
@@ -573,9 +573,7 @@ fn catch_collisions(
         };
         if colliding {
             targets_in_area.list.push(target_entity);
-            println!("colliding with {:?}", target_entity);
         } else {
-            println!("stopped with {:?}", target_entity);
             if let Some(index) = targets_in_area
                 .list
                 .iter()

@@ -88,22 +88,19 @@ pub fn update_health(
     match (text_query.get_single_mut(), bar_query.get_single_mut()) {
         (Ok(mut text), Ok(mut bar)) => {
             let Ok(attributes) = query.get(spectating) else { return };
-            let current_amount = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
-            let regen_amount = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
-            let max_amount = *attributes.get(&AttributeTag::Modifier {
-                modifier: Modifier::Max,
-                target: Box::new(Stat::Health.into()),
-            }).unwrap_or(&100.0);
+            let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
+            let regen = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
+            let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
 
             text.sections[0].value = format!(
                 "{} / {} (+{})",
-                current_amount.trunc(),
-                max_amount.trunc(),
-                regen_amount.trunc()
+                current.trunc(),
+                max.trunc(),
+                regen.trunc()
             );
 
-            let new_size = current_amount / max_amount;
-            //let new_size = (current_amount / max_amount).to_num::<f32>();
+            let new_size = current / max;
+            //let new_size = (current / max).to_num::<f32>();
             bar.size.width = Val::Percent(new_size * 100.0);
         }
         _ => {}
@@ -120,22 +117,19 @@ pub fn update_character_resource(
     match (text_query.get_single_mut(), bar_query.get_single_mut()) {
         (Ok(mut text), Ok(mut bar)) => {
             let Ok(attributes) = query.get(spectating) else { return };
-            let current_amount = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
-            let regen_amount = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
-            let max_amount = *attributes.get(&AttributeTag::Modifier {
-                modifier: Modifier::Max,
-                target: Box::new(Stat::CharacterResource.into()),
-            }).unwrap_or(&100.0);
+            let current = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
+            let regen = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
+            let max = *attributes.get(&Stat::CharacterResourceMax.into()).unwrap_or(&100.0);
 
             text.sections[0].value = format!(
                 "{} / {} (+{})",
-                current_amount.trunc(),
-                max_amount.trunc(),
-                regen_amount.trunc()
+                current.trunc(),
+                max.trunc(),
+                regen.trunc()
             );
 
-            let new_size = current_amount / max_amount;
-            //let new_size = (current_amount / max_amount).to_num::<f32>();
+            let new_size = current / max;
+            //let new_size = (current / max_amount).to_num::<f32>();
             bar.size.width = Val::Percent(new_size * 100.0);
         }
         _ => {}

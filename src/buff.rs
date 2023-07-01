@@ -105,7 +105,7 @@ pub fn apply_buffs(
     mut add_events: EventWriter<BuffAddEvent>,
 ) {
     for event in buff_events.iter() {
-        if let Ok((entity, mut buffs, mut attribute)) = targets_query.get_mut(event.target) {
+        if let Ok((entity, mut buffs, mut attributes)) = targets_query.get_mut(event.target) {
             let originator = format!(
                 "{}v{}",
                 event.buff_originator.index(),
@@ -143,8 +143,9 @@ pub fn apply_buffs(
                     bufftype: event.info.bufftype,
                     duration: event.info.duration,
                 });
-            }
-
+            }            
+            let stat = attributes.entry(event.info.stat.clone()).or_default();
+            *stat += event.info.amount;
         }
     }
 }
