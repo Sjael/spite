@@ -318,7 +318,7 @@ fn spawn_player(
             )).insert({
                 let mut attributes = Attributes::default();
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;
-                *attributes.entry(Stat::Speed.into()).or_default() = 5.0;
+                *attributes.entry(Stat::Speed.into()).or_default() = 6.0;
                 *attributes.entry(Stat::CharacterResource.into()).or_default() = 33.0;
                 attributes
             }).insert((

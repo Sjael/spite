@@ -207,7 +207,7 @@ pub fn calculate_attributes(
                         Modifier::Add => *target_attr + modifier_attr,
                         Modifier::Sub => *target_attr - modifier_attr,
                         Modifier::Mul => *target_attr * (1.0 + modifier_attr / 100.0),
-                        Modifier::Div => *target_attr / (1.0 - modifier_attr / 100.0),
+                        Modifier::Div => *target_attr / modifier_attr,
                         Modifier::Min => target_attr.max(modifier_attr),
                         Modifier::Max => target_attr.min(modifier_attr),
                     };
