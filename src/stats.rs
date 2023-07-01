@@ -189,7 +189,7 @@ pub fn calculate_attributes(
     for (entity, mut attributes) in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before Mul<Base<Health>>
         let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
-        tags.sort_by(|a, b| a.deepness().cmp(&b.deepness()));
+        tags.sort_by(|a, b| a.ordering().cmp(&b.ordering()));
 
         for tag in tags {
             match tag.clone() {

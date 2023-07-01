@@ -113,11 +113,12 @@ pub fn apply_buffs(
             );
             let caster = format!("{}v{}", event.caster.index(), event.caster.generation());
             let buff_id = format!("{}_{}_{}", caster, originator, event.info.stat.to_string());
-
+            let mut added_stack = false;
             if buffs.map.contains_key(&buff_id) {
                 let Some(applied) = buffs.map.get_mut(&buff_id) else {continue};
                 if applied.info.max_stacks > applied.stacks {
                     applied.stacks += 1;
+                    added_stack = true;
                 }
                 applied.timer.reset(); // reset timer, TODO need individual stack timer support
                 stack_events.send(BuffStackEvent {
@@ -126,6 +127,7 @@ pub fn apply_buffs(
                     target: event.target,
                 });
             } else {
+                added_stack = true;
                 buffs.map.insert(
                     buff_id.clone(),
                     BuffInfoApplied {
@@ -143,18 +145,26 @@ pub fn apply_buffs(
                     bufftype: event.info.bufftype,
                     duration: event.info.duration,
                 });
-            }            
-            let stat = attributes.entry(event.info.stat.clone()).or_default();
-            *stat += event.info.amount;
+            }       
+            if added_stack{
+                let stat = attributes.entry(event.info.stat.clone()).or_default();
+                *stat += event.info.amount;   
+            }  
         }
     }
 }
 
-pub fn tick_buffs(time: Res<Time>, mut query: Query<&mut BuffMap>) {
-    for mut buffs in &mut query {
+pub fn tick_buffs(time: Res<Time>, mut query: Query<(&mut BuffMap, &mut Attributes)>) {
+    for (mut buffs, mut attributes) in &mut query {
         buffs.map.retain(|_, buff| {
             buff.timer.tick(time.delta());
-            !buff.timer.finished()
+            if buff.timer.finished(){
+                let stat = attributes.entry(buff.info.stat.clone()).or_default();
+                *stat -= buff.stacks as f32 * buff.info.amount;
+                false
+            }else{
+                true
+            }
         });
     }
 }
