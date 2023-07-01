@@ -1,7 +1,7 @@
 use crate::{
     buff::{BuffInfo, BuffTargets, BuffType},
     crowd_control::{CCInfo, CCType},
-    stats::{Attributes, Health, Stat},
+    stats::{Attributes, Stat},
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};
@@ -17,9 +17,9 @@ pub struct SpatialAbilityBundle {
     pub shape: AbilityShape,
     pub sensor: Sensor,
     pub events: ActiveEvents,
-    pub effectapplytype: EffectApplyType,
+    pub TickBehavior: TickBehavior,
     pub targetsinarea: TargetsInArea,
-    pub targetstoeffect: TargetsToEffect,
+    pub targetstoeffect: TargetsHittable,
     pub tags: Tags,
     pub lifetime: CastingLifetime,
 }
@@ -64,43 +64,43 @@ impl Default for FrostboltInfo {
 
 // Make this an Ability trait ?
 impl FrostboltInfo {
-    pub fn fire(&self, commands: &mut Commands, transform: &Transform) -> Entity {
+    pub fn fire(&self, commands: &mut Commands, spawned: Entity, transform: &Transform) -> Entity {
         let direction = transform.rotation * -Vec3::Z;
-        commands
-            .spawn((
-                self.name.clone(),
-                self.id.clone(),
-                self.shape.clone(),
-                transform.clone(),
-                GlobalTransform::default(),
-                Velocity {
-                    linvel: direction * 20.0,
-                    ..default()
-                },
-                RigidBody::KinematicVelocityBased,
-                Sensor,
-                ActiveEvents::COLLISION_EVENTS,
-                CastingLifetime { seconds: 1.0 },
-                EffectApplyType::default(),
-                TargetsInArea::default(),
-                TargetsToEffect::default(),
-                Tags {
-                    list: vec![
-                        TagInfo::Damage(44.0),
-                        TagInfo::CC(CCInfo {
-                            cctype: CCType::Stun,
-                            duration: 20.0,
-                        }),
-                        TagInfo::Buff(BuffInfo {
-                            stat: Stat::Health.into(),
-                            amount: 10,
-                            duration: 10.0,
-                            ..default()
-                        }),
-                    ],
-                },
-            ))
-            .id()
+        let speed = 20.0;
+        commands.entity(spawned).insert((
+            self.name.clone(),
+            self.id.clone(),
+            self.shape.clone(),
+            transform.clone(),
+            GlobalTransform::default(),
+            Velocity {
+                linvel: direction * speed,
+                ..default()
+            },
+            RigidBody::KinematicVelocityBased,
+            Sensor,
+            ActiveEvents::COLLISION_EVENTS,
+            CastingLifetime { seconds: 1.0 },
+            TickBehavior::default(),
+            TargetsInArea::default(),
+            TargetsHittable::default(),
+            Tags {
+                list: vec![
+                    TagInfo::Damage(44.0),
+                    TagInfo::CC(CCInfo {
+                        cctype: CCType::Stun,
+                        duration: 20.0,
+                    }),
+                    TagInfo::Buff(BuffInfo {
+                        stat: Stat::Health.into(),
+                        amount: 10.0,
+                        duration: 10.0,
+                        ..default()
+                    }),
+                ],
+            },
+        ))
+        .id()
     }
 }
 
@@ -132,27 +132,27 @@ impl Default for FireballInfo {
 
 // Make this an Ability trait ?
 impl FireballInfo {
-    pub fn fire(&self, commands: &mut Commands, transform: &Transform) -> Entity {
+    pub fn fire(&self, commands: &mut Commands, spawned: Entity, transform: &Transform) -> Entity {
         let direction = transform.rotation * -Vec3::Z;
-        commands
-            .spawn((
-                self.name.clone(),
-                self.id.clone(),
-                self.shape.clone(),
-                transform.clone(),
-                GlobalTransform::default(),
-                RigidBody::KinematicVelocityBased,
-                Velocity {
-                    linvel: direction * 20.0,
-                    ..default()
-                },
-                Sensor,
-                CastingLifetime { seconds: 5.0 },
-                Tags {
-                    list: vec![TagInfo::Damage(11.0)],
-                },
-            ))
-            .id()
+        let speed = 20.0;
+        commands.entity(spawned).insert((
+            self.name.clone(),
+            self.id.clone(),
+            self.shape.clone(),
+            transform.clone(),
+            GlobalTransform::default(),
+            RigidBody::KinematicVelocityBased,
+            Velocity {
+                linvel: direction * speed,
+                ..default()
+            },
+            Sensor,
+            CastingLifetime { seconds: 5.0 },
+            Tags {
+                list: vec![TagInfo::Damage(11.0)],
+            },
+        ))
+        .id()
     }
 }
 
@@ -183,24 +183,24 @@ pub struct FloatingDamage(pub u32);
 
 // Make this an Ability trait ?
 impl DefaultAbilityInfo {
-    pub fn fire(&self, commands: &mut Commands, transform: &Transform) -> Entity {
+    pub fn fire(&self, commands: &mut Commands, spawned: Entity, transform: &Transform) -> Entity {
         let direction = transform.rotation * -Vec3::Z;
-        commands
-            .spawn((
-                self.name.clone(),
-                self.id.clone(),
-                self.shape.clone(),
-                transform.clone(),
-                GlobalTransform::default(),
-                Velocity {
-                    linvel: direction * 10.0,
-                    ..default()
-                },
-                RigidBody::KinematicVelocityBased,
-                Sensor,
-                CastingLifetime { seconds: 1.0 },
-                FloatingDamage(32),
-            ))
-            .id()
+        let speed = 10.0;
+        commands.entity(spawned).insert((
+            self.name.clone(),
+            self.id.clone(),
+            self.shape.clone(),
+            transform.clone(),
+            GlobalTransform::default(),
+            Velocity {
+                linvel: direction * speed,
+                ..default()
+            },
+            RigidBody::KinematicVelocityBased,
+            Sensor,
+            CastingLifetime { seconds: 1.0 },
+            FloatingDamage(32),
+        ))
+        .id()
     }
 }

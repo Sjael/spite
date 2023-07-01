@@ -770,7 +770,7 @@ pub fn hp_bar(height: f32) -> impl Bundle {(
             },
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.1, 0.2, 0.6).into(),
+        background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
         ..default()
     }
 )}

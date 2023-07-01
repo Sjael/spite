@@ -6,10 +6,10 @@ use std::{collections::HashMap, f32::consts::PI, fmt::Debug, time::Duration};
 
 use crate::{
     ability::{Ability, HealthChangeEvent},
-    buff::{BuffInfoApplied, BuffMap},
+    buff::{BuffMap},
     crowd_control::CCType,
     game_manager::{Bounty, CastEvent, CharacterState, PLAYER_GROUPING, TEAM_1},
-    input::{setup_player_slots, SlotAbilityMap},
+    input::{setup_player_slots},
     stats::*,
     ui::{mouse::MouseState, Trackable},
     view::{camera_swivel_and_tilt, PossessEvent, Spectatable},
@@ -315,46 +315,13 @@ fn spawn_player(
                 LockedAxes::ROTATION_LOCKED,
                 Velocity::default(),
                 PLAYER_GROUPING,
-            ))
-            .insert({
+            )).insert({
                 let mut attributes = Attributes::default();
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;
-                *attributes
-                    .entry(AttributeTag::Modifier {
-                        modifier: Modifier::Max,
-                        target: Box::new(Stat::Health.into()),
-                    })
-                    .or_default() = 235.0;
-                *attributes
-                    .entry(AttributeTag::Modifier {
-                        modifier: Modifier::Min,
-                        target: Box::new(Stat::Health.into()),
-                    })
-                    .or_default() = 0.0;
                 *attributes.entry(Stat::Speed.into()).or_default() = 5.0;
+                *attributes.entry(Stat::CharacterResource.into()).or_default() = 33.0;
                 attributes
-            })
-            /*
-                   .insert((
-                       Attribute::<Health>::new(33.0),
-                       Attribute::<Min<Health>>::new(0.0),
-                       Attribute::<Max<Health>>::new(235.0),
-                       Attribute::<Regen<Health>>::new(9.5),
-                   ))
-                   .insert((
-                       Attribute::<CharacterResource>::new(175.0),
-                       Attribute::<Min<CharacterResource>>::new(0.0),
-                       Attribute::<Max<CharacterResource>>::new(400.0),
-                       Attribute::<Regen<CharacterResource>>::new(2.0),
-                   ))
-                   .insert((
-                       Attribute::<MovementSpeed>::new(2.0),
-                       Attribute::<Base<MovementSpeed>>::new(5.0),
-                       Attribute::<Plus<MovementSpeed>>::new(1.0),
-                       Attribute::<Mult<MovementSpeed>>::new(1.0),
-                   ))
-            */
-            .insert((
+            }).insert((
                 TEAM_1,
                 HoveredAbility::default(),
                 IncomingDamageLog::default(),
@@ -446,8 +413,7 @@ fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput), With<Player>
 
 pub fn player_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput)>) {
     for (attributes, mut velocity, player_input) in query.iter_mut() {
-        let speed = *attributes.get(&Stat::Speed.into()).unwrap_or(&0.0);
-        //dbg!(player_input);
+        let speed = *attributes.get(&Stat::Speed.into()).unwrap_or(&1.0);
         let mut direction = Vec3::new(0.0, 0.0, 0.0);
         if player_input.left() {
             direction.x += -1.;
