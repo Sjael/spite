@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, ui::FocusPolicy};
-use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens}, EaseFunction, Tween, Delay};
+use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, TextColorLens}, EaseFunction, Tween, Delay};
 
-use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item};
+use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, crowd_control::CCType};
 
 
 
@@ -335,6 +335,7 @@ pub fn kill_notification() -> impl Bundle{
 #[derive(Clone, Copy)]
 pub enum TweenEvents{
     KillNotifEnded = 0,
+    FloatingDamageEnded = 1,
 }
 
 impl TryFrom<u64> for TweenEvents{
@@ -344,10 +345,86 @@ impl TryFrom<u64> for TweenEvents{
         use TweenEvents::*;
         match value{
             0 => Ok(KillNotifEnded),
+            1 => Ok(FloatingDamageEnded),
             _ => Err("invalid TweenEvents index".to_string()),
         }
     }
 }
+
+#[derive(Component)]
+pub struct FollowIn3d(pub Entity);
+
+pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
+    Name::new("Floating Text"),
+    NodeBundle {
+        style: Style {
+            position_type: PositionType::Absolute,
+            size: Size::new(Val::Px(100.), Val::Px(30.)),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        z_index: ZIndex::Global(-1),
+        ..default()
+    },
+    FollowIn3d(entity)
+)}
+
+pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
+    let killfeed_offset = 40.;
+    let delay_seconds = 1;
+    let text_color = Color::WHITE;
+    let tween_pos = Tween::new(
+        EaseFunction::QuadraticIn,
+        Duration::from_millis(500),
+        UiPositionLens {
+            start: UiRect{
+                top:Val::Px(killfeed_offset),
+                ..default()
+            },
+            end: UiRect{
+                top:Val::Px(0.),
+                ..default()
+            },
+        },
+    );
+    let tween_opac_in = Tween::new(
+        EaseFunction::QuadraticIn,
+        Duration::from_millis(500),
+        TextColorLens {
+            start: *text_color.clone().set_a(0.0),
+            end: *text_color.clone().set_a(1.0),
+            section: 0,
+        },
+    );
+    let tween_opac_out = Tween::new(
+        EaseFunction::QuadraticIn,
+        Duration::from_millis(250),
+        TextColorLens {
+            start: *text_color.clone().set_a(1.0),
+            end: *text_color.clone().set_a(0.0),
+            section: 0,
+        },
+    ).with_completed_event(TweenEvents::FloatingDamageEnded as u64);
+    (
+    TextBundle {
+        text: Text::from_section(
+            damage.to_string(),
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: 20.,
+                color: text_color,
+            },
+        ),
+        ..default()
+    },
+    Animator::new(tween_pos),
+    Animator::new(tween_opac_in
+        .then(Delay::new(
+            Duration::from_secs(delay_seconds),
+        ))
+        .then(tween_opac_out)
+    ),
+)}
 
 pub fn bottom_left_ui_holder() -> impl Bundle {(
     NodeBundle {
@@ -541,6 +618,23 @@ pub fn root_ui() -> impl Bundle {(
     Name::new("UI"),
 )}
 
+pub fn character_ui() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            margin: UiRect {
+                left: Val::Auto,
+                right: Val::Auto,
+                ..default()
+            },
+            ..default()
+        },
+        ..default()
+    },
+    PlayerUI,
+    Name::new("Character UI"),
+)}
+
 #[derive(Component)]
 pub struct PlayerUI;
 pub fn player_bottom_container() -> impl Bundle {(
@@ -564,7 +658,6 @@ pub fn player_bottom_container() -> impl Bundle {(
         //background_color: Color::rgba(0.1, 0.7, 0.7, 0.4).into(),
         ..default()
     },
-    PlayerUI,
 )}
 
 pub fn effect_bar() -> impl Bundle {(
@@ -912,6 +1005,114 @@ pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {(
     Name::new("Cooldown Text"),
 )}
 
+pub fn cast_bar_holder() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            position_type: PositionType::Absolute,
+            size: Size::new(Val::Px(200.0), Val::Px(44.0)),
+            margin: UiRect::all(Val::Auto),
+            position: UiRect{
+                bottom: Val::Px(-50.0),
+                ..default()
+            },
+            ..default()
+        },
+        visibility: Visibility::Hidden,
+        ..default()
+    },
+    CastBar,
+    Name::new("Castbar Holder"),
+)}
+#[derive(Component)]
+pub struct CastBar;
+
+pub fn cast_bar() -> impl Bundle {(
+    NodeBundle {
+        style: Style { 
+            size: Size::new(Val::Percent(100.0), Val::Px(2.0)),
+            ..default()
+        },
+        background_color: Color::rgba(0.05, 0.05, 0.1, 0.5).into(),
+        ..default()
+    },
+)}
+#[derive(Component)]
+pub struct CastBarFill;
+pub fn cast_bar_fill() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
+            ..default()
+        },
+        background_color: Color::rgba(1.0, 1.0, 0.3, 0.9).into(),
+        ..default()
+    },
+    CastBarFill,
+)}
+
+pub fn cc_holder() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            position_type: PositionType::Absolute,
+            size: Size::new(Val::Px(150.0), Val::Px(50.0)),
+            margin: UiRect::all(Val::Auto),
+            position: UiRect{
+                bottom: Val::Px(60.0),
+                ..default()
+            },
+            ..default()
+        },
+        ..default()
+    },
+    CCSelf,
+    Name::new("CC Holder"),
+)}
+#[derive(Component)]
+pub struct CCSelf;
+
+#[derive(Component)]
+pub struct CCIconSelf;
+pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
+    ImageBundle {
+        style: Style {
+            size: Size::new(Val::Px(32.), Val::Px(32.)),
+            ..default()
+        },
+        image: cctype.get_icon(icons).into(),
+        ..default()
+    },
+    Name::new("CC Icon"),
+)}
+
+pub fn cc_bar() -> impl Bundle {(
+    NodeBundle {
+        style: Style { 
+            size: Size::new(Val::Percent(100.0), Val::Px(5.0)),
+            ..default()
+        },
+        background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
+        ..default()
+    },
+)}
+#[derive(Component)]
+pub struct CCBarSelfFill;
+pub fn cc_bar_fill() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
+            ..default()
+        },
+        background_color: Color::rgba(1.0, 1.0, 1.0, 0.9).into(),
+        ..default()
+    },
+    CCBarSelfFill,
+)}
 pub fn tooltip() -> impl Bundle{(
     NodeBundle{
         style:Style {
@@ -1402,7 +1603,7 @@ pub fn button_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {(
 )}
 
 pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
-    (TextBundle {
+    TextBundle {
         style: Style {
             margin : UiRect{
                 top: Val::Px(10.),
@@ -1420,45 +1621,13 @@ pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
         ),
         ..default()
     },
-    GoldInhand
-    )
+    GoldInhand,
 )}
 
 #[derive(Component, Debug)]
 pub struct GoldInhand;
 
 
-#[derive(Component)]
-pub struct FollowIn3d(pub Entity);
-
-pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
-        Name::new("Floating Text"),
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                size: Size::new(Val::Px(100.), Val::Px(30.)),
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            z_index: ZIndex::Global(-1),
-            ..default()
-        },
-        FollowIn3d(entity)
-)}
-
-pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{(
-        TextBundle {
-            text: Text::from_section(
-                damage.to_string(),
-                TextStyle {
-                    font: fonts.exo_regular.clone(),
-                    font_size: 20.,
-                    color: Color::YELLOW,
-                },
-            ),
-            ..default()
-        },
-)}
 
 pub fn template() -> impl Bundle {(
     NodeBundle {

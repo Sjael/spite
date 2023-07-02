@@ -8,6 +8,9 @@ use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};
 
 use super::*;
 
+#[derive(Component)]
+pub struct Caster(pub Entity);
+
 #[derive(Bundle, Clone, Debug)]
 pub struct SpatialAbilityBundle {
     pub id: Ability,
@@ -17,7 +20,7 @@ pub struct SpatialAbilityBundle {
     pub shape: AbilityShape,
     pub sensor: Sensor,
     pub events: ActiveEvents,
-    pub TickBehavior: TickBehavior,
+    pub tick_behavior: TickBehavior,
     pub targetsinarea: TargetsInArea,
     pub targetstoeffect: TargetsHittable,
     pub tags: Tags,
@@ -66,7 +69,7 @@ impl Default for FrostboltInfo {
 impl FrostboltInfo {
     pub fn fire(&self, commands: &mut Commands, spawned: Entity, transform: &Transform) -> Entity {
         let direction = transform.rotation * -Vec3::Z;
-        let speed = 20.0;
+        let speed = 18.0;
         commands.entity(spawned).insert((
             self.name.clone(),
             self.id.clone(),
@@ -79,11 +82,7 @@ impl FrostboltInfo {
             },
             RigidBody::KinematicVelocityBased,
             Sensor,
-            ActiveEvents::COLLISION_EVENTS,
             CastingLifetime { seconds: 1.0 },
-            TickBehavior::default(),
-            TargetsInArea::default(),
-            TargetsHittable::default(),
             Tags {
                 list: vec![
                     TagInfo::Damage(44.0),
@@ -185,7 +184,7 @@ pub struct FloatingDamage(pub u32);
 impl DefaultAbilityInfo {
     pub fn fire(&self, commands: &mut Commands, spawned: Entity, transform: &Transform) -> Entity {
         let direction = transform.rotation * -Vec3::Z;
-        let speed = 10.0;
+        let speed = 15.0;
         commands.entity(spawned).insert((
             self.name.clone(),
             self.id.clone(),
@@ -199,7 +198,9 @@ impl DefaultAbilityInfo {
             RigidBody::KinematicVelocityBased,
             Sensor,
             CastingLifetime { seconds: 1.0 },
-            FloatingDamage(32),
+            Tags {
+                list: vec![TagInfo::Damage(25.0)],
+            },
         ))
         .id()
     }

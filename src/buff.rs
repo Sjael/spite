@@ -1,8 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    ability::{Ability, BuffEvent},
-    game_manager::Team,
+    ability::{BuffEvent},
     stats::{AttributeTag, Attributes, Stat},
     GameState,
 };
@@ -36,7 +35,7 @@ pub enum StackRefresh {
     All,  // adding a stack refreshes all
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Reflect, FromReflect)]
 pub struct BuffInfo {
     pub stat: AttributeTag,
     pub amount: f32,
@@ -63,7 +62,7 @@ impl Default for BuffInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, FromReflect)]
 pub struct BuffInfoApplied {
     pub info: BuffInfo,
     pub stacks: u32,
@@ -75,13 +74,12 @@ impl Plugin for BuffPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<BuffAddEvent>();
         app.add_event::<BuffStackEvent>();
+        app.register_type::<BuffMap>();
 
-        app.add_systems(
-            (
-                apply_buffs,
-            )
-            .in_set(OnUpdate(GameState::InGame))
-        );
+        app.add_systems((
+            apply_buffs,
+            tick_buffs,
+        ).in_set(OnUpdate(GameState::InGame)));
     }
 }
 
@@ -99,20 +97,20 @@ pub struct BuffAddEvent {
 }
 
 pub fn apply_buffs(
-    mut targets_query: Query<(Entity, &mut BuffMap, &mut Attributes)>,
+    mut targets_query: Query<(&mut BuffMap, &mut Attributes)>,
     mut buff_events: EventReader<BuffEvent>,
     mut stack_events: EventWriter<BuffStackEvent>,
     mut add_events: EventWriter<BuffAddEvent>,
 ) {
     for event in buff_events.iter() {
-        if let Ok((entity, mut buffs, mut attributes)) = targets_query.get_mut(event.target) {
-            let originator = format!(
-                "{}v{}",
-                event.buff_originator.index(),
-                event.buff_originator.generation()
-            );
-            let caster = format!("{}v{}", event.caster.index(), event.caster.generation());
-            let buff_id = format!("{}_{}_{}", caster, originator, event.info.stat.to_string());
+        if let Ok((mut buffs, mut attributes)) = targets_query.get_mut(event.target) {
+            let ability = format!("{}v{}", event.buff_originator.index(), event.buff_originator.generation());
+            let caster = if let Some(caster_entity) = event.caster {
+                format!("{}v{}", caster_entity.index(), caster_entity.generation())
+            } else {
+                "".to_string()
+            };
+            let buff_id = format!("{}_{}_{}", caster, ability, event.info.stat.to_string());
             let mut added_stack = false;
             if buffs.map.contains_key(&buff_id) {
                 let Some(applied) = buffs.map.get_mut(&buff_id) else {continue};
@@ -173,7 +171,7 @@ pub fn tick_buffs(time: Res<Time>, mut query: Query<(&mut BuffMap, &mut Attribut
 // PLACE WITH STAT MODULE
 //
 
-#[derive(Component, Default, Debug, Clone)]
+#[derive(Component, Reflect, FromReflect, Default, Debug, Clone)]
 pub struct BuffMap {
     pub map: HashMap<String, BuffInfoApplied>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
 }

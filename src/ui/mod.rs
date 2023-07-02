@@ -54,11 +54,16 @@ impl Plugin for UiPlugin {
             update_damage_log,
             killfeed_update,
             kill_notif_cleanup,
+            floating_damage_cleanup,
             state_ingame_menu,
             toggle_ingame_menu,
             add_buffs,
             update_buff_timers,
             update_buff_stacks,
+            update_cc_bar,
+            toggle_cc_bar,
+            update_cast_bar,
+            toggle_cast_bar,
         ).in_set(OnUpdate(GameState::InGame)));
         
         app.add_systems((
@@ -354,10 +359,11 @@ fn kill_notif_cleanup(
         use TweenEvents::*;
         match TweenEvents::try_from(ev.user_data) {
             Ok(KillNotifEnded) => {commands.entity(ev.entity).despawn_recursive();}
-            Err(err) => warn!(err),
+            Err(_) | Ok(_) => (),
         }
     }
 }
+
 
 
 fn tick_despawn_timers(
@@ -387,8 +393,10 @@ fn update_damage_log(
     let Ok((outgoing_log_entity, outgoing_children)) = outgoing_ui.get_single() else {return};
     
     for damage_instance in damage_events.iter(){
-        if let Ok(attacker_log) = outgoing_logs.get(damage_instance.attacker) {
-
+        if let Some(attacker) = damage_instance.attacker{
+            if let Ok(attacker_log) = outgoing_logs.get(attacker) {
+    
+            }
         }
         commands.entity(incoming_log_entity).with_children(|parent| {
             parent.spawn(damage_entry((damage_instance.amount as u32).clone().to_string(), &fonts));
@@ -402,19 +410,7 @@ fn update_damage_log(
     } 
 
 }
- 
-fn spawn_floating_damage(
-    mut commands: Commands,
-    query: Query<(Entity, &FloatingDamage), Added<FloatingDamage>>,
-    fonts: Res<Fonts>,
-) {
-    for (entity, damage) in query.iter() {
-        commands
-            .spawn(follow_wrapper(entity)).with_children(|parent| {            
-                parent.spawn(follow_inner_text(damage.0.to_string(), &fonts));
-            });
-    }
-}
+
 
 
 fn follow_in_3d(
@@ -426,8 +422,6 @@ fn follow_in_3d(
     let Ok((camera, camera_transform)) = camera_query.get_single() else {
         return;
     };
-
-
     for (mut style, follow, entity) in query.iter_mut() {
         // the ability got removed, need to change this to just despawn after timer
         let Ok(world) = world_query.get(follow.0) else {

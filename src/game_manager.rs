@@ -9,7 +9,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     ability::{
         ability_bundles::*, homing::Homing, Ability, TickBehavior, 
-        MaxTargetsHit, TargetsInArea, TargetsHittable, Ticks, 
+        MaxTargetsHit, TargetsInArea, TargetsHittable, 
     },
     player::{cast_ability, IncomingDamageLog, Player, Reticle, SpawnEvent},
     stats::{Attributes, Stat},
@@ -26,8 +26,8 @@ impl Plugin for GameManagerPlugin {
         app.add_state::<CharacterState>();
 
         app.add_event::<DeathEvent>();
-        app.add_event::<CastEvent>();
-        app.add_event::<CastHomingEvent>();
+        app.add_event::<AbilityFireEvent>();
+        app.add_event::<FireHomingEvent>();
 
         app.add_systems(
             (
@@ -97,7 +97,7 @@ impl Default for Bounty {
 
 fn place_homing_ability(
     mut commands: Commands,
-    mut cast_events: EventReader<CastHomingEvent>,
+    mut cast_events: EventReader<FireHomingEvent>,
     caster: Query<(&GlobalTransform, &Team)>,
 ){
     for event in cast_events.iter() {
@@ -128,7 +128,7 @@ fn place_homing_ability(
 
 fn place_ability(
     mut commands: Commands,
-    mut cast_events: EventReader<CastEvent>,
+    mut cast_events: EventReader<AbilityFireEvent>,
     caster: Query<(&GlobalTransform, &Team)>,
     reticle: Query<&GlobalTransform, With<Reticle>>,
     procmaps: Query<&ProcMap>,
@@ -141,6 +141,7 @@ fn place_ability(
         let spawned = commands.spawn((
             Name::new("ability #tick number"),
             team.clone(),
+            Caster(event.caster),
         )).id();
         
 
@@ -282,10 +283,9 @@ fn check_deaths(
 
             if let Some(mut bounty) = bounty {
                 for instance in damagelog.map.iter() {
-                    if Instant::now().duration_since(instance.when)
-                        > Duration::from_secs(TIME_FOR_KILL_CREDIT)
-                    {
-                        if let Ok(mut attributes) = attributes.get_mut(instance.attacker) {
+                    if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT){
+                        let Some(attacker) = instance.attacker else {continue};
+                        if let Ok(mut attributes) = attributes.get_mut(attacker) {
                             let gold = attributes.entry(Stat::Gold.into()).or_default();
                             *gold += bounty.gold;
                             let xp = attributes.entry(Stat::Xp.into()).or_default();
@@ -307,12 +307,13 @@ fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
     }
 }
 
-pub struct CastEvent {
+
+pub struct AbilityFireEvent {
     pub caster: Entity,
     pub ability: Ability,
 }
 
-pub struct CastHomingEvent {
+pub struct FireHomingEvent {
     pub caster: Entity,
     pub ability: Ability,
     pub target: Entity,

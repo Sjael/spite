@@ -1,4 +1,4 @@
-use std::{io::Cursor, time::Duration};
+use std::io::Cursor;
 
 use bevy::{
     core_pipeline::{
@@ -19,14 +19,15 @@ use sacred_aurora::{
     },
     assets::*,
     buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
+    crowd_control::{CCMap, CCInfo, CCType},
     game_manager::{
         CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
         TERRAIN_GROUPING,
     },
-    player::{CCMap, IncomingDamageLog},
+    player::IncomingDamageLog,
     stats::*,
     view::Spectatable,
-    GameState,
+    GameState, 
 };
 use winit::window::Icon;
 
@@ -158,12 +159,6 @@ pub fn setup_map(
         ))
         .insert((
             Attributes::default(),
-            /*
-            Attribute::<Health>::new(4000.0),
-            Attribute::<Min<Health>>::new(0.0),
-            Attribute::<Max<Health>>::new(10000.0),
-            Attribute::<Regen<Health>>::new(0.0),
-            */
         ));
 
     // Scanning Damage zone
@@ -186,7 +181,13 @@ pub fn setup_map(
         TargetsHittable::default(),
         TEAM_NEUTRAL,
         Tags {
-            list: vec![TagInfo::Damage(12.0)],
+            list: vec![
+                TagInfo::Damage(12.0),
+                TagInfo::CC(CCInfo{
+                    cctype: CCType::Stun,
+                    duration: 6.0,
+                })
+            ],
         },
         Name::new("DamageFountain"),
     ));
@@ -217,6 +218,10 @@ pub fn setup_map(
                     duration: 10.0,
                     ..default()
                 }),
+                TagInfo::CC(CCInfo{
+                    cctype: CCType::Root,
+                    duration: 7.0,
+                })
             ],
         },
         FiringInterval(1000),
@@ -253,10 +258,13 @@ pub fn setup_map(
                 TagInfo::Heal(28.0),
                 TagInfo::Damage(44.0),
                 TagInfo::Buff(BuffInfo {
-                    stat: Stat::PhysicalPower.into(),
+                    stat: AttributeTag::Modifier {
+                        modifier: Modifier::Add,
+                        target: Box::new(Stat::PhysicalPower.into()),
+                    },
                     amount: 5.0,
                     max_stacks: 6,
-                    duration: 8.0,
+                    duration: 18.0,
                     bufftargets: BuffTargets::Allies,
                     bufftype: BuffType::Buff,
                     ..default()

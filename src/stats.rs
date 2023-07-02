@@ -185,7 +185,6 @@ pub fn calculate_attributes(
     spectating: Res<Spectating>,
 ){
     let Some(spectating) = spectating.0 else {return};
-    println!("first");
     for (entity, mut attributes) in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before Mul<Base<Health>>
         let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
@@ -195,7 +194,7 @@ pub fn calculate_attributes(
             match tag.clone() {
                 AttributeTag::Modifier { modifier, target } => {
                     if entity == spectating{
-                        println!("modifier: {} is at {}", tag, attributes.get(&tag).unwrap_or(&0.0).clone());
+                        //println!("modifier: {} is at {}", tag, attributes.get(&tag).unwrap_or(&4.04).clone());
                     }
                     let modifier_attr = attributes.entry(tag).or_default().clone();
                     //let level = *attributes.clone().get(&Stat::Level.into()).unwrap_or(&1.0);\
@@ -203,7 +202,7 @@ pub fn calculate_attributes(
 
                     let modified = match modifier {
                         Modifier::Base => modifier_attr,
-                        //Modifier::Scale => level * modifier_attr,
+                        //Modifier::Scale => *target_attr + level * modifier_attr,
                         Modifier::Add => *target_attr + modifier_attr,
                         Modifier::Sub => *target_attr - modifier_attr,
                         Modifier::Mul => *target_attr * (1.0 + modifier_attr / 100.0),
@@ -214,26 +213,27 @@ pub fn calculate_attributes(
 
                     *target_attr = modified;
                 }
-                AttributeTag::Stat(_) => {
-                    if entity == spectating{
-                        println!("stat: {} is at {}", tag, attributes.get(&tag).unwrap_or(&4.04).clone());
-                    }
-                }
+                AttributeTag::Stat(_) => ()
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect, FromReflect)]
 pub enum AttributeTag {
     Modifier {
         modifier: Modifier,
+        #[reflect(ignore)]
         target: Box<AttributeTag>,
     },
     Stat(Stat),
 }
 
-
+impl Default for AttributeTag{
+    fn default() -> Self {
+        Self::Stat(Stat::Health)
+    }
+}
 
 // only returning the modifier for the id, not the modifier and stat
 // if an ability changes 2 different stats in the same way, add or mult, itll break probably (?)

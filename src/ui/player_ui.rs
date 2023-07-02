@@ -1,14 +1,15 @@
 use bevy::{prelude::*, ui::RelativeCursorPosition};
+use bevy_tweening::TweenCompleted;
 
 use crate::{
-    ability::{Ability, AbilityInfo},
+    ability::{Ability, AbilityInfo, HealthChangeEvent},
     assets::{Fonts, Icons},
-    buff::{BuffAddEvent, BuffMap, BuffStackEvent, BuffType},
+    buff::{BuffAddEvent, BuffStackEvent, BuffType},
     input::SlotAbilityMap,
-    player::{CooldownMap, Player},
+    player::{CooldownMap, Player, WindupTimer, CastEvent},
     stats::*,
     ui::ui_bundles::*,
-    view::Spectating,
+    view::Spectating, crowd_control::{CCMap, CCType}, game_manager::AbilityFireEvent,
 };
 
 pub fn add_player_ui(
@@ -16,14 +17,14 @@ pub fn add_player_ui(
     ui_query: Query<Entity, With<RootUI>>,
     player_query: Query<&SlotAbilityMap, Added<Player>>,
     fonts: Res<Fonts>,
+    icons: Res<Icons>,
 ) {
     let Ok(root_ui) = ui_query.get_single() else {return};
     for ability_map in player_query.iter() {
         commands.entity(root_ui).with_children(|parent| {
-            // Bottom Container
-            parent
-                .spawn(player_bottom_container())
-                .with_children(|parent| {
+            parent.spawn(character_ui()).with_children(|parent| {
+                // Bottom Container
+                parent.spawn(player_bottom_container()).with_children(|parent| {
                     // Buffs / Debuffs
                     parent.spawn(effect_bar()).with_children(|parent| {
                         parent.spawn(buff_bar());
@@ -47,6 +48,21 @@ pub fn add_player_ui(
                     // CDs
                     parent.spawn((ability_holder(), ability_map.clone()));
                 });
+                // CC on self
+                parent.spawn(cc_holder()).with_children(|parent| {
+                    parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
+                    parent.spawn(cc_bar()).with_children(|parent| {
+                        parent.spawn(cc_bar_fill());
+                    });
+                });
+                // castbar
+                parent.spawn(cast_bar_holder()).with_children(|parent| {
+                    //parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
+                    parent.spawn(cast_bar()).with_children(|parent| {
+                        parent.spawn(cast_bar_fill());
+                    });
+                });
+            });
         });
     }
 }
@@ -135,6 +151,70 @@ pub fn update_character_resource(
         _ => {}
     }
 }
+
+pub fn update_cc_bar(
+    mut cc_bar_fill: Query<&mut Style, With<CCBarSelfFill>>,
+    cc_maps: Query<&CCMap>,
+    spectating: Res<Spectating>,
+){
+    let Some(spectating) = spectating.0 else {return};
+    let Ok(cc_of_spectating) = cc_maps.get(spectating) else {return}; 
+    let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
+    let Some((_top_cc, cc_timer)) = cc_vec.get(0) else {return};
+    let Ok(mut style) = cc_bar_fill.get_single_mut() else {return};
+    style.size.width = Val::Percent(cc_timer.percent_left() * 100.0);    
+}
+
+pub fn toggle_cc_bar(
+    mut cc_bar: Query<&mut Visibility, With<CCSelf>>,
+    mut cc_icon: Query<&mut UiImage, With<CCIconSelf>>,
+    icons: Res<Icons>,
+    cc_maps: Query<&CCMap, Changed<CCMap>>,
+    spectating: Res<Spectating>,
+){
+    let Some(spectating) = spectating.0 else {return};
+    let Ok(cc_of_spectating) = cc_maps.get(spectating) else {return}; 
+    let Ok(mut vis) = cc_bar.get_single_mut() else {return};
+    let Ok(mut image) = cc_icon.get_single_mut() else {return};
+    if cc_of_spectating.map.is_empty(){
+        *vis = Visibility::Hidden;
+    } else {
+        *vis = Visibility::Visible;
+        let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
+        let Some((top_cc, _)) = cc_vec.get(0) else {return};
+        image.texture = top_cc.clone().get_icon(&icons);
+    }
+}
+
+pub fn update_cast_bar(
+    mut cast_bar_fill: Query<&mut Style, With<CastBarFill>>,
+    windup_query: Query<&WindupTimer>,
+    spectating: Res<Spectating>,
+){
+    let Some(spectating) = spectating.0 else {return};
+    let Ok(windup) = windup_query.get(spectating) else {return}; 
+    let Ok(mut style) = cast_bar_fill.get_single_mut() else {return};
+    style.size.width = Val::Percent(windup.0.percent() * 100.0);    
+}
+
+pub fn toggle_cast_bar(
+    mut bar: Query<&mut Visibility, With<CastBar>>,
+    mut cast_events: EventReader<CastEvent>,
+    mut fire_events: EventReader<AbilityFireEvent>,
+    spectating: Res<Spectating>,
+){
+    let Some(spectating) = spectating.0 else {return};
+    let Ok(mut vis) = bar.get_single_mut() else {return};
+    for event in cast_events.iter(){
+        if event.caster != spectating {continue}
+        *vis = Visibility::Visible;
+    }
+    for event in fire_events.iter(){
+        if event.caster != spectating {continue}
+        *vis = Visibility::Hidden;
+    }
+}
+
 
 pub fn update_cooldowns(
     mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
@@ -239,27 +319,37 @@ pub fn add_buffs(
     }
 }
 
-/*
-pub fn update_buffs(
-    buff_query: Query<(&Player, &BuffMap)>,
-    mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
-    mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
+pub fn spawn_floating_damage(
+    mut damage_events: EventReader<HealthChangeEvent>,
+    spectating: Res<Spectating>,
+    mut commands: Commands,
+    damaged_query: Query<Entity>,
+    fonts: Res<Fonts>,
 ){
-    for (_, buffs) in buff_query.iter() {
-        if !buffs.map.contains_key(ability) {
-            text.sections[0].value = String::from("");
-            *background_color = Color::WHITE.into();
-        } else {
-            let timer = buffs.map.get(ability).unwrap();
-            let newcd = timer.remaining_secs() as u32;
-            text.sections[0].value = newcd.to_string();
-            *background_color = Color::rgb(0.2, 0.2, 0.2).into();
-        }
-    }
-    for (mut text, ability, parent) in text_query.iter_mut() {
-        let Ok(mut background_color) = image_query.get_mut(parent.get()) else{
-            continue
-        };
+    let Some(spectating) = spectating.0 else {return};
+    for damage_instance in damage_events.iter(){
+        let Some(attacker_entity) = damage_instance.attacker else {continue};
+        if attacker_entity != spectating { continue };
+        let Ok(damaged) = damaged_query.get(damage_instance.defender) else {continue};
+        commands.spawn(follow_wrapper(damaged)).with_children(|parent| {            
+            parent.spawn(follow_inner_text(damage_instance.amount.abs().trunc().to_string(), &fonts));
+        });
     }
 }
-*/
+
+pub fn floating_damage_cleanup(
+    mut commands: Commands,
+    mut tween_events: EventReader<TweenCompleted>,
+    parents: Query<&Parent>,
+){
+    for ev in tween_events.iter(){
+        use TweenEvents::*;
+        match TweenEvents::try_from(ev.user_data) {
+            Ok(FloatingDamageEnded) => {
+                let Ok(parent) = parents.get(ev.entity) else {continue};
+                commands.entity(parent.get()).despawn_recursive();  
+            }
+            Err(_) | Ok(_) => (),
+        }
+    }
+}

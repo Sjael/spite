@@ -6,8 +6,8 @@ use std::time::Duration;
 use ability::{shape::load_ability_shape, AbilityPlugin};
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
-use buff::{BuffPlugin};
-use crowd_control::{tick_ccs, CCMap};
+use buff::BuffPlugin;
+use crowd_control::CCPlugin;
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use player::PlayerPlugin;
@@ -58,13 +58,12 @@ pub fn app_plugins_both(app: &mut App) {
         .add_plugin(UiPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(BuffPlugin)
+        .add_plugin(CCPlugin)
         .add_plugin(StatsPlugin)
         .add_plugin(AbilityPlugin)
         .add_plugin(InputPlugin)
         // move buffs / cc into character plugin at some point
-        .add_systems((load_ability_shape, tick_game, buff::tick_buffs, tick_ccs));
-    app.register_type::<CCMap>();
-    //app.register_type::<BuffMap>();
+        .add_systems((load_ability_shape, tick_game,));
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]

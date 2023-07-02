@@ -7,8 +7,8 @@ use std::{collections::HashMap, f32::consts::PI, fmt::Debug, time::Duration};
 use crate::{
     ability::{Ability, HealthChangeEvent},
     buff::{BuffMap},
-    crowd_control::CCType,
-    game_manager::{Bounty, CastEvent, CharacterState, PLAYER_GROUPING, TEAM_1},
+    crowd_control::{CCType, CCMap},
+    game_manager::{Bounty, CharacterState, PLAYER_GROUPING, TEAM_1, AbilityFireEvent},
     input::{setup_player_slots},
     stats::*,
     ui::{mouse::MouseState, Trackable},
@@ -50,7 +50,9 @@ pub struct Reticle {
 }
 
 #[derive(Component, Debug, Default)]
-pub struct HoveredAbility(pub Ability);
+pub struct HoveredAbility(pub Option<Ability>);
+#[derive(Component, Debug, Default)]
+pub struct Casting(pub Option<Ability>);
 
 #[derive(Component, Resource, Reflect, Clone, Copy, Default, Serialize, Deserialize)]
 #[reflect(Resource)]
@@ -211,7 +213,7 @@ impl Plugin for PlayerPlugin {
         app.insert_resource(PlayerInput::default());
         app.register_type::<PlayerInput>();
         app.register_type::<CooldownMap>();
-        app.register_type::<CCMap>();
+        app.add_event::<CastEvent>();
         app.add_event::<SpawnEvent>();
 
         //Plugins
@@ -231,6 +233,8 @@ impl Plugin for PlayerPlugin {
                 cast_ability,
                 trigger_cooldown.after(cast_ability),
                 tick_cooldowns.after(trigger_cooldown),
+                start_ability_windup.after(cast_ability),
+                tick_windup_timer,
                 spawn_player,
             )
                 .in_set(OnUpdate(GameState::InGame)),
@@ -333,6 +337,8 @@ fn spawn_player(
                 NetworkOwner,
                 Spectatable,
                 Trackable,
+                Casting(None),
+                WindupTimer(Timer::default()),
             ))
             .id();
 
@@ -455,40 +461,83 @@ fn reticle_move(
 }
 
 fn select_ability(mut query: Query<(&mut HoveredAbility, &ActionState<Ability>)>) {
-    // TODO get specific player
     for (mut hover, ab_state) in &mut query {
         for ability in ab_state.get_just_pressed() {
-            if hover.0 != ability {
-                hover.0 = ability.clone();
+            if let Some(hovered) = hover.0{                
+                if hovered == ability {
+                    continue
+                }
             }
+            hover.0 = Some(ability.clone());
         }
     }
 }
 
 pub fn cast_ability(
-    players: Query<(
-        &CooldownMap,
-        &Player,
-        Entity,
-        &ActionState<Ability>,
-        &Children,
-    )>,
+    players: Query<(&CooldownMap, &Player, Entity, &ActionState<Ability>, &CCMap)>,
     //reticle: Query<(&GlobalTransform, &Reticle), Without<Player>>,
     mut cast_event: EventWriter<CastEvent>,
 ) {
-    for (cooldowns, _, player_entity, ability_actions, _) in &players {
+    for (cooldowns, _, player_entity, ability_actions, ccmap) in &players {
+        if ccmap.map.contains_key(&CCType::Silence) { continue }
         for ability in ability_actions.get_just_pressed() {
-            if !cooldowns.map.contains_key(&ability) {
-                cast_event.send(CastEvent {
-                    caster: player_entity,
-                    ability: ability.clone(),
-                });
-            }
+            if cooldowns.map.contains_key(&ability) { continue }
+            cast_event.send(CastEvent {
+                caster: player_entity,
+                ability: ability.clone(),
+            });
         }
     }
 }
 
-fn trigger_cooldown(mut cast_events: EventReader<CastEvent>, mut query: Query<&mut CooldownMap>) {
+pub struct CastEvent {
+    pub caster: Entity,
+    pub ability: Ability,
+}
+
+
+#[derive(Component)]
+pub struct WindupTimer(pub Timer);
+pub enum CastingStage{
+    Charging(Timer),
+    Windup(Timer),
+    None,
+}
+
+fn start_ability_windup(
+    mut players: Query<(&mut WindupTimer, &mut Casting)>,
+    mut cast_events: EventReader<CastEvent>,
+){
+    for event in cast_events.iter(){
+        let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else { continue };
+        let windup = event.ability.get_windup();
+        winduptimer.0 = Timer::new(
+            Duration::from_millis((windup * 1000.) as u64),
+            TimerMode::Once,
+        );
+        casting.0 = Some(event.ability);
+    }
+}
+
+fn tick_windup_timer(
+    time: Res<Time>,
+    mut players: Query<(Entity, &mut WindupTimer, &mut Casting)>,
+    mut fire_event: EventWriter<AbilityFireEvent>,
+){
+    for (entity, mut timer, mut casting) in players.iter_mut(){
+        let Some(ability) = casting.0 else {continue};
+        timer.0.tick(time.delta());
+        if timer.0.finished(){            
+            fire_event.send(AbilityFireEvent {
+                caster: entity,
+                ability: ability.clone(),
+            });
+            casting.0 = None;
+        }
+    }
+}
+
+fn trigger_cooldown(mut cast_events: EventReader<AbilityFireEvent>, mut query: Query<&mut CooldownMap>) {
     for event in cast_events.iter() {
         let Ok(mut cooldowns) = query.get_mut(event.caster) else { continue };
         cooldowns.map.insert(
@@ -522,10 +571,4 @@ fn tick_cooldowns(
 #[reflect]
 pub struct CooldownMap {
     pub map: HashMap<Ability, Timer>,
-}
-
-#[derive(Component, Reflect, Default, Debug, Clone)]
-#[reflect]
-pub struct CCMap {
-    pub map: HashMap<CCType, Timer>,
 }

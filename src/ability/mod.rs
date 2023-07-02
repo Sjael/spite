@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bevy::{prelude::*, ecs::component::Tick};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::prelude::{RigidBody, Sensor, Velocity};
 use derive_more::Display;
@@ -14,10 +14,12 @@ use rand::Rng;
 use crate::{
     buff::{BuffInfo, BuffTargets},
     crowd_control::CCInfo,
-    game_manager::{CastEvent, Team, CastHomingEvent},
+    game_manager::{Team, FireHomingEvent},
 };
 use homing::track_homing;
 use shape::AbilityShape;
+
+use self::ability_bundles::Caster;
 
 pub struct AbilityPlugin;
 impl Plugin for AbilityPlugin {
@@ -77,6 +79,14 @@ impl Ability {
             Ability::Frostbolt => 3.5,
             Ability::Fireball => 4.,
             Ability::BasicAttack => 2.,
+        }
+    }
+
+    pub fn get_windup(&self) -> f32{
+        match self {
+            Ability::Frostbolt => 0.2,
+            Ability::Fireball => 0.8,
+            _ => 0.4,
         }
     }
 
@@ -263,7 +273,7 @@ pub struct FiringInterval(pub u32);
 
 pub struct HealthChangeEvent {
     pub amount: f32,
-    pub attacker: Entity,
+    pub attacker: Option<Entity>,
     pub defender: Entity,
     pub when: Instant,
 }
@@ -272,7 +282,7 @@ pub struct BuffEvent {
     pub info: BuffInfo,
     pub target: Entity,
     pub buff_originator: Entity,
-    pub caster: Entity,
+    pub caster: Option<Entity>,
     pub ability: Ability,
 }
 
@@ -296,6 +306,7 @@ fn area_apply_tags(
         &Team,
         &TargetsHittable,
         &Tags,
+        Option<&Caster>,
         Option<&FiringInterval>,
         Option<&mut MaxTargetsHit>,
         Option<&mut TickBehavior>,
@@ -306,15 +317,20 @@ fn area_apply_tags(
     mut buff_events: EventWriter<BuffEvent>,
     mut cc_events: EventWriter<CCEvent>,
     //mut cast_events: EventWriter<CastEvent>,
-    mut cast_homing_events: EventWriter<CastHomingEvent>,
+    mut cast_homing_events: EventWriter<FireHomingEvent>,
 ) {
-    for (sensor_entity, sensor_team, targets_hittable, tags, interval,
+    for (sensor_entity, sensor_team, targets_hittable, tags, caster, interval,
         mut max_targets_hit, mut tick_behavior, mut unique_targets_hit) in &mut sensor_query
     {        
         let mut targets_that_got_hit: Vec<Entity> = Vec::new();
         for target_entity in targets_hittable.list.iter() {
             let Ok((_, target_team, ability)) = targets_query.get_mut(*target_entity) else { continue };
             let ability = ability.unwrap_or(&Ability::BasicAttack);
+            let caster = if let Some(caster) = caster{
+                Some(caster.0)
+            }else {
+                None
+            };
             let on_same_team = sensor_team.0 == target_team.0;
             if let Some(ref unique_targets_hit) = unique_targets_hit{
                 if unique_targets_hit.already_hit.contains(target_entity){ continue }
@@ -328,7 +344,7 @@ fn area_apply_tags(
                             hit_a_target = true;
                             let health_change = HealthChangeEvent {
                                 amount: *amount,
-                                attacker: sensor_entity,
+                                attacker: caster,
                                 defender: *target_entity,
                                 when: Instant::now(),
                             };
@@ -337,10 +353,11 @@ fn area_apply_tags(
                     }
                     TagInfo::Damage(amount) => {
                         if !on_same_team {
+                            println!("damage is {}", amount);
                             hit_a_target = true;
                             let health_change = HealthChangeEvent {
                                 amount: -amount,
-                                attacker: sensor_entity,
+                                attacker: caster,
                                 defender: *target_entity,
                                 when: Instant::now(),
                             };
@@ -358,7 +375,7 @@ fn area_apply_tags(
                             info: buffinfo.clone(),
                             ability: *ability,
                             buff_originator: sensor_entity, // TODO can be a specific ability, or an item
-                            caster: sensor_entity,
+                            caster: caster,
                             target: *target_entity,
                         };
                         if buffing_ally || debuffing_enemy || buffing_anyone {
@@ -367,15 +384,17 @@ fn area_apply_tags(
                         }
                     }
                     TagInfo::CC(ref ccinfo) => {
-                        hit_a_target = true;
-                        cc_events.send(CCEvent {
-                            target_entity: *target_entity,
-                            ccinfo: ccinfo.clone(),
-                        });
+                        if !on_same_team{
+                            hit_a_target = true;
+                            cc_events.send(CCEvent {
+                                target_entity: *target_entity,
+                                ccinfo: ccinfo.clone(),
+                            });
+                        }
                     }
                     TagInfo::Homing(ref projectile_to_spawn) => {
                         hit_a_target = true;
-                        cast_homing_events.send(CastHomingEvent {
+                        cast_homing_events.send(FireHomingEvent {
                             caster: sensor_entity,
                             ability: projectile_to_spawn.clone(),
                             target: *target_entity,
@@ -594,7 +613,7 @@ fn tick_lifetime(
         //dbg!(lifetime.clone());
         lifetime.seconds -= time.delta_seconds_f64();
         if lifetime.seconds <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).despawn_recursive();
         }
     }
 }

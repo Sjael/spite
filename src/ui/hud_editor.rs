@@ -71,7 +71,7 @@ pub fn scale_ui(
 ){
     if mouse_is_free.0 != MouseState::Free { return }
     let Ok(window) = windows.get_single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else { return };  
+    let Some(_) = window.cursor_position() else { return };  
     for event in scroll_events.iter(){
         for (parent, interaction) in edit_handles.iter(){
             if interaction != &Interaction::Hovered { continue }
