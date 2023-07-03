@@ -1,8 +1,8 @@
-use bevy::{prelude::*, input::mouse::MouseWheel, window::PrimaryWindow};
+use bevy::{prelude::*, input::mouse::MouseWheel};
 
 use crate::assets::Fonts;
 
-use super::{ui_bundles::{Draggable, EditableUI, editing_ui_handle, EditingUIHandle, editing_ui_label, editing_ui, button, button_text, UiForEditingUi}, mouse::MouseState, ButtonAction};
+use super::{ui_bundles::{Draggable, EditableUI, editing_ui_handle, EditingUIHandle, editing_ui_label, editing_ui, button, button_text, UiForEditingUi}, ButtonAction};
 
 
 #[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
@@ -41,7 +41,7 @@ pub fn give_editable_ui(
         commands.entity(entity).with_children(|parent|{
             parent.spawn(editing_ui_handle()).with_children(|parent| {
                 if let Ok(name) = names.get(parent_entity.get()){
-                    parent.spawn(editing_ui_label(name.as_str().to_string(), &fonts));
+                    parent.spawn(editing_ui_label(name, &fonts));
                 }
             });
         });
@@ -51,27 +51,22 @@ pub fn give_editable_ui(
         parent.spawn(button()).insert(
             ButtonAction::ResetUi,
         ).with_children(|parent| {
-            parent.spawn(button_text("Reset".to_string(),&fonts));
+            parent.spawn(button_text("Reset", &fonts));
         });
         parent.spawn(button()).insert(
             ButtonAction::EditUi,
         ).with_children(|parent| {
-            parent.spawn(button_text("Save".to_string(),&fonts));
+            parent.spawn(button_text("Save", &fonts));
         });
     });
 }
 
 
 pub fn scale_ui(
-    windows: Query<&mut Window, With<PrimaryWindow>>,
     mut editables: Query<&mut Transform, With<EditableUI>>,
     edit_handles: Query<(&Parent, &Interaction), With<EditingUIHandle>>,
     mut scroll_events: EventReader<MouseWheel>,
-    mouse_is_free: Res<State<MouseState>>,
 ){
-    if mouse_is_free.0 != MouseState::Free { return }
-    let Ok(window) = windows.get_single() else { return };
-    let Some(_) = window.cursor_position() else { return };  
     for event in scroll_events.iter(){
         for (parent, interaction) in edit_handles.iter(){
             if interaction != &Interaction::Hovered { continue }
@@ -82,6 +77,20 @@ pub fn scale_ui(
                 transform.scale += Vec3::splat(-0.05);
             }
         }
+    }
+}
+
+pub struct ResetUiEvent;
+
+pub fn reset_editable_ui(
+    mut editables: Query<(&mut Style, &mut Transform), With<EditableUI>>,
+    reset_ui_events: EventReader<ResetUiEvent>,
+){
+    if reset_ui_events.is_empty() {return}
+    for (mut style, mut transform) in editables.iter_mut(){
+        style.position.top = Val::Px(0.0);
+        style.position.left = Val::Px(0.0);
+        transform.scale = Vec3::ONE;
     }
 }
 
@@ -103,19 +112,5 @@ pub fn remove_editable_ui(
     }
     if let Ok(editing_ui_entity) = editing_ui.get_single(){
         commands.entity(editing_ui_entity).despawn_recursive();
-    }
-}
-
-pub struct ResetUiEvent;
-
-pub fn reset_editable_ui(
-    mut editables: Query<(&mut Style, &mut Transform), With<EditableUI>>,
-    mut reset_ui_events: EventReader<ResetUiEvent>,
-){
-    let Some(_) = reset_ui_events.iter().next() else {return};
-    for (mut style, mut transform) in editables.iter_mut(){
-        style.position.top = Val::Px(0.0);
-        style.position.left = Val::Px(0.0);
-        transform.scale = Vec3::ONE;
     }
 }

@@ -5,8 +5,10 @@ use leafwing_input_manager::prelude::*;
 use std::collections::BTreeMap;
 use derive_more::{Deref, DerefMut, Display};
 
-use crate::{ability::Ability, ui::mouse::MouseState};
+use crate::{ability::Ability, ui::mouse::MouseState, GameState, player::HoveredAbility};
 
+#[derive(Resource)]
+pub struct MouseSensitivity(pub f32);
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
@@ -14,36 +16,43 @@ impl Plugin for InputPlugin {
         app.add_plugin(InputManagerPlugin::<Slot>::default())
            .add_plugin(InputManagerPlugin::<Ability>::default());
 
+        app.insert_resource(MouseSensitivity(1.0));
+
+        app.add_system(clean_inputs.in_base_set(CoreSet::PostUpdate).in_schedule(OnEnter(GameState::InGame)));
         app.add_systems((
             copy_action_state
                 .in_base_set(CoreSet::PreUpdate)
-                .after(InputManagerSystem::ManualControl),
+                .after(InputManagerSystem::ManualControl)
+                .run_if(in_state(GameState::InGame)),
             report_abilities_used,
         ));
     }
 }
 
+
+fn clean_inputs(
+    mut query: Query<&mut ActionState<Slot>>,
+){
+    for mut slot_state in &mut query{
+        slot_state.consume_all();
+    }
+}
 // There are 3 layers of data (Keys -> Slots -> Abilities)
 // This is the system passing on actions from first 2 layers on to final layer
 // We can now have ability 'slots' in our game, like an actionbar in WoW or Diablo that we can drag stuff onto soon tm
 fn copy_action_state(
-    mut query: Query<(
-        &ActionState<Slot>,
-        &mut ActionState<Ability>,
-        &SlotAbilityMap,
-    )>,
+    mut query: Query<(&ActionState<Slot>, &mut ActionState<Ability>, &SlotAbilityMap, &HoveredAbility)>,
     mouse_is_free: Res<State<MouseState>>,
 ) {
-    for (slot_state, mut ability_state, ability_slot_map) in query.iter_mut() {
+    for (slot_state, mut ability_state, ability_slot_map, hovered) in query.iter_mut() {
         for slot in Slot::variants() {
             // skip auto attack if we are in a menu
-            if slot == Slot::LeftClick && mouse_is_free.0 == MouseState::Free{
+            if slot == Slot::LeftClick && (mouse_is_free.0 == MouseState::Free || hovered.0.is_some()){
                 continue;
             }
             if let Some(matching_ability) = ability_slot_map.get(&slot) {
                 // Even copies information about how long the buttons have been pressed or released
-                ability_state
-                    .set_action_data(matching_ability.clone(), slot_state.action_data(slot).clone());
+                ability_state.set_action_data(matching_ability.clone(), slot_state.action_data(slot).clone());
             }
         }
     }
@@ -59,25 +68,25 @@ fn report_abilities_used(query: Query<&ActionState<Ability>>) {
 
 // These are the things that dont change from users, but they can rebind keys to them, and the abilities they call
 #[allow(dead_code)]
-#[derive(Actionlike, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Actionlike, Clone, Copy, Debug, Display, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Slot {
     Ability1,
     Ability2,
     Ability3,
     Ability4,
     LeftClick,
-    #[default]
     RightClick,
 }
 
 
-// This struct stores which ability corresponds to which slot for a particular player
+// This struct stores which ability corresponds to which slot for a particular player aka their Loadout
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
 pub struct SlotAbilityMap {
     pub map: BTreeMap<Slot, Ability>,
 }
 
 impl SlotAbilityMap{
+    // Default loadout
     pub fn new() -> Self{        
         let mut ability_slot_map = SlotAbilityMap::default();
         ability_slot_map.insert(Slot::Ability1, Ability::Frostbolt);
@@ -88,23 +97,6 @@ impl SlotAbilityMap{
     }
 }
 
-// THIS IS A PLACEHOLDER -- need to clean this up, probably into impl blocks
-pub fn setup_player_slots() -> impl Bundle{
-    let input_slot_map = InputMap::new([
-        (KeyCode::Key1, Slot::Ability1),
-        (KeyCode::Key2, Slot::Ability2),
-        (KeyCode::Key3, Slot::Ability3),
-    ])
-    .insert(MouseButton::Left, Slot::LeftClick)
-    .insert(MouseButton::Right, Slot::RightClick)
-    .build();
-
-    SlotBundle{
-        input_slot_map,
-        slot_ability_map: SlotAbilityMap::new(),
-        ..default()
-    }
-}
 
 // Could just remove this and put the actionstates in the fn return above? 
 // Bundles seem kinda pointless until you have multiple ways of spawning things
@@ -114,4 +106,24 @@ pub struct SlotBundle {
     pub slot_action_state: ActionState<Slot>,
     pub slot_ability_map: SlotAbilityMap,
     pub ability_action_state: ActionState<Ability>,
+}
+
+impl SlotBundle{
+    // These are the placeholder keybinds
+    pub fn new() -> Self{
+        let input_slot_map = InputMap::new([
+            (KeyCode::Key1, Slot::Ability1),
+            (KeyCode::Key2, Slot::Ability2),
+            (KeyCode::Key3, Slot::Ability3),
+        ])
+        .insert(MouseButton::Left, Slot::LeftClick)
+        .insert(MouseButton::Right, Slot::RightClick)
+        .build();
+    
+        SlotBundle{
+            input_slot_map,
+            slot_ability_map: SlotAbilityMap::new(),
+            ..default()
+        }
+    }
 }

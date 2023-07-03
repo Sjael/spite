@@ -21,7 +21,7 @@ pub struct GameManagerPlugin;
 impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameModeDetails::default());
-        app.insert_resource(Player::new(1507));
+        app.insert_resource(Player::new(1507)); // change to be whatever the server says
         app.register_type::<Bounty>();
         app.add_state::<CharacterState>();
 
@@ -102,13 +102,15 @@ fn place_homing_ability(
 ){
     for event in cast_events.iter() {
         let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
+
+        let spawned = event.ability.get_bundle(&mut commands, &caster_transform.compute_transform());
+
         // Apply general components
-        let spawned = commands.spawn((
+        commands.entity(spawned).insert((
             Name::new("Tower shot"),
             team.clone(),
             Homing(event.target)
-        )).id();
-
+        ));
         
         // if has a shape
         commands.entity(spawned).insert((
@@ -120,8 +122,6 @@ fn place_homing_ability(
             TickBehavior::individual(),
         ));
 
-        let blueprint = FireballInfo::default();
-        blueprint.fire(&mut commands, spawned, &caster_transform.compute_transform());
     }
 }
 
@@ -137,13 +137,15 @@ fn place_ability(
     for event in cast_events.iter() {
         let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
 
+        // Get ability-specific components
+        let spawned = event.ability.get_bundle(&mut commands, &reticle_transform.compute_transform());
+
         // Apply general components
-        let spawned = commands.spawn((
+        commands.entity(spawned).insert((
             Name::new("ability #tick number"),
             team.clone(),
             Caster(event.caster),
-        )).id();
-        
+        ));        
 
         // if has a shape
         commands.entity(spawned).insert((
@@ -155,21 +157,6 @@ fn place_ability(
             TickBehavior::individual(),
         ));
 
-        // Get ability-specific components
-        match event.ability {
-            Ability::Frostbolt => {
-                let blueprint = FrostboltInfo::default();
-                blueprint.fire(&mut commands, spawned, &reticle_transform.compute_transform())
-            }
-            Ability::Fireball => {
-                let blueprint = FireballInfo::default();
-                blueprint.fire(&mut commands, spawned, &caster_transform.compute_transform())
-            }
-            _ => {
-                let blueprint = DefaultAbilityInfo::default();
-                blueprint.fire(&mut commands, spawned, &caster_transform.compute_transform())
-            }
-        };
 
 
         let mut additional_components: Vec<&dyn Component<Storage = TableStorage>> = Vec::new();
@@ -229,7 +216,7 @@ fn show_respawn_ui(
         }
     }
     for event in death_events.iter() {
-        if event.player == *local_player {
+        if event.was_local_player {
             *vis = Visibility::Visible;
         }
     }
@@ -248,7 +235,8 @@ fn tick_respawn_ui(
 }
 
 pub struct DeathEvent {
-    pub player: Player,
+    pub character: Entity,
+    pub was_local_player: bool,
 }
 
 fn check_deaths(
@@ -259,6 +247,7 @@ fn check_deaths(
     ui: Query<Entity, With<PlayerUI>>,
     mut character_state_next: ResMut<NextState<CharacterState>>,
     mut death_events: EventWriter<DeathEvent>,
+    local_player: Res<Player>,
 ) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
     for (guy, bounty, damagelog, player) in the_damned.iter_mut() {
@@ -278,11 +267,12 @@ fn check_deaths(
                 Timer::new(Duration::from_secs(8), TimerMode::Once), // figure respawn time later
             );
             death_events.send(DeathEvent {
-                player: player.clone(),
+                character: guy,
+                was_local_player: *local_player == *player,
             });
 
             if let Some(mut bounty) = bounty {
-                for instance in damagelog.map.iter() {
+                for instance in damagelog.list.iter() {
                     if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT){
                         let Some(attacker) = instance.attacker else {continue};
                         if let Ok(mut attributes) = attributes.get_mut(attacker) {

@@ -6,7 +6,7 @@ use std::{
 
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::prelude::{RigidBody, Sensor, Velocity};
+use bevy_rapier3d::prelude::Sensor;
 use derive_more::Display;
 use leafwing_input_manager::Actionlike;
 use rand::Rng;
@@ -19,7 +19,7 @@ use crate::{
 use homing::track_homing;
 use shape::AbilityShape;
 
-use self::ability_bundles::Caster;
+use self::ability_bundles::{Caster, DefaultAbilityInfo, FireballInfo, FrostboltInfo};
 
 pub struct AbilityPlugin;
 impl Plugin for AbilityPlugin {
@@ -48,20 +48,7 @@ impl Plugin for AbilityPlugin {
     }
 }
 
-#[derive(
-    Actionlike,
-    Component,
-    Reflect,
-    FromReflect,
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Display,
-    Eq,
-    PartialEq,
-    Hash,
-)]
+#[derive(Actionlike, Component, Reflect, FromReflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,)]
 #[reflect(Component)]
 pub enum Ability {
     Frostbolt,
@@ -90,44 +77,11 @@ impl Ability {
         }
     }
 
-    // ISNT BEING USED, CLEAN UP OR REFACTOR
-    // Cant just return bundle cus match arms are different tuples, need to pass in commands
-    pub fn fire(&self, commands: &mut Commands) -> Entity {
-        match self {
-            Ability::Frostbolt => commands
-                .spawn((
-                    SpatialBundle::from_transform(Transform {
-                        translation: Vec3::new(0.0, 0.5, 0.0),
-                        rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
-                        ..default()
-                    }),
-                    Velocity {
-                        linvel: Vec3::new(0., 0., -1.) * 10.0,
-                        ..default()
-                    },
-                    RigidBody::KinematicVelocityBased,
-                    AbilityShape::Rectangle {
-                        length: 1.0,
-                        width: 1.0,
-                    },
-                    Sensor,
-                    CastingLifetime { seconds: 1.0 },
-                    Name::new("Frostbolt"),
-                ))
-                .id(),
-
-            _ => commands
-                .spawn((
-                    SpatialBundle::from_transform(Transform {
-                        translation: Vec3::new(0.0, 0.5, 0.0),
-                        ..default()
-                    }),
-                    AbilityShape::default(),
-                    CastingLifetime { seconds: 2.0 },
-                    Sensor,
-                    Name::new("Ability Spawn"),
-                ))
-                .id(),
+    pub fn get_bundle(&self, commands: &mut Commands, transform: &Transform) -> Entity{
+        match self{
+            Ability::Frostbolt => commands.spawn(FrostboltInfo::fire_bundle(transform)).id(),
+            Ability::Fireball => commands.spawn(FireballInfo::fire_bundle(transform)).id(),
+            _ => commands.spawn(DefaultAbilityInfo::fire_bundle(transform)).id(),
         }
     }
 }
@@ -271,6 +225,7 @@ pub enum Ticks {
 #[derive(Component, Debug, Clone, Default, Reflect, FromReflect)]
 pub struct FiringInterval(pub u32);
 
+#[derive(Clone)]
 pub struct HealthChangeEvent {
     pub amount: f32,
     pub attacker: Option<Entity>,
@@ -353,7 +308,6 @@ fn area_apply_tags(
                     }
                     TagInfo::Damage(amount) => {
                         if !on_same_team {
-                            println!("damage is {}", amount);
                             hit_a_target = true;
                             let health_change = HealthChangeEvent {
                                 amount: -amount,

@@ -219,7 +219,7 @@ pub fn setup_map(
                     ..default()
                 }),
                 TagInfo::CC(CCInfo{
-                    cctype: CCType::Root,
+                    cctype: CCType::Silence,
                     duration: 7.0,
                 })
             ],

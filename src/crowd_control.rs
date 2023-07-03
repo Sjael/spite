@@ -27,7 +27,7 @@ impl CCType{
         use CCType::*;
         match self {
             Stun => icons.frostbolt.clone().into(),
-            Cripple => icons.fireball.clone().into(),
+            Silence => icons.fireball.clone().into(),
             Root => icons.dash.clone().into(),
             _ => icons.basic_attack.clone().into(),
         }

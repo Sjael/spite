@@ -5,13 +5,13 @@ use bevy::prelude::*;
 
 
 #[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash, )]
-pub enum InGameMenuOpen{
+pub enum InGameMenu{
     Open,
     #[default]
     Closed
 }
 
-impl InGameMenuOpen{
+impl InGameMenu{
     pub fn toggle(&self) -> Self{
         match self{
             Self::Open => Self::Closed,
@@ -59,11 +59,11 @@ pub fn add_ingame_menu(
 }
 
 pub fn toggle_ingame_menu(
-    mut ingame_menu: Query<&mut Visibility, With<InGameMenu>>,
-    state: Res<State<InGameMenuOpen>>,
+    mut ingame_menu: Query<&mut Visibility, With<InGameMenuUi>>,
+    state: Res<State<InGameMenu>>,
 ){
     let Ok(mut vis) = ingame_menu.get_single_mut() else {return};
-    if state.0 == InGameMenuOpen::Closed{
+    if state.0 == InGameMenu::Closed{
         *vis = Visibility::Hidden;
     } else{
         *vis = Visibility::Visible;
@@ -72,14 +72,10 @@ pub fn toggle_ingame_menu(
 
 pub fn state_ingame_menu(
     kb: Res<Input<KeyCode>>,
-    mut next_state: ResMut<NextState<InGameMenuOpen>>,
-    state: Res<State<InGameMenuOpen>>,
+    mut next_state: ResMut<NextState<InGameMenu>>,
+    state: Res<State<InGameMenu>>,
 ){
     if kb.just_pressed(KeyCode::Escape){
-        if state.0.toggle() == InGameMenuOpen::Closed{
-            next_state.set(InGameMenuOpen::Closed);
-        }else{
-            next_state.set(InGameMenuOpen::Open);
-        }
+        next_state.set(state.0.toggle());
     }
 }

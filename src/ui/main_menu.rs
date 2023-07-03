@@ -1,7 +1,7 @@
 use bevy::{prelude::*, app::AppExit};
-use crate::{ui::styles::*, assets::Fonts};
+use crate::assets::Fonts;
 
-use super::ButtonAction;
+use super::{ButtonAction, ui_bundles::{button, button_text}};
 
 
 
@@ -32,88 +32,20 @@ pub fn spawn_main_menu(
         },
         MainMenuRoot,
     )).with_children(|parent|{
-        parent.spawn((
-            ButtonBundle{
-                style:Style{
-                    size:Size::new(
-                        Val::Percent(15.),
-                        Val::Percent(20.),
-                    ),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                background_color: NORMAL_BUTTON.into(),
-                ..default()
-            },
+        parent.spawn(button()).insert(
             ButtonAction::Play,
-        )).with_children(|parent|{
-            parent.spawn((
-                TextBundle::from_section(
-                    "Play", 
-                    TextStyle{
-                        font: fonts.exo_bold.clone(),
-                        font_size: 40.0,
-                        color: Color::BLACK,
-                    }
-                ),
-            ));
+        ).with_children(|parent| {
+            parent.spawn(button_text("Play", &fonts));
         });
-
-        parent.spawn((
-            ButtonBundle{
-                style:Style{
-                    size:Size::new(
-                        Val::Percent(15.),
-                        Val::Percent(20.),
-                    ),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                background_color: NORMAL_BUTTON.into(),
-                ..default()
-            },
+        parent.spawn(button()).insert(
             ButtonAction::Settings,
-        )).with_children(|parent|{
-            parent.spawn((
-                TextBundle::from_section(
-                    "Settings", 
-                    TextStyle{
-                        font: fonts.exo_bold.clone(),
-                        font_size: 40.0,
-                        color: Color::BLACK,
-                    }
-                ),
-            ));
+        ).with_children(|parent| {
+            parent.spawn(button_text("Settings", &fonts));
         });
-
-        parent.spawn((
-            ButtonBundle{
-                style:Style{
-                    size:Size::new(
-                        Val::Percent(15.),
-                        Val::Percent(20.),
-                    ),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                background_color: NORMAL_BUTTON.into(),
-                ..default()
-            },
+        parent.spawn(button()).insert(
             ButtonAction::Exit,
-        )).with_children(|parent|{
-            parent.spawn((
-                TextBundle::from_section(
-                    "Exit", 
-                    TextStyle{
-                        font: fonts.exo_bold.clone(),
-                        font_size: 40.0,
-                        color: Color::BLACK,
-                    }
-                ),
-            ));
+        ).with_children(|parent| {
+            parent.spawn(button_text("Exit Game", &fonts));
         });
 
     });

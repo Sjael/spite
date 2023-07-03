@@ -5,11 +5,10 @@ use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, Te
 
 use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, crowd_control::CCType};
 
+use super::styles::*;
 
 
-const ENEMY_COLOR: Color = Color::rgb(0.94, 0.1, 0.2);
-const ALLY_COLOR: Color = Color::rgb(0.24, 0.18, 0.80);
-const NEUTRAL_COLOR: Color = Color::rgb(0.7, 0.7, 0.2);
+
 
 //
 // Player UI Components
@@ -28,10 +27,7 @@ impl Default for Tooltip{
 #[derive(Component)]
 pub struct Hoverable;
 
-pub struct HoverEvent{
-    entity: Entity,
-    // info
-}
+
 
 #[derive(Component, Debug)]
 pub struct EditableUI;
@@ -1015,7 +1011,7 @@ pub fn cast_bar_holder() -> impl Bundle {(
             size: Size::new(Val::Px(200.0), Val::Px(44.0)),
             margin: UiRect::all(Val::Auto),
             position: UiRect{
-                bottom: Val::Px(-50.0),
+                bottom: Val::Px(-30.0),
                 ..default()
             },
             ..default()
@@ -1060,10 +1056,10 @@ pub fn cc_holder() -> impl Bundle {(
             align_items: AlignItems::Center,
             justify_content: JustifyContent::SpaceBetween,
             position_type: PositionType::Absolute,
-            size: Size::new(Val::Px(150.0), Val::Px(50.0)),
+            size: Size::new(Val::Px(100.0), Val::Px(60.0)),
             margin: UiRect::all(Val::Auto),
             position: UiRect{
-                bottom: Val::Px(60.0),
+                bottom: Val::Px(100.0),
                 ..default()
             },
             ..default()
@@ -1081,7 +1077,7 @@ pub struct CCIconSelf;
 pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(32.), Val::Px(32.)),
+            size: Size::new(Val::Px(48.), Val::Px(48.)),
             ..default()
         },
         image: cctype.get_icon(icons).into(),
@@ -1093,7 +1089,7 @@ pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
 pub fn cc_bar() -> impl Bundle {(
     NodeBundle {
         style: Style { 
-            size: Size::new(Val::Percent(100.0), Val::Px(5.0)),
+            size: Size::new(Val::Percent(100.0), Val::Px(6.0)),
             ..default()
         },
         background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
@@ -1241,7 +1237,7 @@ pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {(
 
 
 #[derive(Component, Debug)]
-pub struct InGameMenu;
+pub struct InGameMenuUi;
 pub fn ingame_menu() -> impl Bundle {(
     NodeBundle {
         style: Style {
@@ -1256,7 +1252,7 @@ pub fn ingame_menu() -> impl Bundle {(
         visibility: Visibility::Hidden,
         ..default()
     },
-    InGameMenu,
+    InGameMenuUi,
     Name::new("InGame Menu"),
 )}
 
@@ -1311,7 +1307,7 @@ pub fn tab_panel() -> impl Bundle {(
 #[derive(Component)]
 pub struct TabMenuWrapper(pub TabMenuType);
 
-#[derive(Default, Eq, PartialEq)]
+#[derive(Component, Default, Eq, PartialEq)]
 pub enum TabMenuType{
     Scoreboard,
     DamageLog,
@@ -1329,7 +1325,7 @@ pub fn damage_log() -> impl Bundle {(
         },
         ..default()
     },
-    TabMenuWrapper(TabMenuType::DamageLog),
+    TabMenuType::DamageLog,
     DamageLog,
 )}
 
@@ -1341,7 +1337,8 @@ pub struct IncomingLogUi;
 pub fn log_outgoing() -> impl Bundle {(    
     NodeBundle {
         style: Style {
-            flex_direction: FlexDirection::Column,
+            flex_direction: FlexDirection::ColumnReverse,
+            justify_content: JustifyContent::FlexEnd,
             flex_grow: 1.0,
             ..default()
         },
@@ -1353,7 +1350,8 @@ pub fn log_outgoing() -> impl Bundle {(
 pub fn log_incoming() -> impl Bundle {(    
     NodeBundle {
         style: Style {
-            flex_direction: FlexDirection::Column,
+            flex_direction: FlexDirection::ColumnReverse,
+            justify_content: JustifyContent::FlexEnd,
             flex_grow: 1.0,
             ..default()
         },
@@ -1363,7 +1361,9 @@ pub fn log_incoming() -> impl Bundle {(
     IncomingLogUi,
 )}
 
-pub fn damage_entry(text: String, fonts: &Res<Fonts>,) -> impl Bundle {(
+pub fn damage_entry(damage: u32, fonts: &Res<Fonts>,) -> impl Bundle {
+    let text = damage.to_string();
+    (
     TextBundle {
         style: Style {
             margin : UiRect{
@@ -1401,7 +1401,7 @@ pub fn scoreboard() -> impl Bundle {(
         background_color: Color::rgba(0.1, 0.8, 0.5, 0.4).into(),
         ..default()
     },
-    TabMenuWrapper(TabMenuType::Scoreboard),
+    TabMenuType::Scoreboard,
 )}
 pub fn abilities_panel() -> impl Bundle {(
     NodeBundle {
@@ -1413,7 +1413,7 @@ pub fn abilities_panel() -> impl Bundle {(
         background_color: Color::rgba(0.8, 0.8, 0.5, 0.4).into(),
         ..default()
     },
-    TabMenuWrapper(TabMenuType::Abilities),
+    TabMenuType::Abilities,
 )}
 pub fn death_recap() -> impl Bundle {(
     NodeBundle {
@@ -1425,7 +1425,7 @@ pub fn death_recap() -> impl Bundle {(
         background_color: Color::rgba(0.1, 0.3, 0.9, 0.4).into(),
         ..default()
     },
-    TabMenuWrapper(TabMenuType::DeathRecap),
+    TabMenuType::DeathRecap,
 )}
 
 #[derive(Component, Debug)]
@@ -1452,7 +1452,7 @@ pub fn store() -> impl Bundle {(
         visibility: Visibility::Hidden,
         ..default()
     },
-    Draggable::BoundByParent,
+    Draggable::BoundByParent(100),
     StoreMain,
     Name::new("Store"),
 )}
@@ -1460,7 +1460,7 @@ pub fn store() -> impl Bundle {(
 #[derive(Component, Debug, PartialEq)]
 pub enum Draggable{
     Unbound,
-    BoundByParent,
+    BoundByParent(i32), // so you can go outside if you want
 }
 
 #[derive(Component, Debug)]
@@ -1514,7 +1514,9 @@ pub fn category() -> impl Bundle {(
     }
 )}
 
-pub fn category_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {(
+pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
+    let text = text.into();
+    (
     TextBundle::from_section(
         text.to_owned(),
         TextStyle {
@@ -1562,7 +1564,7 @@ pub fn item_image(items: &Res<Items>, item: Item) -> impl Bundle {(
         focus_policy: FocusPolicy::Block,
         ..default()
     },
-    Draggable::BoundByParent,
+    Draggable::BoundByParent(0),
     DragHandle,
     Interaction::default(),
 )}
@@ -1591,7 +1593,9 @@ pub fn button() -> impl Bundle {(
     HoverButton,    
 )}
 
-pub fn button_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {(
+pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
+    let text = text.into();
+    (
     TextBundle::from_section(
         text.to_owned(),
         TextStyle {

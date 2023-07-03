@@ -4,9 +4,9 @@ use ui_bundles::team_thumbs_holder;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
-    player::{IncomingDamageLog, OutgoingDamageLog, Player},  
-    ability::{AbilityInfo, ability_bundles::FloatingDamage, HealthChangeEvent},
-    game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::PlayerCam, 
+    player::{IncomingDamageLog, OutgoingDamageLog},  
+    ability::{AbilityInfo, HealthChangeEvent},
+    game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::{PlayerCam, Spectating}, 
     
 };
 
@@ -15,13 +15,13 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<MouseState>();
-        app.add_state::<TabMenuOpen>();
-        app.add_state::<InGameMenuOpen>();
+        app.add_state::<TabMenu>();
+        app.add_state::<StoreMenu>();
+        app.add_state::<InGameMenu>();
         app.add_state::<EditingHUD>();
 
         app.add_event::<ResetUiEvent>();
         app.add_event::<MenuEvent>();
-        app.add_event::<BuyItem>();
 
 
         app.add_systems((
@@ -35,28 +35,24 @@ impl Plugin for UiPlugin {
         ).in_schedule(OnExit(GameState::MainMenu)));
 
         app.add_systems((
+            button_hovers,
+            button_actions,
+        ));
+
+        app.add_systems((
+            add_base_ui,
+            add_ingame_menu,
+        ).in_schedule(OnEnter(GameState::InGame)));
+        
+        app.add_systems((
             add_player_ui,
             add_ability_icons,
+            update_health,
+            update_character_resource,
             update_cooldowns,
             spawn_floating_damage,
             follow_in_3d,
-            update_health,
-            update_character_resource,
-            tick_clock_ui,
-            draggables,
-            free_mouse,
-            mouse_with_free_key,
-            menu_toggle,
-            tick_despawn_timers,
-            minimap_track,
-        ).in_set(OnUpdate(GameState::InGame)));
-        app.add_systems((            
-            update_damage_log,
-            killfeed_update,
-            kill_notif_cleanup,
             floating_damage_cleanup,
-            state_ingame_menu,
-            toggle_ingame_menu,
             add_buffs,
             update_buff_timers,
             update_buff_stacks,
@@ -65,11 +61,19 @@ impl Plugin for UiPlugin {
             update_cast_bar,
             toggle_cast_bar,
         ).in_set(OnUpdate(GameState::InGame)));
-        
         app.add_systems((
-            add_base_ui,
-            add_ingame_menu,
-        ).in_schedule(OnEnter(GameState::InGame)));
+            draggables.run_if(in_state(MouseState::Free)),
+            menu_toggle,
+            mouse_with_free_key,
+            free_mouse,
+            tick_despawn_timers,
+            minimap_track,
+            tick_clock_ui,       
+            update_damage_log_ui,
+            killfeed_update,
+            kill_notif_cleanup,
+        ).in_set(OnUpdate(GameState::InGame)));
+        
         app.add_systems((
             load_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
             move_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
@@ -77,52 +81,29 @@ impl Plugin for UiPlugin {
         ));
 
         app.add_systems((
-            button_hovers,
-            button_actions,
+            state_ingame_menu.in_set(OnUpdate(GameState::InGame)),
+            toggle_ingame_menu.in_schedule(OnEnter(InGameMenu::Open)),
+            toggle_ingame_menu.in_schedule(OnEnter(InGameMenu::Closed)),
         ));
+        
 
         app.add_systems((
             give_editable_ui.in_schedule(OnEnter(EditingHUD::Yes)),
             remove_editable_ui.in_schedule(OnEnter(EditingHUD::No)),
-            scale_ui.in_set(OnUpdate(GameState::InGame)),
+            scale_ui.in_set(OnUpdate(EditingHUD::Yes)),
             reset_editable_ui.in_set(OnUpdate(EditingHUD::Yes))
         ));
 
     }
 }
-#[derive(Component, Debug, Clone, Default)]
-pub struct ItemId{
-    id: u32,
-    //stats: Vec<Attribute>,
-    //passive: ItemPassive,
-}
 
-impl ItemId{
-    pub fn new(id: u32) -> Self{
-        Self{
-            id,
-            //stats: HashMap::default(),
-        }
-    }
-
-    pub fn id(&mut self) -> u32{
-        self.id
-    }
-}
-pub struct BuyItem (ItemId);
 fn button_hovers(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-    //mut text_query: Query<&mut Text>,
-    mut buy_events: EventWriter<BuyItem>,
+    mut interaction_query: Query<(&Interaction, &mut BackgroundColor),(Changed<Interaction>, With<Button>)>,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
                 *color = PRESSED_BUTTON.into();
-                buy_events.send(BuyItem(ItemId::new(31)))
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();
@@ -197,10 +178,10 @@ fn add_base_ui(
             parent.spawn(drag_bar());
             parent.spawn(list_categories()).with_children(|parent| {
                 parent.spawn(category()).with_children(|parent| {
-                    parent.spawn(category_text("Attack Damage".to_owned(),&fonts));
+                    parent.spawn(category_text("Attack Damage", &fonts));
                 });
                 parent.spawn(category()).with_children(|parent| {
-                    parent.spawn(category_text("Magical Power".to_owned(),&fonts));
+                    parent.spawn(category_text("Magical Power", &fonts));
                 });
             });
             parent.spawn(list_items()).with_children(|parent| {
@@ -211,7 +192,7 @@ fn add_base_ui(
             parent.spawn(inspector()).with_children(|parent| {
                 parent.spawn(gold_text(&fonts));
                 parent.spawn(button()).with_children(|parent| {
-                    parent.spawn(button_text("buy".to_string(),&fonts));
+                    parent.spawn(button_text("buy", &fonts));
                 });            
             });
         });
@@ -229,11 +210,10 @@ fn draggables(
     mut parent_offset: Local<Vec2>,
     mut max_offset: Local<Vec2>,
     mouse: Res<Input<MouseButton>>,
-    mouse_is_free: Res<State<MouseState>>,
 ){
-    if mouse_is_free.0 != MouseState::Free { return }
     let Ok(window) = windows.get_single() else { return };
     let Some(cursor_pos) = window.cursor_position() else { return };  
+    if !mouse.pressed(MouseButton::Left) { return }
     for (handle_entity, interaction, handle_parent) in &handle_query {
         if *interaction != Interaction::Clicked{ 
             continue
@@ -255,11 +235,12 @@ fn draggables(
             }   
             let mut left_position = cursor_pos.x - parent_offset.x - offset.x;
             let mut top_position = cursor_y_flip - parent_offset.y - offset.y;
-            // clamp cant go outside bounds
-            if *draggable != Draggable::Unbound{
-                left_position = left_position.clamp(0.0, max_offset.x);
-                top_position = top_position.clamp(0.0, max_offset.y);
-            }
+            // clamp cant go outside bounds, with border if wanted
+            if let Draggable::BoundByParent(border) = *draggable{
+                let border = border as f32;
+                left_position = left_position.clamp(0.0 - border, max_offset.x + border);
+                top_position = top_position.clamp(0.0 - border, max_offset.y + border);
+            };
             style.margin = UiRect::default();
             style.position = UiRect::all(Val::Px(0.));
             style.position.left = Val::Px(left_position);
@@ -268,9 +249,6 @@ fn draggables(
         } 
     }
 }
-
-
-
 
 
 fn move_tooltip(
@@ -380,32 +358,30 @@ fn tick_despawn_timers(
     }
 }
 
-fn update_damage_log(
-    incoming_logs: Query<&IncomingDamageLog>,
-    outgoing_logs: Query<&OutgoingDamageLog>,
-    incoming_ui: Query<(Entity, Option<&Children>), With<IncomingLogUi>>,
-    outgoing_ui: Query<(Entity, Option<&Children>), With<OutgoingLogUi>>,
+fn update_damage_log_ui(
+    incoming_ui: Query<Entity, With<IncomingLogUi>>,
+    outgoing_ui: Query<Entity, With<OutgoingLogUi>>,
     mut commands: Commands,
     fonts: Res<Fonts>,
     mut damage_events: EventReader<HealthChangeEvent>,
+    spectating: Res<Spectating>,
 ){
-    let Ok((incoming_log_entity, incoming_children)) = incoming_ui.get_single() else {return};
-    let Ok((outgoing_log_entity, outgoing_children)) = outgoing_ui.get_single() else {return};
+    let Some(spectating) = spectating.0 else {return};
+    let Ok(incoming_log_entity) = incoming_ui.get_single() else {return};
+    let Ok(outgoing_log_entity) = outgoing_ui.get_single() else {return};
     
     for damage_instance in damage_events.iter(){
         if let Some(attacker) = damage_instance.attacker{
-            if let Ok(attacker_log) = outgoing_logs.get(attacker) {
-    
+            if spectating == attacker{
+                commands.entity(outgoing_log_entity).with_children(|parent| {
+                    parent.spawn(damage_entry(damage_instance.amount.abs() as u32, &fonts));
+                });
             }
         }
-        commands.entity(incoming_log_entity).with_children(|parent| {
-            parent.spawn(damage_entry((damage_instance.amount as u32).clone().to_string(), &fonts));
-        });
-        commands.entity(outgoing_log_entity).with_children(|parent| {
-            parent.spawn(damage_entry((damage_instance.amount as u32).clone().to_string(), &fonts));
-        });
-        if let Ok(defender_log) = incoming_logs.get(damage_instance.defender) {
-            
+        if spectating == damage_instance.defender{
+            commands.entity(incoming_log_entity).with_children(|parent| {
+                parent.spawn(damage_entry(damage_instance.amount.abs() as u32, &fonts));
+            });
         }
     } 
 
@@ -469,9 +445,9 @@ pub fn button_actions(
         (Changed<Interaction>, With<Button>),
     >,
     mut game_state_next: ResMut<NextState<GameState>>,
-    mut ingamemenu_next: ResMut<NextState<InGameMenuOpen>>,
+    mut ingamemenu_next: ResMut<NextState<InGameMenu>>,
     mut editing_hud_next: ResMut<NextState<EditingHUD>>,
-    ingamemenu_state: Res<State<InGameMenuOpen>>,
+    ingamemenu_state: Res<State<InGameMenu>>,
     editing_hud_state: Res<State<EditingHUD>>,
     mut app_exit_writer: EventWriter<AppExit>,
     mut reset_ui_events: EventWriter<ResetUiEvent>,
@@ -496,7 +472,7 @@ pub fn button_actions(
             }
             ButtonAction::EditUi => {
                 editing_hud_next.set(editing_hud_state.0.toggle());
-                ingamemenu_next.set(InGameMenuOpen::Closed);
+                ingamemenu_next.set(InGameMenu::Closed);
             },
             ButtonAction::ResetUi => {
                 reset_ui_events.send(ResetUiEvent);

@@ -69,31 +69,27 @@ pub fn add_player_ui(
 
 pub fn add_ability_icons(
     mut commands: Commands,
-    query: Query<(Entity, &SlotAbilityMap), Added<AbilityHolder>>, // Changed<AbilityHolder> for changing spells midgame
+    query: Query<(Entity, &SlotAbilityMap), (With<AbilityHolder>, Changed<SlotAbilityMap>)>, // Changed<AbilityHolder> for changing spells midgame
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ) {
     for (entity, ability_map) in query.iter() {
         for (_, ability) in &ability_map.map {
-            //let image_path = format!("icons/{}.png", ability.to_string().to_lowercase());
-            let ability_icon = commands
-                .spawn((
+            let ability_icon = commands.spawn((
                     ability_image(&icons, ability.clone()),
                     AbilityInfo::new(ability),
                     Hoverable,
                     RelativeCursorPosition::default(),
-                ))
-                .id();
+                )).id();
 
             let cd_text = commands.spawn((cd_text(&fonts), ability.clone())).id();
 
-            commands.entity(ability_icon).push_children(&[cd_text]);
-            commands.entity(entity).push_children(&[ability_icon]);
+            commands.entity(cd_text).set_parent(ability_icon);
+            commands.entity(ability_icon).set_parent(entity);
         }
     }
 }
 
-// Change these to generics later, requires Bar<Health> and BarText<Health>
 pub fn update_health(
     query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
     mut text_query: Query<&mut Text, With<HealthBarText>>,
@@ -101,26 +97,22 @@ pub fn update_health(
     spectating: Res<Spectating>,
 ) {
     let Some(spectating) = spectating.0 else {return};
-    match (text_query.get_single_mut(), bar_query.get_single_mut()) {
-        (Ok(mut text), Ok(mut bar)) => {
-            let Ok(attributes) = query.get(spectating) else { return };
-            let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
-            let regen = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
-            let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
+    let Ok(mut text) = text_query.get_single_mut() else {return};
+    let Ok(mut bar) = bar_query.get_single_mut() else {return};
+    let Ok(attributes) = query.get(spectating) else { return };
+    let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
+    let regen = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
+    let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
 
-            text.sections[0].value = format!(
-                "{} / {} (+{})",
-                current.trunc(),
-                max.trunc(),
-                regen.trunc()
-            );
+    text.sections[0].value = format!(
+        "{} / {} (+{})",
+        current.trunc(),
+        max.trunc(),
+        regen.trunc()
+    );
 
-            let new_size = current / max;
-            //let new_size = (current / max).to_num::<f32>();
-            bar.size.width = Val::Percent(new_size * 100.0);
-        }
-        _ => {}
-    }
+    let new_size = current / max;
+    bar.size.width = Val::Percent(new_size * 100.0);
 }
 
 pub fn update_character_resource(
@@ -130,26 +122,22 @@ pub fn update_character_resource(
     spectating: Res<Spectating>,
 ) {
     let Some(spectating) = spectating.0 else {return};
-    match (text_query.get_single_mut(), bar_query.get_single_mut()) {
-        (Ok(mut text), Ok(mut bar)) => {
-            let Ok(attributes) = query.get(spectating) else { return };
-            let current = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
-            let regen = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
-            let max = *attributes.get(&Stat::CharacterResourceMax.into()).unwrap_or(&100.0);
+    let Ok(mut text) = text_query.get_single_mut() else {return};
+    let Ok(mut bar) = bar_query.get_single_mut() else {return};
+    let Ok(attributes) = query.get(spectating) else { return };
+    let current = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
+    let regen = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
+    let max = *attributes.get(&Stat::CharacterResourceMax.into()).unwrap_or(&100.0);
 
-            text.sections[0].value = format!(
-                "{} / {} (+{})",
-                current.trunc(),
-                max.trunc(),
-                regen.trunc()
-            );
+    text.sections[0].value = format!(
+        "{} / {} (+{})",
+        current.trunc(),
+        max.trunc(),
+        regen.trunc()
+    );
 
-            let new_size = current / max;
-            //let new_size = (current / max_amount).to_num::<f32>();
-            bar.size.width = Val::Percent(new_size * 100.0);
-        }
-        _ => {}
-    }
+    let new_size = current / max;
+    bar.size.width = Val::Percent(new_size * 100.0);
 }
 
 pub fn update_cc_bar(
@@ -219,24 +207,32 @@ pub fn toggle_cast_bar(
 pub fn update_cooldowns(
     mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
     cooldown_query: Query<&CooldownMap>,
+    cooldown_changed_query: Query<&CooldownMap, Changed<CooldownMap>>,
     mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
     spectating: Res<Spectating>,
 ) {
     let Some(spectating) = spectating.0 else {return};
-    let Ok(cooldowns) = cooldown_query.get(spectating) else {return};
 
-    for (mut text, ability, parent) in text_query.iter_mut() {
-        let Ok(mut background_color) = image_query.get_mut(parent.get()) else{
-            continue
-        };
-        if !cooldowns.map.contains_key(ability) {
-            text.sections[0].value = String::from("");
-            *background_color = Color::WHITE.into();
-        } else {
+    // tick existing cooldowns
+    let Ok(cooldowns) = cooldown_query.get(spectating) else {return};
+    for (mut text, ability, _) in text_query.iter_mut() {
+        if cooldowns.map.contains_key(ability) {
             let Some(timer) = cooldowns.map.get(ability) else {continue};
             let newcd = timer.remaining_secs() as u32;
             text.sections[0].value = newcd.to_string();
-            *background_color = Color::rgb(0.2, 0.2, 0.2).into();
+        } 
+    }
+    // only when cooldowns change on spectating
+    if let Ok(cooldowns_changed) = cooldown_changed_query.get(spectating){
+        for (mut text, ability, parent) in text_query.iter_mut() {
+            let Ok(mut background_color) = image_query.get_mut(parent.get()) else{ continue };
+        
+            if cooldowns_changed.map.contains_key(ability) {
+                *background_color = Color::rgb(0.2, 0.2, 0.2).into();
+            } else {
+                text.sections[0].value = String::from("");
+                *background_color = Color::WHITE.into();
+            }
         }
     }
 }
@@ -282,7 +278,7 @@ pub fn update_buff_stacks(
 
 pub fn add_buffs(
     mut commands: Commands,
-    targets_query: Query<Entity, (With<Player>)>,
+    targets_query: Query<Entity, With<Player>>,
     buff_bar_ui: Query<Entity, With<BuffBar>>,
     debuff_bar_ui: Query<Entity, With<DebuffBar>>,
     mut buff_events: EventReader<BuffAddEvent>,
@@ -336,6 +332,7 @@ pub fn spawn_floating_damage(
         });
     }
 }
+
 
 pub fn floating_damage_cleanup(
     mut commands: Commands,
