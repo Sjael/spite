@@ -29,7 +29,7 @@ impl AbilityShape {
         match self {
             AbilityShape::Arc { radius, angle } => {
                 let arc = Arc::extruded(radius, angle);
-                (arc.mesh(), Collider::ball(radius))
+                (arc.mesh(), Collider::cylinder(0.5, radius))
             }
             AbilityShape::Rectangle { length, width } => {
                 let rect = Rectangle::flat(length, width);

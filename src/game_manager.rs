@@ -7,11 +7,12 @@ use bevy::{prelude::*, ecs::{component::TableStorage}};
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    ability::{
-        ability_bundles::*, homing::Homing, Ability, TickBehavior, 
-        MaxTargetsHit, TargetsInArea, TargetsHittable, 
+    ability::{Ability, bundles::Caster, TickBehavior, 
+        MaxTargetsHit, TargetsInArea, TargetsHittable,},
+    area::{
+        homing::Homing,
     },
-    player::{cast_ability, IncomingDamageLog, Player, Reticle, SpawnEvent},
+    actor::{cast_ability, IncomingDamageLog, player::{Player, Reticle}, SpawnEvent},
     stats::{Attributes, Stat},
     ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
     GameState,
@@ -29,8 +30,9 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
 
-        app.add_systems(
-            (
+        app.insert_resource(TeamRoster::default());
+
+        app.add_systems((
                 check_deaths,
                 increment_bounty,
                 handle_respawning,
@@ -44,12 +46,28 @@ impl Plugin for GameManagerPlugin {
     }
 }
 
+#[derive(Resource)]
+pub struct TeamRoster(pub HashMap<Team, Vec<Player>>);
+impl Default for TeamRoster{
+    fn default() -> Self {
+        let team1 = vec![Player::new(1507), Player::new(404)];
+        let team2 = vec![Player::new(420), Player::new(1)];
+
+        let inner = HashMap::from([
+            (TEAM_1, team1),
+            (TEAM_2, team2),
+        ]);
+        Self(inner)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum CharacterState {
     Alive,
     #[default]
     Dead,
 }
+
 
 #[derive(Default)]
 pub enum GameMode {
@@ -63,6 +81,14 @@ pub struct GameModeDetails {
     pub mode: GameMode,
     pub start_timer: i32,
     pub respawns: HashMap<Player, Timer>,
+    pub spawn_points: HashMap<Spawnpoint, Transform>,
+}
+
+pub enum Spawnpoint{
+    RedBuff,
+    BlueBuff,
+    Chaos,
+    Order,
 }
 
 impl Default for GameModeDetails {
@@ -72,6 +98,7 @@ impl Default for GameModeDetails {
             start_timer: -65,
             respawns: HashMap::new(),
             mode: GameMode::default(),
+            spawn_points: HashMap::new(),
         }
     }
 }
@@ -138,11 +165,17 @@ fn place_ability(
         let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
 
         // Get ability-specific components
-        let spawned = event.ability.get_bundle(&mut commands, &reticle_transform.compute_transform());
+        let spawned ;
+        
+        if event.ability.on_reticle(){
+            spawned = event.ability.get_bundle(&mut commands, &reticle_transform.compute_transform());
+        } else {
+            spawned = event.ability.get_bundle(&mut commands, &caster_transform.compute_transform());
+        }
 
         // Apply general components
         commands.entity(spawned).insert((
-            Name::new("ability #tick number"),
+            //Name::new("ability #tick number"),
             team.clone(),
             Caster(event.caster),
         ));        
@@ -153,7 +186,6 @@ fn place_ability(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
             TargetsHittable::default(),
-            MaxTargetsHit::new(1),
             TickBehavior::individual(),
         ));
 

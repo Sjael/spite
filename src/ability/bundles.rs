@@ -6,7 +6,7 @@ use crate::{
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};
 
-use super::*;
+use super::{*, shape::AbilityShape};
 
 #[derive(Component)]
 pub struct Caster(pub Entity);
@@ -29,6 +29,11 @@ impl AbilityInfo{
             _ => Shadowbolt(DefaultAbilityInfo::default()),
         }
     }
+}
+
+pub trait AbilityBehavior{
+
+    fn spawn(&self) -> Entity;
 }
 
 
@@ -106,6 +111,7 @@ impl FrostboltInfo {
             RigidBody::KinematicVelocityBased,
             Sensor,
             CastingLifetime { seconds: 1.0 },
+            MaxTargetsHit::new(1),
             Tags {
                 list: vec![
                     TagInfo::Damage(44.0),
@@ -170,6 +176,7 @@ impl FireballInfo {
             ..default()
         },
         Sensor,
+        UniqueTargetsHit::default(),
         CastingLifetime { seconds: 5.0 },
         Tags {
             list: vec![TagInfo::Damage(11.0)],

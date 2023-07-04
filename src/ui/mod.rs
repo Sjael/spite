@@ -3,11 +3,11 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},
-    player::{IncomingDamageLog, OutgoingDamageLog},  
-    ability::{AbilityInfo, HealthChangeEvent},
-    game_manager::{GameModeDetails, DeathEvent}, assets::{Icons, Items, Fonts, Images}, GameState, item::Item, view::{PlayerCam, Spectating}, 
-    
+    ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
+    ability::{AbilityTooltip},
+    game_manager::{GameModeDetails, DeathEvent}, 
+    assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
+    actor::view::{PlayerCam, Spectating},     
 };
 
 
@@ -22,6 +22,8 @@ impl Plugin for UiPlugin {
 
         app.add_event::<ResetUiEvent>();
         app.add_event::<MenuEvent>();
+
+        app.insert_resource(FocusedHealthEntity(None));
 
 
         app.add_systems((
@@ -45,21 +47,26 @@ impl Plugin for UiPlugin {
         ).in_schedule(OnEnter(GameState::InGame)));
         
         app.add_systems((
+            update_health.run_if(resource_exists::<Spectating>()),
+            update_character_resource.run_if(resource_exists::<Spectating>()),
+            update_cc_bar.run_if(resource_exists::<Spectating>()),
+            toggle_cc_bar.run_if(resource_exists::<Spectating>()),
+            update_cast_bar.run_if(resource_exists::<Spectating>()),
+            toggle_cast_bar.run_if(resource_exists::<Spectating>()),
+            update_cooldowns.run_if(resource_exists::<Spectating>()),
+            update_buff_stacks.run_if(resource_exists::<Spectating>()),
+            add_buffs.run_if(resource_exists::<Spectating>()),
+            spawn_floating_damage.run_if(resource_exists::<Spectating>()),   
+            update_damage_log_ui.run_if(resource_exists::<Spectating>()),         
+        ).in_set(OnUpdate(GameState::InGame)));
+        app.add_systems((
             add_player_ui,
             add_ability_icons,
-            update_health,
-            update_character_resource,
-            update_cooldowns,
-            spawn_floating_damage,
             follow_in_3d,
             floating_damage_cleanup,
-            add_buffs,
             update_buff_timers,
-            update_buff_stacks,
-            update_cc_bar,
-            toggle_cc_bar,
-            update_cast_bar,
-            toggle_cast_bar,
+            update_objective_health,
+            toggle_objective_health
         ).in_set(OnUpdate(GameState::InGame)));
         app.add_systems((
             draggables.run_if(in_state(MouseState::Free)),
@@ -69,7 +76,6 @@ impl Plugin for UiPlugin {
             tick_despawn_timers,
             minimap_track,
             tick_clock_ui,       
-            update_damage_log_ui,
             killfeed_update,
             kill_notif_cleanup,
         ).in_set(OnUpdate(GameState::InGame)));
@@ -272,13 +278,13 @@ fn hide_tooltip( // for when you close a menu when hovering, otherwise tooltip s
 fn load_tooltip(
     mut commands: Commands,
     mut tooltip: Query<(&mut Tooltip, &mut Visibility, Option<&Children>, Entity)>,
-    hoverables: Query<(Entity, &AbilityInfo, &Interaction), With<Hoverable>>,
+    hoverables: Query<(Entity, &AbilityTooltip, &Interaction), With<Hoverable>>,
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ){
     let Ok((mut tooltip, mut vis, children, tooltip_entity))
         = tooltip.get_single_mut() else{ return };
-    let mut hovered_info: Option<AbilityInfo> = None;
+    let mut hovered_info: Option<AbilityTooltip> = None;
     for (hovering_entity, ability_info, interaction) in &hoverables{
         match interaction{
             Interaction::None => {
@@ -358,54 +364,33 @@ fn tick_despawn_timers(
     }
 }
 
-fn update_damage_log_ui(
-    incoming_ui: Query<Entity, With<IncomingLogUi>>,
-    outgoing_ui: Query<Entity, With<OutgoingLogUi>>,
+fn show_floating_health_bars(
     mut commands: Commands,
-    fonts: Res<Fonts>,
-    mut damage_events: EventReader<HealthChangeEvent>,
-    spectating: Res<Spectating>,
 ){
-    let Some(spectating) = spectating.0 else {return};
-    let Ok(incoming_log_entity) = incoming_ui.get_single() else {return};
-    let Ok(outgoing_log_entity) = outgoing_ui.get_single() else {return};
-    
-    for damage_instance in damage_events.iter(){
-        if let Some(attacker) = damage_instance.attacker{
-            if spectating == attacker{
-                commands.entity(outgoing_log_entity).with_children(|parent| {
-                    parent.spawn(damage_entry(damage_instance.amount.abs() as u32, &fonts));
-                });
-            }
-        }
-        if spectating == damage_instance.defender{
-            commands.entity(incoming_log_entity).with_children(|parent| {
-                parent.spawn(damage_entry(damage_instance.amount.abs() as u32, &fonts));
-            });
-        }
-    } 
 
 }
 
 
-
 fn follow_in_3d(
     mut commands: Commands,
-    mut query: Query<(&mut Style, &FollowIn3d, Entity)>,
-    world_query: Query<&GlobalTransform>,
+    mut follwer_query: Query<(&mut Style, &FollowIn3d, Entity)>,
+    leader_query: Query<&GlobalTransform>,
     camera_query: Query<(&Camera, &GlobalTransform), With<PlayerCam>>,
 ) {
     let Ok((camera, camera_transform)) = camera_query.get_single() else {
         return;
     };
-    for (mut style, follow, entity) in query.iter_mut() {
-        // the ability got removed, need to change this to just despawn after timer
-        let Ok(world) = world_query.get(follow.0) else {
+    for (mut style, following, entity) in follwer_query.iter_mut() {
+        let transform = if let Ok(gt) = leader_query.get(following.leader){
+            gt.translation()
+        } else if let Some(last_seen) = following.last_seen {
+            last_seen.translation
+        } else{
             commands.entity(entity).despawn_recursive();
             continue
         };
 
-        let Some(viewport) = camera.world_to_viewport(camera_transform, world.translation() + Vec3::Y * 2.0) else {
+        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 2.0) else {
             continue;
         };
 

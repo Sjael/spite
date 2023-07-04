@@ -2,14 +2,16 @@ use bevy::{prelude::*, ui::RelativeCursorPosition};
 use bevy_tweening::TweenCompleted;
 
 use crate::{
-    ability::{Ability, AbilityInfo, HealthChangeEvent},
+    ability::{Ability, AbilityTooltip},
+    area::HealthChangeEvent,
     assets::{Fonts, Icons},
     buff::{BuffAddEvent, BuffStackEvent, BuffType},
     input::SlotAbilityMap,
-    player::{CooldownMap, Player, WindupTimer, CastEvent},
     stats::*,
     ui::ui_bundles::*,
-    view::Spectating, crowd_control::{CCMap, CCType}, game_manager::AbilityFireEvent,
+    actor::view::Spectating, crowd_control::{CCMap, CCType}, 
+    game_manager::AbilityFireEvent, 
+    actor::{WindupTimer, CastEvent, CooldownMap, player::Player},
 };
 
 pub fn add_player_ui(
@@ -31,16 +33,16 @@ pub fn add_player_ui(
                         parent.spawn(debuff_bar());
                     });
                     // Resource Bars
-                    parent.spawn(bar_wrapper()).with_children(|parent| {
-                        parent.spawn(hp_bar(20.0)).with_children(|parent| {
+                    parent.spawn(player_bars_wrapper()).with_children(|parent| {
+                        parent.spawn(bar_wrapper(20.0)).with_children(|parent| {
                             parent.spawn(hp_bar_color());
-                            parent.spawn(hp_bar_inner()).with_children(|parent| {
+                            parent.spawn(bar_text_wrapper()).with_children(|parent| {
                                 parent.spawn(hp_bar_text(&fonts));
                             });
                         });
-                        parent.spawn(hp_bar(14.0)).with_children(|parent| {
+                        parent.spawn(bar_wrapper(14.0)).with_children(|parent| {
                             parent.spawn(resource_bar_color());
-                            parent.spawn(hp_bar_inner()).with_children(|parent| {
+                            parent.spawn(bar_text_wrapper()).with_children(|parent| {
                                 parent.spawn(resource_bar_text(&fonts));
                             });
                         });
@@ -50,7 +52,10 @@ pub fn add_player_ui(
                 });
                 // CC on self
                 parent.spawn(cc_holder()).with_children(|parent| {
-                    parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
+                    parent.spawn(cc_holder_top()).with_children(|parent| {
+                        parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
+                        parent.spawn(plain_text("", 24, &fonts)).insert(CCSelfLabel);
+                    });
                     parent.spawn(cc_bar()).with_children(|parent| {
                         parent.spawn(cc_bar_fill());
                     });
@@ -60,6 +65,13 @@ pub fn add_player_ui(
                     //parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
                     parent.spawn(cast_bar()).with_children(|parent| {
                         parent.spawn(cast_bar_fill());
+                    });
+                });
+                // objective health
+                parent.spawn(objective_health_bar_holder()).with_children(|parent| {
+                    parent.spawn(plain_text("", 18, &fonts)).insert(ObjectiveName);
+                    parent.spawn(bar_wrapper(24.0)).with_children(|parent| {
+                        parent.spawn(objective_health_fill());
                     });
                 });
             });
@@ -77,7 +89,7 @@ pub fn add_ability_icons(
         for (_, ability) in &ability_map.map {
             let ability_icon = commands.spawn((
                     ability_image(&icons, ability.clone()),
-                    AbilityInfo::new(ability),
+                    ability.get_tooltip(),
                     Hoverable,
                     RelativeCursorPosition::default(),
                 )).id();
@@ -90,16 +102,16 @@ pub fn add_ability_icons(
     }
 }
 
+
 pub fn update_health(
     query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
     mut text_query: Query<&mut Text, With<HealthBarText>>,
     mut bar_query: Query<&mut Style, With<HealthBar>>,
     spectating: Res<Spectating>,
 ) {
-    let Some(spectating) = spectating.0 else {return};
     let Ok(mut text) = text_query.get_single_mut() else {return};
     let Ok(mut bar) = bar_query.get_single_mut() else {return};
-    let Ok(attributes) = query.get(spectating) else { return };
+    let Ok(attributes) = query.get(spectating.0) else { return };
     let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
     let regen = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
     let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
@@ -121,10 +133,9 @@ pub fn update_character_resource(
     mut bar_query: Query<&mut Style, With<ResourceBar>>,
     spectating: Res<Spectating>,
 ) {
-    let Some(spectating) = spectating.0 else {return};
     let Ok(mut text) = text_query.get_single_mut() else {return};
     let Ok(mut bar) = bar_query.get_single_mut() else {return};
-    let Ok(attributes) = query.get(spectating) else { return };
+    let Ok(attributes) = query.get(spectating.0) else { return };
     let current = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
     let regen = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
     let max = *attributes.get(&Stat::CharacterResourceMax.into()).unwrap_or(&100.0);
@@ -140,13 +151,54 @@ pub fn update_character_resource(
     bar.size.width = Val::Percent(new_size * 100.0);
 }
 
+pub fn update_objective_health(    
+    query: Query<&Attributes, Changed<Attributes>>,
+    focused_health_entity: Res<FocusedHealthEntity>,
+    //mut text_query: Query<&mut Text, With<HealthBarText>>,
+    mut bar_query: Query<&mut Style, With<ObjectiveHealthFill>>,
+){
+    let Ok(mut bar) = bar_query.get_single_mut() else {return};
+    let Some(focused_entity) = focused_health_entity.0 else {return};
+    let Ok(attributes) = query.get(focused_entity) else {return};
+    let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
+    let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
+
+    let new_size = current / max;
+    bar.size.width = Val::Percent(new_size * 100.0);
+}
+
+pub fn toggle_objective_health(
+    focused_health_entity: Res<FocusedHealthEntity>,
+    objective_query: Query<(&Attributes, &Name)>,
+    mut obj_health_holder: Query<&mut Visibility, With<ObjectiveHealth>>,
+    mut obj_text: Query<&mut Text, With<ObjectiveName>>,
+    mut bar_query: Query<&mut Style, With<ObjectiveHealthFill>>,
+){
+    if focused_health_entity.is_changed(){
+        let Ok(mut vis) = obj_health_holder.get_single_mut() else {return};
+        if let Some(focused_entity) = focused_health_entity.0{
+            let Ok(mut bar) = bar_query.get_single_mut() else {return};
+            let Ok(mut text) = obj_text.get_single_mut() else {return};
+            let Ok((attributes, name)) = objective_query.get(focused_entity) else {return};
+            let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
+            let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
+            
+            let new_size = current / max;
+            //bar.size.width = Val::Percent(new_size * 100.0);
+            text.sections[0].value = name.as_str().to_string();
+            *vis = Visibility::Visible;
+        } else{
+            *vis = Visibility::Hidden;
+        }
+    }
+}
+
 pub fn update_cc_bar(
     mut cc_bar_fill: Query<&mut Style, With<CCBarSelfFill>>,
     cc_maps: Query<&CCMap>,
     spectating: Res<Spectating>,
 ){
-    let Some(spectating) = spectating.0 else {return};
-    let Ok(cc_of_spectating) = cc_maps.get(spectating) else {return}; 
+    let Ok(cc_of_spectating) = cc_maps.get(spectating.0) else {return}; 
     let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
     let Some((_top_cc, cc_timer)) = cc_vec.get(0) else {return};
     let Ok(mut style) = cc_bar_fill.get_single_mut() else {return};
@@ -156,14 +208,15 @@ pub fn update_cc_bar(
 pub fn toggle_cc_bar(
     mut cc_bar: Query<&mut Visibility, With<CCSelf>>,
     mut cc_icon: Query<&mut UiImage, With<CCIconSelf>>,
+    mut cc_text: Query<&mut Text, With<CCSelfLabel>>,
     icons: Res<Icons>,
     cc_maps: Query<&CCMap, Changed<CCMap>>,
     spectating: Res<Spectating>,
 ){
-    let Some(spectating) = spectating.0 else {return};
-    let Ok(cc_of_spectating) = cc_maps.get(spectating) else {return}; 
+    let Ok(cc_of_spectating) = cc_maps.get(spectating.0) else {return}; 
     let Ok(mut vis) = cc_bar.get_single_mut() else {return};
     let Ok(mut image) = cc_icon.get_single_mut() else {return};
+    let Ok(mut text) = cc_text.get_single_mut() else {return};
     if cc_of_spectating.map.is_empty(){
         *vis = Visibility::Hidden;
     } else {
@@ -171,6 +224,7 @@ pub fn toggle_cc_bar(
         let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
         let Some((top_cc, _)) = cc_vec.get(0) else {return};
         image.texture = top_cc.clone().get_icon(&icons);
+        text.sections[0].value = top_cc.to_text();
     }
 }
 
@@ -179,8 +233,7 @@ pub fn update_cast_bar(
     windup_query: Query<&WindupTimer>,
     spectating: Res<Spectating>,
 ){
-    let Some(spectating) = spectating.0 else {return};
-    let Ok(windup) = windup_query.get(spectating) else {return}; 
+    let Ok(windup) = windup_query.get(spectating.0) else {return}; 
     let Ok(mut style) = cast_bar_fill.get_single_mut() else {return};
     style.size.width = Val::Percent(windup.0.percent() * 100.0);    
 }
@@ -191,14 +244,13 @@ pub fn toggle_cast_bar(
     mut fire_events: EventReader<AbilityFireEvent>,
     spectating: Res<Spectating>,
 ){
-    let Some(spectating) = spectating.0 else {return};
     let Ok(mut vis) = bar.get_single_mut() else {return};
     for event in cast_events.iter(){
-        if event.caster != spectating {continue}
+        if event.caster != spectating.0 {continue}
         *vis = Visibility::Visible;
     }
     for event in fire_events.iter(){
-        if event.caster != spectating {continue}
+        if event.caster != spectating.0 {continue}
         *vis = Visibility::Hidden;
     }
 }
@@ -211,10 +263,9 @@ pub fn update_cooldowns(
     mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
     spectating: Res<Spectating>,
 ) {
-    let Some(spectating) = spectating.0 else {return};
 
     // tick existing cooldowns
-    let Ok(cooldowns) = cooldown_query.get(spectating) else {return};
+    let Ok(cooldowns) = cooldown_query.get(spectating.0) else {return};
     for (mut text, ability, _) in text_query.iter_mut() {
         if cooldowns.map.contains_key(ability) {
             let Some(timer) = cooldowns.map.get(ability) else {continue};
@@ -223,7 +274,7 @@ pub fn update_cooldowns(
         } 
     }
     // only when cooldowns change on spectating
-    if let Ok(cooldowns_changed) = cooldown_changed_query.get(spectating){
+    if let Ok(cooldowns_changed) = cooldown_changed_query.get(spectating.0){
         for (mut text, ability, parent) in text_query.iter_mut() {
             let Ok(mut background_color) = image_query.get_mut(parent.get()) else{ continue };
         
@@ -255,9 +306,8 @@ pub fn update_buff_stacks(
     mut stack_events: EventReader<BuffStackEvent>,
     spectating: Res<Spectating>,
 ) {
-    let Some(spectating) = spectating.0 else {return};
     for stack_change in stack_events.iter() {
-        if stack_change.target != spectating {
+        if stack_change.target != spectating.0 {
             continue;
         }
         for (buff_ui_entity, buff_id, mut despawn_timer) in buff_holders.iter_mut() {
@@ -286,9 +336,8 @@ pub fn add_buffs(
     fonts: Res<Fonts>,
     spectating: Res<Spectating>,
 ) {
-    let Some(spectating) = spectating.0 else {return};
     for event in buff_events.iter() {
-        if event.target != spectating {
+        if event.target != spectating.0 {
             continue;
         }
         let Ok(_) = targets_query.get(event.target) else {continue};
@@ -322,10 +371,9 @@ pub fn spawn_floating_damage(
     damaged_query: Query<Entity>,
     fonts: Res<Fonts>,
 ){
-    let Some(spectating) = spectating.0 else {return};
     for damage_instance in damage_events.iter(){
         let Some(attacker_entity) = damage_instance.attacker else {continue};
-        if attacker_entity != spectating { continue };
+        if attacker_entity != spectating.0 { continue };
         let Ok(damaged) = damaged_query.get(damage_instance.defender) else {continue};
         commands.spawn(follow_wrapper(damaged)).with_children(|parent| {            
             parent.spawn(follow_inner_text(damage_instance.amount.abs().trunc().to_string(), &fonts));
@@ -350,3 +398,42 @@ pub fn floating_damage_cleanup(
         }
     }
 }
+
+pub fn update_damage_log_ui(
+    incoming_ui: Query<Entity, With<IncomingLogUi>>,
+    outgoing_ui: Query<Entity, With<OutgoingLogUi>>,
+    mut commands: Commands,
+    fonts: Res<Fonts>,
+    mut damage_events: EventReader<HealthChangeEvent>,
+    spectating: Res<Spectating>,
+){
+    let Ok(incoming_log_entity) = incoming_ui.get_single() else {return};
+    let Ok(outgoing_log_entity) = outgoing_ui.get_single() else {return};
+    
+    for damage_instance in damage_events.iter(){
+        let mitigated = 9.to_string(); // TODO mitigated damage
+        if let Some(attacker) = damage_instance.attacker{
+            if spectating.0 == attacker{
+                commands.entity(outgoing_log_entity).with_children(|parent| {
+                    let defender_string = format!("{}v{}", damage_instance.defender.index(), damage_instance.defender.generation());
+                    let entry_text = format!("{} - {} ({})", defender_string, damage_instance.amount.abs() as u32, mitigated);
+                    parent.spawn(damage_entry(entry_text, &fonts));
+                });
+            }
+        }
+        if spectating.0 == damage_instance.defender{
+            commands.entity(incoming_log_entity).with_children(|parent| {
+                let mut attacker_string = "0v0".to_string();
+                if let Some(attacker) = damage_instance.attacker{
+                    attacker_string = format!("{}v{}", attacker.index(), attacker.generation());
+                }
+                let entry_text = format!("{} - {} ({})", attacker_string, damage_instance.amount.abs() as u32, mitigated);
+                parent.spawn(damage_entry(entry_text, &fonts));
+            });
+        }
+    } 
+}
+
+
+#[derive(Resource)]
+pub struct FocusedHealthEntity(pub Option<Entity>);

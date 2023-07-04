@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, TextColorLens}, EaseFunction, Tween, Delay};
 
-use crate::{ability::{AbilityInfo, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, crowd_control::CCType};
+use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, crowd_control::CCType};
 
 use super::styles::*;
 
@@ -348,7 +348,10 @@ impl TryFrom<u64> for TweenEvents{
 }
 
 #[derive(Component)]
-pub struct FollowIn3d(pub Entity);
+pub struct FollowIn3d{
+    pub leader: Entity,
+    pub last_seen: Option<Transform>,
+}
 
 pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
     Name::new("Floating Text"),
@@ -362,7 +365,10 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
         z_index: ZIndex::Global(-1),
         ..default()
     },
-    FollowIn3d(entity)
+    FollowIn3d{
+        leader: entity,
+        last_seen: None,
+    }
 )}
 
 pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
@@ -420,6 +426,20 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
         ))
         .then(tween_opac_out)
     ),
+)}
+
+
+pub fn floating_health_bar() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Px(120.), Val::Px(30.)),
+            position_type: PositionType::Absolute,
+            padding: UiRect::all(Val::Px(3.0)),
+            ..default()
+        },
+        ..default()
+    },
+    Name::new("Health bar"),
 )}
 
 pub fn bottom_left_ui_holder() -> impl Bundle {(
@@ -827,7 +847,7 @@ pub fn buff_stacks(fonts: &Res<Fonts>) -> impl Bundle{(
     Name::new("Buff stack number"),
 )}
 
-pub fn bar_wrapper() -> impl Bundle{(
+pub fn player_bars_wrapper() -> impl Bundle{(
     NodeBundle{
         style: Style{            
             size: Size::new(Val::Percent(100.0), Val::Auto),
@@ -838,25 +858,17 @@ pub fn bar_wrapper() -> impl Bundle{(
                 right: Val::Auto,
                 ..default()
             },
+            gap: Size::height(Val::Px(4.0)),
             ..default()
         },
         ..default()
     }
 )}
 
-pub fn hp_bar(height: f32) -> impl Bundle {(
+pub fn bar_wrapper(height: f32) -> impl Bundle {(
     NodeBundle {
         style: Style {
-            align_self: AlignSelf::FlexStart,
-            align_items: AlignItems::FlexStart,
-            justify_content: JustifyContent::FlexStart,
             size: Size::new(Val::Percent(100.0), Val::Px(height)),
-            margin: UiRect {
-                bottom: Val::Px(4.),
-                left: Val::Auto,
-                right: Val::Auto,
-                ..default()
-            },
             ..default()
         },
         background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
@@ -887,7 +899,7 @@ pub fn resource_bar_color() -> impl Bundle {(
     ResourceBar,
 )}
 
-pub fn hp_bar_inner() -> impl Bundle{(    
+pub fn bar_text_wrapper() -> impl Bundle{(    
     NodeBundle {
         style: Style {
             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
@@ -1056,7 +1068,7 @@ pub fn cc_holder() -> impl Bundle {(
             align_items: AlignItems::Center,
             justify_content: JustifyContent::SpaceBetween,
             position_type: PositionType::Absolute,
-            size: Size::new(Val::Px(100.0), Val::Px(60.0)),
+            size: Size::new(Val::Px(100.0), Val::Px(40.0)),
             margin: UiRect::all(Val::Auto),
             position: UiRect{
                 bottom: Val::Px(100.0),
@@ -1069,15 +1081,28 @@ pub fn cc_holder() -> impl Bundle {(
     CCSelf,
     Name::new("CC Holder"),
 )}
+pub fn cc_holder_top() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            gap: Size::all(Val::Px(6.0)),
+            ..default()
+        },
+        ..default()
+    },
+)}
 #[derive(Component)]
 pub struct CCSelf;
+#[derive(Component)]
+pub struct CCSelfLabel;
 
 #[derive(Component)]
 pub struct CCIconSelf;
 pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(48.), Val::Px(48.)),
+            size: Size::new(Val::Px(22.), Val::Px(22.)),
             ..default()
         },
         image: cctype.get_icon(icons).into(),
@@ -1128,7 +1153,7 @@ pub fn spawn_ability_tooltip(
     commands: &mut Commands, 
     icons: &Res<Icons>,
     fonts: &Res<Fonts>,
-    info: &AbilityInfo,
+    info: &AbilityTooltip,
 ) -> Entity{
     commands.spawn(tooltip_bg()).with_children(|parent| {
         parent.spawn(tooltip_desc(&fonts, info.description.clone()));
@@ -1361,7 +1386,7 @@ pub fn log_incoming() -> impl Bundle {(
     IncomingLogUi,
 )}
 
-pub fn damage_entry(damage: u32, fonts: &Res<Fonts>,) -> impl Bundle {
+pub fn damage_entry(damage: String, fonts: &Res<Fonts>,) -> impl Bundle {
     let text = damage.to_string();
     (
     TextBundle {
@@ -1601,7 +1626,7 @@ pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
         TextStyle {
             font: fonts.exo_regular.clone(),
             font_size: 36.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
+            color: Color::rgb(0.9, 0.9, 1.0),
         },
     )
 )}
@@ -1628,9 +1653,60 @@ pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
     GoldInhand,
 )}
 
+pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> impl Bundle {
+    let text = text.into();
+    (
+    TextBundle::from_section(
+        text.to_owned(),
+        TextStyle {
+            font: fonts.exo_semibold.clone(),
+            font_size: size as f32,
+            color: Color::rgb(1.0, 1.0, 1.0),
+        },
+    )
+)}
+
 #[derive(Component, Debug)]
 pub struct GoldInhand;
 
+#[derive(Component)]
+pub struct ObjectiveName;
+#[derive(Component)]
+pub struct ObjectiveHealth;
+pub fn objective_health_bar_holder() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::SpaceBetween,
+            position_type: PositionType::Absolute,
+            size: Size::new(Val::Px(150.0), Val::Px(50.0)),
+            margin: UiRect::all(Val::Auto),
+            position: UiRect{
+                bottom: Val::Percent(30.0),
+                ..default()
+            },
+            ..default()
+        },
+        visibility: Visibility::Hidden, 
+        ..default()
+    },
+    ObjectiveHealth,
+    Name::new("Objective Health Holder"),
+)}
+
+#[derive(Component)]
+pub struct ObjectiveHealthFill;
+pub fn objective_health_fill() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
+            ..default()
+        },
+        background_color: Color::rgba(1.0, 0.2, 0.2, 0.9).into(),
+        ..default()
+    },
+    ObjectiveHealthFill,
+)}
 
 
 pub fn template() -> impl Bundle {(

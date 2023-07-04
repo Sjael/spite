@@ -2,8 +2,7 @@ use bevy::{prelude::*, utils::HashMap};
 use strum_macros::EnumIter;
 use strum::IntoEnumIterator;
 //use fixed::types::I40F24;
-use crate::ability::HealthChangeEvent;
-use crate::view::Spectating;
+use crate::area::HealthChangeEvent;
 //use crate::buff::BuffMap;
 use crate::{GameState};
 use std::fmt::Display;
@@ -168,7 +167,7 @@ impl Default for Attributes{
         for stat in Stat::iter(){
             use Stat::*;
             match stat{
-                Health | CharacterResource | Gold => continue, // these stats dont need multipliers, as they are temporal
+                Health | CharacterResource | Gold => continue, // these stats dont need multiplier stack
                 _ => ()
             }
             map.insert(AttributeTag::Modifier {
@@ -182,9 +181,7 @@ impl Default for Attributes{
 
 pub fn calculate_attributes(
     mut attributes: Query<(Entity, &mut Attributes), Changed<Attributes>>,
-    spectating: Res<Spectating>,
 ){
-    let Some(spectating) = spectating.0 else {return};
     for (entity, mut attributes) in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before Mul<Base<Health>>
         let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
@@ -193,9 +190,6 @@ pub fn calculate_attributes(
         for tag in tags {
             match tag.clone() {
                 AttributeTag::Modifier { modifier, target } => {
-                    if entity == spectating{
-                        //println!("modifier: {} is at {}", tag, attributes.get(&tag).unwrap_or(&4.04).clone());
-                    }
                     let modifier_attr = attributes.entry(tag).or_default().clone();
                     //let level = *attributes.clone().get(&Stat::Level.into()).unwrap_or(&1.0);\
                     let target_attr = attributes.entry(*target).or_default();
@@ -267,20 +261,6 @@ impl AttributeTag {
                 Modifier::Min => 100,
             },
             Self::Stat(..) => 1000,
-        }
-    }
-
-    pub fn deepness(&self) -> usize {
-        self.deepness_from(0)
-    }
-
-    pub fn deepness_from(&self, mut current: usize) -> usize {
-        match self {
-            Self::Modifier { target, .. } => {
-                current += 1;
-                target.deepness_from(current)
-            }
-            Self::Stat(..) => current,
         }
     }
 }

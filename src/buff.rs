@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    ability::{BuffEvent},
+    area::{BuffEvent},
     stats::{AttributeTag, Attributes, Stat},
     GameState,
 };

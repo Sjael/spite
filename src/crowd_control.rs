@@ -2,7 +2,7 @@ use std::{time::Duration, collections::{BTreeMap}};
 
 use bevy::prelude::*;
 
-use crate::{ability::CCEvent, GameState, assets::Icons};
+use crate::{area::CCEvent, GameState, assets::Icons};
 
 
 #[derive(Debug, Clone, Reflect, FromReflect, Copy)]
@@ -31,6 +31,17 @@ impl CCType{
             Root => icons.dash.clone().into(),
             _ => icons.basic_attack.clone().into(),
         }
+    }
+    pub fn to_text(&self) -> String {
+        let str = match self {
+            CCType::Stun => "STUNNED",
+            CCType::Root => "ROOTED",
+            CCType::Fear => "FEARED",
+            CCType::Disarm => "DISARMED",
+            CCType::Silence => "SILENCED",
+            CCType::Cripple => "CRIPPLED",
+        };
+        str.to_string()
     }
 }
 

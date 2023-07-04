@@ -24,10 +24,9 @@ use sacred_aurora::{
         CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
         TERRAIN_GROUPING,
     },
-    player::IncomingDamageLog,
+    actor::{IncomingDamageLog, view::Spectatable},
     stats::*,
-    view::Spectatable,
-    GameState, 
+    GameState, area::non_damaging::ObjectiveHealthOwner, 
 };
 use winit::window::Icon;
 
@@ -98,6 +97,10 @@ pub fn setup_map(
             Attributes::default(),
             Name::new("Tower"),
             Spectatable,
+            ObjectiveHealthOwner{
+                not_looking_range: 10.0,
+                looking_range: 12.0,
+            },
         ))
         .id();
 
@@ -174,7 +177,7 @@ pub fn setup_map(
         materials.add(StandardMaterial::from(Color::MAROON)),
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
-        FiringInterval(2000),
+        FiringInterval(5000),
         Ticks::Unlimited,
         TickBehavior::static_timer(),
         TargetsInArea::default(),
@@ -185,7 +188,7 @@ pub fn setup_map(
                 TagInfo::Damage(12.0),
                 TagInfo::CC(CCInfo{
                     cctype: CCType::Stun,
-                    duration: 6.0,
+                    duration: 3.0,
                 })
             ],
         },

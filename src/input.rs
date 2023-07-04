@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::*;
 use std::collections::BTreeMap;
 use derive_more::{Deref, DerefMut, Display};
 
-use crate::{ability::Ability, ui::mouse::MouseState, GameState, player::HoveredAbility};
+use crate::{ability::Ability, ui::mouse::MouseState, GameState, actor::player::HoveredAbility};
 
 #[derive(Resource)]
 pub struct MouseSensitivity(pub f32);
