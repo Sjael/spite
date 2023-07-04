@@ -5,9 +5,9 @@ use ui_bundles::team_thumbs_holder;
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
     ability::{AbilityTooltip},
-    game_manager::{GameModeDetails, DeathEvent}, 
+    game_manager::{GameModeDetails, DeathEvent, Team}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
-    actor::view::{PlayerCam, Spectating},     
+    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::Attributes,     
 };
 
 
@@ -78,6 +78,7 @@ impl Plugin for UiPlugin {
             tick_clock_ui,       
             killfeed_update,
             kill_notif_cleanup,
+            show_floating_health_bars.run_if(resource_exists::<Spectating>()),
         ).in_set(OnUpdate(GameState::InGame)));
         
         app.add_systems((
@@ -366,8 +367,26 @@ fn tick_despawn_timers(
 
 fn show_floating_health_bars(
     mut commands: Commands,
+    possessing_query: Query<(&Transform, &Team)>,
+    healthy: Query<(&Attributes, &Transform, &Team, Entity), With<HasHealthBar>>,
+    mut health_bars: Query<&mut Visibility, With<HealthBarHolder>>,
+    children_query: Query<&Children>,
+    spectating: Res<Spectating>,
 ){
-
+    let Ok((player_transform, team)) = possessing_query.get(spectating.0) else {return};
+    for (attributes, target_transform, other_team, healthy_entity) in &healthy{
+        if player_transform.rotation.dot(target_transform.translation - player_transform.translation) > 0.0{
+            for descendant in children_query.iter_descendants(healthy_entity){
+                let Ok(mut vis) = health_bars.get_mut(descendant) else {continue};
+                *vis = Visibility::Visible;
+            }
+        }else {
+            for descendant in children_query.iter_descendants(healthy_entity){
+                let Ok(mut vis) = health_bars.get_mut(descendant) else {continue};
+                *vis = Visibility::Hidden;
+            }
+        }
+    }
 }
 
 

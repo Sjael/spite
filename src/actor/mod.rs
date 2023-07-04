@@ -69,6 +69,9 @@ impl Plugin for CharacterPlugin {
     }
 }
 
+#[derive(Component)]
+pub struct HasHealthBar;
+
 pub struct SpawnEvent {
     pub player: Player,
     pub transform: Transform,

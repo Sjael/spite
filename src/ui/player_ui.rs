@@ -106,7 +106,7 @@ pub fn add_ability_icons(
 pub fn update_health(
     query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
     mut text_query: Query<&mut Text, With<HealthBarText>>,
-    mut bar_query: Query<&mut Style, With<HealthBar>>,
+    mut bar_query: Query<&mut Style, With<HealthBarUI>>,
     spectating: Res<Spectating>,
 ) {
     let Ok(mut text) = text_query.get_single_mut() else {return};
@@ -130,7 +130,7 @@ pub fn update_health(
 pub fn update_character_resource(
     query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
     mut text_query: Query<&mut Text, With<ResourceBarText>>,
-    mut bar_query: Query<&mut Style, With<ResourceBar>>,
+    mut bar_query: Query<&mut Style, With<ResourceBarUI>>,
     spectating: Res<Spectating>,
 ) {
     let Ok(mut text) = text_query.get_single_mut() else {return};

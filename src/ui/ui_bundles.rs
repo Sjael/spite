@@ -112,10 +112,10 @@ pub fn editing_ui() -> impl Bundle{(
 pub struct HealthBarText;
 
 #[derive(Component, Debug)]
-pub struct HealthBar;
+pub struct HealthBarUI;
 
 #[derive(Component, Debug)]
-pub struct ResourceBar;
+pub struct ResourceBarUI;
 
 #[derive(Component, Debug)]
 pub struct ResourceBarText;
@@ -885,7 +885,7 @@ pub fn hp_bar_color() -> impl Bundle {(
         background_color: Color::rgb(0.27, 0.77, 0.26).into(),
         ..default()
     },
-    HealthBar,
+    HealthBarUI,
 )}
 pub fn resource_bar_color() -> impl Bundle {(
     NodeBundle {
@@ -896,7 +896,7 @@ pub fn resource_bar_color() -> impl Bundle {(
         background_color: Color::rgb(0.92, 0.24, 0.01).into(),
         ..default()
     },
-    ResourceBar,
+    ResourceBarUI,
 )}
 
 pub fn bar_text_wrapper() -> impl Bundle{(    
@@ -1670,6 +1670,9 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
 pub struct GoldInhand;
 
 #[derive(Component)]
+pub struct HealthBarHolder;
+
+#[derive(Component)]
 pub struct ObjectiveName;
 #[derive(Component)]
 pub struct ObjectiveHealth;
@@ -1706,6 +1709,20 @@ pub fn objective_health_fill() -> impl Bundle {(
         ..default()
     },
     ObjectiveHealthFill,
+)}
+
+#[derive(Component)]
+pub struct HealthBar;
+
+pub fn bar_fill(color: Color) -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
+            ..default()
+        },
+        background_color: color.into(),
+        ..default()
+    },
 )}
 
 
