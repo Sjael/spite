@@ -31,7 +31,7 @@ impl Stat{
         match self{
             Stat::Speed => 5.0,
             Stat::HealthMax => 465.0,
-            Stat::HealthRegen => 5.0,
+            Stat::HealthRegen => 12.0,
             Stat::CharacterResourceMax => 227.0,
             Stat::CharacterResourceRegen => 5.0,
             _ => 0.0,

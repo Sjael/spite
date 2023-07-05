@@ -5,6 +5,7 @@ use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, Te
 
 use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, crowd_control::CCType};
 
+use rand::Rng;
 use super::styles::*;
 
 
@@ -359,6 +360,10 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
         style: Style {
             position_type: PositionType::Absolute,
             size: Size::new(Val::Px(100.), Val::Px(30.)),
+            margin: UiRect{
+                left:Val::Px(-50.0),
+                ..default()
+            },
             justify_content: JustifyContent::Center,
             ..default()
         },
@@ -372,7 +377,11 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
 )}
 
 pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
-    let killfeed_offset = 40.;
+    let mut rng = rand::thread_rng();
+    let top_offset = 40.;
+    let start_horizontal = rng.gen_range(-30..30);
+    let spread = 30;
+    let end_horizontal = rng.gen_range(start_horizontal - spread..start_horizontal + spread);
     let delay_seconds = 1;
     let text_color = Color::WHITE;
     let tween_pos = Tween::new(
@@ -380,11 +389,13 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
         Duration::from_millis(500),
         UiPositionLens {
             start: UiRect{
-                top:Val::Px(killfeed_offset),
+                top:Val::Px(top_offset),
+                left:Val::Px(start_horizontal as f32),
                 ..default()
             },
             end: UiRect{
                 top:Val::Px(0.),
+                left:Val::Px(end_horizontal as f32),
                 ..default()
             },
         },
@@ -865,90 +876,9 @@ pub fn player_bars_wrapper() -> impl Bundle{(
     }
 )}
 
-pub fn bar_wrapper(height: f32) -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Px(height)),
-            ..default()
-        },
-        background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
-        ..default()
-    }
-)}
 
-pub fn hp_bar_color() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
-            ..default()
-        },
-        background_color: Color::rgb(0.27, 0.77, 0.26).into(),
-        ..default()
-    },
-    HealthBarUI,
-)}
-pub fn resource_bar_color() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
-            ..default()
-        },
-        background_color: Color::rgb(0.92, 0.24, 0.01).into(),
-        ..default()
-    },
-    ResourceBarUI,
-)}
 
-pub fn bar_text_wrapper() -> impl Bundle{(    
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            flex_direction: FlexDirection::Column,
-            position_type: PositionType::Absolute,
-            align_items: AlignItems::Center,
-            ..default()
-        },
-        ..default()
-    },
-)}
 
-pub fn hp_bar_text(fonts: &Res<Fonts>) -> impl Bundle {(
-    TextBundle {
-        style: Style {
-            margin:UiRect::top(Val::Px(-1.)),
-            ..default()
-        },
-        text: Text::from_section(
-            "200",
-            TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 18.0,
-                color: Color::WHITE,
-            },
-        ),
-        ..default()
-    },
-    HealthBarText,
-)}
-
-pub fn resource_bar_text(fonts: &Res<Fonts>) -> impl Bundle {(
-    TextBundle {
-        style: Style {
-            margin:UiRect::top(Val::Px(-2.)),
-            ..default()
-        },
-        text: Text::from_section(
-            "100",
-            TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 14.0,
-                color: Color::WHITE,
-            },
-        ),
-        ..default()
-    },
-    ResourceBarText,
-)}
 
 #[derive(Component, Debug)]
 pub struct AbilityHolder;
@@ -995,6 +925,7 @@ pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {(
             margin: UiRect::all(Val::Auto),
             position_type: PositionType::Absolute,
             position: UiRect {
+                top:Val::Px(-2.0),
                 ..default()
             },
             ..default()
@@ -1037,29 +968,8 @@ pub fn cast_bar_holder() -> impl Bundle {(
 #[derive(Component)]
 pub struct CastBar;
 
-pub fn cast_bar() -> impl Bundle {(
-    NodeBundle {
-        style: Style { 
-            size: Size::new(Val::Percent(100.0), Val::Px(2.0)),
-            ..default()
-        },
-        background_color: Color::rgba(0.05, 0.05, 0.1, 0.5).into(),
-        ..default()
-    },
-)}
 #[derive(Component)]
 pub struct CastBarFill;
-pub fn cast_bar_fill() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
-            ..default()
-        },
-        background_color: Color::rgba(1.0, 1.0, 0.3, 0.9).into(),
-        ..default()
-    },
-    CastBarFill,
-)}
 
 pub fn cc_holder() -> impl Bundle {(
     NodeBundle {
@@ -1111,29 +1021,10 @@ pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
     Name::new("CC Icon"),
 )}
 
-pub fn cc_bar() -> impl Bundle {(
-    NodeBundle {
-        style: Style { 
-            size: Size::new(Val::Percent(100.0), Val::Px(6.0)),
-            ..default()
-        },
-        background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
-        ..default()
-    },
-)}
+
 #[derive(Component)]
 pub struct CCBarSelfFill;
-pub fn cc_bar_fill() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
-            ..default()
-        },
-        background_color: Color::rgba(1.0, 1.0, 1.0, 0.9).into(),
-        ..default()
-    },
-    CCBarSelfFill,
-)}
+
 pub fn tooltip() -> impl Bundle{(
     NodeBundle{
         style:Style {
@@ -1670,7 +1561,7 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
 pub struct GoldInhand;
 
 #[derive(Component)]
-pub struct HealthBarHolder;
+pub struct HealthBarHolder(pub Entity);
 
 #[derive(Component)]
 pub struct ObjectiveName;
@@ -1699,17 +1590,6 @@ pub fn objective_health_bar_holder() -> impl Bundle {(
 
 #[derive(Component)]
 pub struct ObjectiveHealthFill;
-pub fn objective_health_fill() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
-            ..default()
-        },
-        background_color: Color::rgba(1.0, 0.2, 0.2, 0.9).into(),
-        ..default()
-    },
-    ObjectiveHealthFill,
-)}
 
 #[derive(Component)]
 pub struct HealthBar;
@@ -1725,6 +1605,49 @@ pub fn bar_fill(color: Color) -> impl Bundle {(
     },
 )}
 
+
+pub fn bar_background(height: f32) -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.0), Val::Px(height)),
+            ..default()
+        },
+        background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
+        ..default()
+    }
+)}
+
+
+pub fn bar_text_wrapper() -> impl Bundle{(    
+    NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+            flex_direction: FlexDirection::Column,
+            position_type: PositionType::Absolute,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        ..default()
+    },
+)}
+
+pub fn custom_text(fonts: &Res<Fonts>, size: f32, offset: f32) -> impl Bundle {(
+    TextBundle {
+        style: Style {
+            margin:UiRect::top(Val::Px(offset)),
+            ..default()
+        },
+        text: Text::from_section(
+            "200",
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: size,
+                color: Color::WHITE,
+            },
+        ),
+        ..default()
+    },
+)}
 
 pub fn template() -> impl Bundle {(
     NodeBundle {

@@ -7,7 +7,7 @@ use crate::{
     ability::{AbilityTooltip},
     game_manager::{GameModeDetails, DeathEvent, Team}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
-    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::Attributes,     
+    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::{Attributes, Stat},     
 };
 
 
@@ -78,7 +78,9 @@ impl Plugin for UiPlugin {
             tick_clock_ui,       
             killfeed_update,
             kill_notif_cleanup,
-            show_floating_health_bars.run_if(resource_exists::<Spectating>()),
+            //show_floating_health_bars.run_if(resource_exists::<Spectating>()),
+            spawn_floating_health_bars,
+            bar_track,
         ).in_set(OnUpdate(GameState::InGame)));
         
         app.add_systems((
@@ -365,61 +367,6 @@ fn tick_despawn_timers(
     }
 }
 
-fn show_floating_health_bars(
-    mut commands: Commands,
-    possessing_query: Query<(&Transform, &Team)>,
-    healthy: Query<(&Attributes, &Transform, &Team, Entity), With<HasHealthBar>>,
-    mut health_bars: Query<&mut Visibility, With<HealthBarHolder>>,
-    children_query: Query<&Children>,
-    spectating: Res<Spectating>,
-){
-    let Ok((player_transform, team)) = possessing_query.get(spectating.0) else {return};
-    for (attributes, target_transform, other_team, healthy_entity) in &healthy{
-        if player_transform.rotation.dot(target_transform.translation - player_transform.translation) > 0.0{
-            for descendant in children_query.iter_descendants(healthy_entity){
-                let Ok(mut vis) = health_bars.get_mut(descendant) else {continue};
-                *vis = Visibility::Visible;
-            }
-        }else {
-            for descendant in children_query.iter_descendants(healthy_entity){
-                let Ok(mut vis) = health_bars.get_mut(descendant) else {continue};
-                *vis = Visibility::Hidden;
-            }
-        }
-    }
-}
-
-
-fn follow_in_3d(
-    mut commands: Commands,
-    mut follwer_query: Query<(&mut Style, &FollowIn3d, Entity)>,
-    leader_query: Query<&GlobalTransform>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<PlayerCam>>,
-) {
-    let Ok((camera, camera_transform)) = camera_query.get_single() else {
-        return;
-    };
-    for (mut style, following, entity) in follwer_query.iter_mut() {
-        let transform = if let Ok(gt) = leader_query.get(following.leader){
-            gt.translation()
-        } else if let Some(last_seen) = following.last_seen {
-            last_seen.translation
-        } else{
-            commands.entity(entity).despawn_recursive();
-            continue
-        };
-
-        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 2.0) else {
-            continue;
-        };
-
-        style.position = UiRect {
-            left: Val::Px(viewport.x),
-            bottom: Val::Px(viewport.y),
-            ..default()
-        };
-    }
-}
 
 fn tick_clock_ui(
     time: Res<Time>,
@@ -494,6 +441,82 @@ pub fn minimap_track(
         let (player_left, player_top) =  (tracking.translation().x, tracking.translation().z);
         style.position.left = Val::Px(player_left);
         style.position.top = Val::Px(player_top);
+    }
+}
+
+pub fn spawn_floating_health_bars(
+    mut commands: Commands,
+    health_bar_owners: Query<Entity, (With<Attributes>, Added<HasHealthBar>)>,
+){
+    for entity in &health_bar_owners{
+        commands.spawn(follow_wrapper(entity)).insert(
+            HealthBarHolder(entity)
+        ).with_children(|parent| {
+            parent.spawn(bar_background(12.0)).with_children(|parent| {
+                parent.spawn(bar_fill(Color::rgba(0.97, 0.078, 0.078, 0.95))).insert((
+                    HealthBar,
+                    BarTrack{
+                        entity: entity,
+                        current: Stat::Health.into(),
+                        max: Stat::HealthMax.into(),
+                    }
+                ));
+            });
+        });
+    }
+}
+
+fn show_floating_health_bars(
+    mut commands: Commands,
+    possessing_query: Query<(&Transform, &Team)>,
+    healthy: Query<(&Attributes, &Transform, &Team, Entity), With<HasHealthBar>>,
+    mut health_bars: Query<(&mut Visibility, &HealthBarHolder)>,
+    children_query: Query<&Children>,
+    spectating: Res<Spectating>,
+){
+    let Ok((player_transform, team)) = possessing_query.get(spectating.0) else {return};
+    for (attributes, target_transform, other_team, healthy_entity) in &healthy{
+        let dir = (target_transform.translation - player_transform.translation).normalize();
+        let direction_from_hp_bar = Quat::from_euler(EulerRot::XYZ, dir.x, dir.y, dir.z);
+        for (mut vis, bar_holder) in &mut health_bars{
+            if bar_holder.0 != healthy_entity { continue }
+            if player_transform.rotation.dot(direction_from_hp_bar) > 0.0{
+                *vis = Visibility::Visible;
+            } else {
+                *vis = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+fn follow_in_3d(
+    mut commands: Commands,
+    mut follwer_query: Query<(&mut Style, &FollowIn3d, Entity)>,
+    leader_query: Query<&GlobalTransform>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<PlayerCam>>,
+) {
+    let Ok((camera, camera_transform)) = camera_query.get_single() else {
+        return;
+    };
+    for (mut style, following, entity) in follwer_query.iter_mut() {
+        let transform = if let Ok(gt) = leader_query.get(following.leader){
+            gt.translation()
+        } else if let Some(last_seen) = following.last_seen {
+            last_seen.translation
+        } else{
+            commands.entity(entity).despawn_recursive();
+            continue
+        };
+
+        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 1.2) else {
+            continue;
+        };
+
+        style.position = UiRect {
+            left: Val::Px(viewport.x),
+            bottom: Val::Px(viewport.y),
+            ..default()
+        };
     }
 }
 

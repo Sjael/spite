@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 
@@ -63,6 +65,9 @@ pub struct Scenes {
     pub arena_map: Handle<Scene>,
 }
 
+#[derive(Resource)]
+pub struct MaterialPresets(pub HashMap<String, Handle<StandardMaterial>>);
+
 pub struct GameAssetPlugin;
 impl Plugin for GameAssetPlugin {
     fn build(&self, app: &mut App) {
@@ -75,5 +80,23 @@ impl Plugin for GameAssetPlugin {
         .add_collection_to_loading_state::<_, Scenes>(GameState::Loading)
         .add_collection_to_loading_state::<_, Models>(GameState::Loading)
         .add_collection_to_loading_state::<_, Items>(GameState::Loading);
+
+        app.add_startup_system(load_presets);
     }
+}
+
+fn load_presets(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+){
+    let colors = vec![
+        ("white", Color::WHITE),
+        ("blue", Color::BLUE),
+        ("red", Color::RED),
+    ];
+    let mut presets = HashMap::new();
+    for (color_string, color) in colors{
+        presets.insert(color_string.into(), materials.add(color.into()));
+    }
+    commands.insert_resource(MaterialPresets(presets));
 }

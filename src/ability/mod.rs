@@ -7,7 +7,7 @@ use leafwing_input_manager::Actionlike;
 use derive_more::Display;
 use crate::{crowd_control::CCInfo, buff::BuffInfo};
 
-use self::bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo};
+use self::bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo};
 
 pub mod bundles;
 pub mod shape;
@@ -17,19 +17,20 @@ pub mod shape;
 pub enum Ability {
     Frostbolt,
     Fireball,
+    Bomb,
     #[default]
     BasicAttack,
     Dash,
 }
 
 impl Ability {
-    // cooldown IS BEING USED
     pub fn get_cooldown(&self) -> f32 {
         match self {
             Ability::Dash => 7.,
             Ability::Frostbolt => 3.5,
             Ability::Fireball => 4.,
             Ability::BasicAttack => 2.,
+            _ => 3.
         }
     }
 
@@ -43,7 +44,8 @@ impl Ability {
 
     pub fn on_reticle(&self) -> bool{
         match self{
-            Ability::Frostbolt => true,
+            Ability::Fireball => true,
+            Ability::Bomb => true,
             _ => false,
         }
     }
@@ -52,7 +54,17 @@ impl Ability {
         match self{
             Ability::Frostbolt => commands.spawn(FrostboltInfo::fire_bundle(transform)).id(),
             Ability::Fireball => commands.spawn(FireballInfo::fire_bundle(transform)).id(),
+            Ability::Bomb => commands.spawn(BombInfo::fire_bundle(transform)).id(),
             _ => commands.spawn(DefaultAbilityInfo::fire_bundle(transform)).id(),
+        }
+    }
+
+    pub fn get_targetter(&self, commands: &mut Commands)-> Entity{
+        match self{
+            Ability::Frostbolt => commands.spawn(FrostboltInfo::hover_bundle()).id(),
+            Ability::Fireball => commands.spawn(FireballInfo::hover_bundle()).id(),
+            Ability::Bomb => commands.spawn(BombInfo::hover_bundle()).id(),
+            _ => commands.spawn(DefaultAbilityInfo::hover_bundle()).id(),
         }
     }
 

@@ -8,6 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use bevy::prelude::*;
 
+use crate::assets::MaterialPresets;
+
+use super::bundles::Targetter;
+
 #[derive(Component, Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[reflect_value(Component, PartialEq, Serialize, Deserialize)]
 pub enum AbilityShape {
@@ -43,19 +47,24 @@ pub fn load_ability_shape(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    query: Query<(Entity, &AbilityShape), Added<AbilityShape>>,
+    query: Query<(Entity, &AbilityShape, Option<&Targetter>), Added<AbilityShape>>,
+    presets: Res<MaterialPresets>,
 ) {
-    for (entity, shape) in query.iter() {
+    for (entity, shape, targetter) in query.iter() {
         let (mesh, collider_shape) = shape.clone().load();
         commands.entity(entity).insert((
             meshes.add(mesh),
-            materials.add(Color::rgb(0.1, 0.2, 0.7).into()),
             Visibility::default(),
             ComputedVisibility::default(),
             collider_shape,
         ));
+        let new_material = presets.0.get("red").unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into())).clone();
+        if let None = targetter{
+            commands.entity(entity).insert(new_material);
+        }
     }
 }
+
 
 pub fn cross_product(first: Vec3, second: Vec3) -> Vec3{
     let x = first[1] * second[2] - second[1] * first[2];

@@ -47,6 +47,7 @@ impl Plugin for CharacterPlugin {
                 cast_ability,
                 normal_casting,
                 show_targetter.after(normal_casting),
+                change_targetter_color,
                 trigger_cooldown.after(cast_ability),
                 tick_cooldowns.after(trigger_cooldown),
                 start_ability_windup.after(cast_ability),
@@ -71,6 +72,9 @@ impl Plugin for CharacterPlugin {
 
 #[derive(Component)]
 pub struct HasHealthBar;
+
+#[derive(Component)]
+pub struct PointsToBoom(Option<Entity>);
 
 pub struct SpawnEvent {
     pub player: Player,

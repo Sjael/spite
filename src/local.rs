@@ -26,7 +26,7 @@ use sacred_aurora::{
     },
     actor::{IncomingDamageLog, view::Spectatable, HasHealthBar},
     stats::*,
-    GameState, area::non_damaging::{ObjectiveHealthOwner, HealthBarDetect}, ui::ui_bundles::{FollowIn3d, objective_health_fill, HealthBarHolder, bar_wrapper, bar_fill, HealthBar}, 
+    GameState, area::non_damaging::ObjectiveHealthOwner,  
 };
 use winit::window::Icon;
 
@@ -98,8 +98,8 @@ pub fn setup_map(
             Name::new("Tower"),
             Spectatable,
             ObjectiveHealthOwner{
-                not_looking_range: 10.0,
-                looking_range: 12.0,
+                not_looking_range: 13.0,
+                looking_range: 20.0,
             },
         ))
         .id();
@@ -134,7 +134,7 @@ pub fn setup_map(
     commands.entity(tower).push_children(&[tower_range]);
 
     // target dummy
-    let dummy = commands
+    commands
         .spawn((
             SpatialBundle::from_transform(Transform {
                 translation: Vec3::new(-3.0, 0.5, -17.0),
@@ -163,19 +163,9 @@ pub fn setup_map(
         ))
         .insert((
             Attributes::default(),
-    )).id();
+    ));
 
-    commands.entity(dummy).with_children(|parent|{
-        parent.spawn(bar_wrapper(24.0)).insert((
-            HealthBarHolder,
-            FollowIn3d{
-                leader: dummy, 
-                last_seen: None
-            },
-        )).with_children(|parent| {
-            parent.spawn(bar_fill(Color::RED)).insert(HealthBar);
-        });
-    });
+        
 
     // Scanning Damage zone
     commands.spawn((

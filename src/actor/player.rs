@@ -1,13 +1,12 @@
 use bevy::{input::mouse::MouseMotion, prelude::*};
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, f32::consts::PI, fmt::Debug};
 
 
-use crate::{ability::{Ability, bundles::Targetter, shape::AbilityShape}, ui::mouse::MouseState, input::MouseSensitivity};
+use crate::{ability::{Ability, bundles::Targetter}, ui::mouse::MouseState, input::MouseSensitivity, assets::MaterialPresets};
 
-use super::InputCastEvent;
+use super::{InputCastEvent, view::OuterGimbal, CooldownMap};
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, 
     PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut,)]
@@ -277,55 +276,67 @@ pub fn update_local_player_inputs(
 
 pub fn show_targetter(
     mut commands: Commands,
-    query: Query<(&HoveredAbility, Entity), Changed<HoveredAbility>>,
+    query: Query<(&HoveredAbility, &CooldownMap), Changed<HoveredAbility>>,
     reticles: Query<Entity, With<Reticle>>,
+    gimbals: Query<Entity, With<OuterGimbal>>,
     targetters: Query<(Entity, &Ability), With<Targetter>>,
-    children_query: Query<&Children>,
+    presets: Res<MaterialPresets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ){
-    for (hovered, caster_entity) in &query{
-        let mut reticle = None;
+    for (hovered, cooldowns) in &query{
+        let Ok(reticle_entity) = reticles.get_single() else {continue};
+        let Ok(gimbal_entity) = gimbals.get_single() else {continue};
         let mut already_has_targetter = false;
-        for descendant in children_query.iter_descendants(caster_entity){
-            if let Ok(found_reticle) = reticles.get(descendant) {
-                reticle = Some(found_reticle);
-            };
-            let Ok((targetter_entity, old_ability)) = targetters.get(descendant) else {continue};
+        for (targetter_entity, old_ability) in &targetters{
             if let Some(hovered_ability) = hovered.0{
                 if hovered_ability != *old_ability{
                     commands.entity(targetter_entity).despawn_recursive();
                 } else {
                     already_has_targetter = true;
                 }
-            } else{
+            } else {
                 commands.entity(targetter_entity).despawn_recursive();
             }
         }
-
         let Some(hovered_ability) = hovered.0 else { continue };
 
         if !already_has_targetter{
-            let targetter = commands.spawn((
-                SpatialBundle::from_transform(Transform {
-                    //translation: Vec3::new(10.0, 0.0, -10.0),
-                    ..default()
-                }),
-                AbilityShape::Arc {
-                    radius: 1.,
-                    angle: 360.,
-                },
-                Sensor,
-                Targetter,
+            let mut handle = presets.0.get("blue").unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into())).clone();
+            if cooldowns.map.contains_key(&hovered_ability) {
+                handle = presets.0.get("white").unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into())).clone();
+            }
+            let targetter = hovered_ability.get_targetter(&mut commands);
+            commands.entity(targetter).insert((
                 hovered_ability.clone(),
-            )).id();
+                handle,
+            ));
             
-            if let Some(reticle_entity) = reticle{
+            if hovered_ability.on_reticle(){
                 commands.entity(targetter).set_parent(reticle_entity);
             } else{
-                commands.entity(targetter).set_parent(caster_entity);
+                commands.entity(targetter).set_parent(gimbal_entity);
             }
         }
     }
 }
+
+pub fn change_targetter_color(
+    query: Query<(&HoveredAbility, &CooldownMap), Changed<CooldownMap>>,
+    mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
+    presets: Option<Res<MaterialPresets>>,
+){  
+    let Some(presets) = presets else { return } ;
+    let Some(handle) = presets.0.get("blue") else {return};
+    for (hovered, cooldowns) in &query{
+        let Some(hovered_ability) = hovered.0 else { continue };
+        if cooldowns.map.contains_key(&hovered_ability) { continue }
+        for (old_ability, mut material) in &mut targetters{
+            if old_ability != &hovered_ability { continue }
+            *material = handle.clone();            
+        }
+    }
+}
+
 
 // Make this local only? would be weird to sync other players cast settings, but sure?
 pub fn select_ability(

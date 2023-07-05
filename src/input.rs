@@ -91,7 +91,7 @@ impl SlotAbilityMap{
         let mut ability_slot_map = SlotAbilityMap::default();
         ability_slot_map.insert(Slot::Ability1, Ability::Frostbolt);
         ability_slot_map.insert(Slot::Ability2, Ability::Fireball);
-        ability_slot_map.insert(Slot::Ability3, Ability::Dash);
+        ability_slot_map.insert(Slot::Ability3, Ability::Bomb);
         ability_slot_map.insert(Slot::LeftClick, Ability::BasicAttack);
         ability_slot_map
     }

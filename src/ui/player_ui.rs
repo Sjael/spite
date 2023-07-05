@@ -34,16 +34,16 @@ pub fn add_player_ui(
                     });
                     // Resource Bars
                     parent.spawn(player_bars_wrapper()).with_children(|parent| {
-                        parent.spawn(bar_wrapper(20.0)).with_children(|parent| {
-                            parent.spawn(hp_bar_color());
+                        parent.spawn(bar_background(20.0)).with_children(|parent| {
+                            parent.spawn(bar_fill(Color::rgb(0.27, 0.77, 0.26))).insert(HealthBarUI);
                             parent.spawn(bar_text_wrapper()).with_children(|parent| {
-                                parent.spawn(hp_bar_text(&fonts));
+                                parent.spawn(custom_text(&fonts, 18.0, -1.0)).insert(HealthBarText);
                             });
                         });
-                        parent.spawn(bar_wrapper(14.0)).with_children(|parent| {
-                            parent.spawn(resource_bar_color());
+                        parent.spawn(bar_background(14.0)).with_children(|parent| {
+                            parent.spawn(bar_fill(Color::rgb(0.92, 0.24, 0.01))).insert(ResourceBarUI);
                             parent.spawn(bar_text_wrapper()).with_children(|parent| {
-                                parent.spawn(resource_bar_text(&fonts));
+                                parent.spawn(custom_text(&fonts, 14.0, -2.0)).insert(ResourceBarText);
                             });
                         });
                     });
@@ -56,22 +56,22 @@ pub fn add_player_ui(
                         parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
                         parent.spawn(plain_text("", 24, &fonts)).insert(CCSelfLabel);
                     });
-                    parent.spawn(cc_bar()).with_children(|parent| {
-                        parent.spawn(cc_bar_fill());
+                    parent.spawn(bar_background(6.0)).with_children(|parent| {
+                        parent.spawn(bar_fill(Color::WHITE.with_a(0.9))).insert(CCBarSelfFill);
                     });
                 });
                 // castbar
                 parent.spawn(cast_bar_holder()).with_children(|parent| {
                     //parent.spawn(cc_icon(CCType::Root, &icons,)).insert(CCIconSelf);
-                    parent.spawn(cast_bar()).with_children(|parent| {
-                        parent.spawn(cast_bar_fill());
+                    parent.spawn(bar_background(2.0)).with_children(|parent| {
+                        parent.spawn(bar_fill(Color::YELLOW.with_a(0.9))).insert(CastBarFill);
                     });
                 });
                 // objective health
                 parent.spawn(objective_health_bar_holder()).with_children(|parent| {
                     parent.spawn(plain_text("", 18, &fonts)).insert(ObjectiveName);
-                    parent.spawn(bar_wrapper(24.0)).with_children(|parent| {
-                        parent.spawn(objective_health_fill());
+                    parent.spawn(bar_background(24.0)).with_children(|parent| {
+                        parent.spawn(bar_fill(Color::rgba(1.0, 0.2, 0.2, 0.9))).insert(ObjectiveHealthFill);
                     });
                 });
             });
@@ -122,9 +122,28 @@ pub fn update_health(
         max.trunc(),
         regen.trunc()
     );
-
     let new_size = current / max;
     bar.size.width = Val::Percent(new_size * 100.0);
+}
+
+#[derive(Component)]
+pub struct BarTrack{
+    pub entity: Entity,
+    pub current: AttributeTag,
+    pub max: AttributeTag,
+}
+
+pub fn bar_track(
+    query: Query<&Attributes, Changed<Attributes>>,
+    mut bar_query: Query<(&mut Style, &BarTrack)>,
+){
+    for (mut style, tracking) in &mut bar_query{
+        let Ok(attributes) = query.get(tracking.entity) else {continue};
+        let current = *attributes.get(&tracking.current).unwrap_or(&0.0);
+        let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
+        let new_size = current / max;
+        style.size.width = Val::Percent(new_size * 100.0);
+    }
 }
 
 pub fn update_character_resource(

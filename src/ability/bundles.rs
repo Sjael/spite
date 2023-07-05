@@ -129,6 +129,35 @@ impl FrostboltInfo {
             },
     )}
 
+    pub fn hover_bundle() -> impl Bundle{
+        let length = 0.8;
+        let width= 0.5;
+
+        let speed = 18.0;
+        let lifetime = 1.0;
+
+        let length_with_movement = length + speed * lifetime;
+        let fires_from_reticle = false;
+
+        
+        let offset;
+        if fires_from_reticle {
+            offset = Vec3::new(0.0, 0.0, -(length_with_movement - length) / 2.0 );
+        } else {
+            offset = Vec3::new(0.0, 0.0, -length_with_movement / 2.0 );
+        }
+        (           
+        AbilityShape::Rectangle {
+            length: length_with_movement,
+            width: width,
+        },
+        SpatialBundle::from_transform(Transform {
+            translation: offset,
+            ..default()
+        }),
+        Sensor,
+        Targetter,
+    )}
 }
 
 //
@@ -161,7 +190,7 @@ impl Default for FireballInfo {
 impl FireballInfo {
     pub fn fire_bundle(transform: &Transform) -> impl Bundle {
         let direction = transform.rotation * -Vec3::Z;
-        let speed = 20.0;
+        let speed = 22.0;
         (
         Name::new("Fireball"),
         Ability::Fireball,
@@ -177,12 +206,99 @@ impl FireballInfo {
         },
         Sensor,
         UniqueTargetsHit::default(),
-        CastingLifetime { seconds: 5.0 },
+        CastingLifetime { seconds: 2.0 },
         Tags {
             list: vec![TagInfo::Damage(11.0)],
         },
     )}
 
+    pub fn hover_bundle() -> impl Bundle{
+        let radius = 1.0;
+        let angle= 360.;
+
+        let length = radius * 2.0;
+
+        let speed = 22.0;
+        let lifetime = 2.0;
+        let length_with_movement = length + speed * lifetime;
+        let fires_from_reticle = true;
+
+        let offset;
+        if fires_from_reticle {
+            offset = Vec3::new(0.0, 0.0, -(length_with_movement - length) / 2.0 );
+        } else {
+            offset = Vec3::new(0.0, 0.0, -length_with_movement / 2.0 );
+        }
+        (           
+        AbilityShape::Rectangle {
+            length: length_with_movement,
+            width: radius * 2.0,
+        },
+        SpatialBundle::from_transform(Transform {
+            translation: offset,
+            ..default()
+        }),
+        Sensor,
+        Targetter,
+    )}
+}
+
+pub struct BombInfo;
+// Make this an Ability trait ?
+impl BombInfo {
+    pub fn fire_bundle(transform: &Transform) -> impl Bundle {
+        let direction = transform.rotation * -Vec3::Z;
+        let speed = 2.0;
+        (
+        Name::new("Bomb"),
+        Ability::Bomb,
+        AbilityShape::Arc {
+            radius: 1.5,
+            angle: 360.,
+        },
+        SpatialBundle::from_transform(transform.clone()),
+        RigidBody::KinematicVelocityBased,
+        Velocity {
+            linvel: direction * speed,
+            ..default()
+        },
+        Sensor,
+        UniqueTargetsHit::default(),
+        CastingLifetime { seconds: 1.0 },
+        Tags {
+            list: vec![TagInfo::Damage(11.0)],
+        },
+    )}
+
+    pub fn hover_bundle() -> impl Bundle{
+        let radius = 1.5;
+        let angle= 360.;
+
+        let length = radius * 2.0;
+
+        let speed = 2.0;
+        let lifetime = 1.0;
+        let length_with_movement = length + speed * lifetime;
+        let fires_from_reticle = true;
+
+        let offset;
+        if fires_from_reticle {
+            offset = Vec3::new(0.0, 0.0, -(length_with_movement - length) / 2.0 );
+        } else {
+            offset = Vec3::new(0.0, 0.0, -length_with_movement / 2.0 );
+        }
+        (           
+        AbilityShape::Arc {
+            radius: radius,
+            angle: angle,
+        },
+        SpatialBundle::from_transform(Transform {
+            translation: offset,
+            ..default()
+        }),
+        Sensor,
+        Targetter,
+    )}
 }
 
 //
@@ -214,7 +330,7 @@ pub struct FloatingDamage(pub u32);
 impl DefaultAbilityInfo {
     pub fn fire_bundle(transform: &Transform) -> impl Bundle {
         let direction = transform.rotation * -Vec3::Z;
-        let speed = 20.0;
+        let speed = 30.0;
         (
         Name::new("DefaultAbility"),
         Ability::BasicAttack,
@@ -226,11 +342,40 @@ impl DefaultAbilityInfo {
             ..default()
         },
         Sensor,
-        CastingLifetime { seconds: 5.0 },
+        MaxTargetsHit::new(1),
+        CastingLifetime { seconds: 2.0 },
         Tags {
             list: vec![TagInfo::Damage(11.0)],
         },
     )}
 
 
+    pub fn hover_bundle() -> impl Bundle{
+        let length = 2.0;
+        let width= 3.0;
+
+        let speed = 30.0;
+        let lifetime = 2.0;
+
+        let length_with_movement = length + speed * lifetime;
+        let fires_from_reticle = false;
+        
+        let offset;
+        if fires_from_reticle {
+            offset = Vec3::new(0.0, 0.0, -(length_with_movement - length) / 2.0 );
+        } else {
+            offset = Vec3::new(0.0, 0.0, -length_with_movement / 2.0 );
+        }
+        (           
+        AbilityShape::Rectangle {
+            length: length_with_movement,
+            width: width,
+        },
+        SpatialBundle::from_transform(Transform {
+            translation: offset,
+            ..default()
+        }),
+        Sensor,
+        Targetter,
+    )}
 }

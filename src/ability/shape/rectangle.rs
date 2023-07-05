@@ -12,10 +12,10 @@ pub struct Rectangle {
 impl Rectangle {
     pub fn flat(length: f32, width: f32) -> Self {
         let positions = vec![
-            [width / 2.0, 0.0, -length],
-            [width / 2.0, 0.0, 0.0],
-            [-width / 2.0, 0.0, 0.0],
-            [-width / 2.0, 0.0, -length],
+            [width / 2.0, 0.0, -length / 2.0],
+            [width / 2.0, 0.0, length / 2.0],
+            [-width / 2.0, 0.0, length / 2.0],
+            [-width / 2.0, 0.0, -length / 2.0],
         ];
 
         // normals pointing up
