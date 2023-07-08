@@ -60,6 +60,7 @@ impl Rectangle {
         let normals = std::iter::repeat([0.0, 1.0, 0.0])
             .take(self.positions.len())
             .collect::<Vec<_>>();
+        
         let uvs = std::iter::repeat([0.0, 0.0])
             .take(self.positions.len())
             .collect::<Vec<_>>();

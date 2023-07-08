@@ -11,16 +11,26 @@ use crate::{
     buff::{BuffInfo, BuffTargets},
     crowd_control::CCInfo,
     game_manager::{Team, FireHomingEvent},
-    ability::{bundles::Caster, AbilityTooltip, Ability, FiringInterval, TickBehavior, TargetsInArea, PausesWhenEmpty, Ticks, TargetsHittable, Tags, MaxTargetsHit, UniqueTargetsHit, TargetFilter, FilteredTargets, TargetSelection, CastingLifetime, TagInfo},
+    ability::{bundles::Caster, AbilityTooltip, Ability, FiringInterval, TickBehavior, TargetsInArea, PausesWhenEmpty, 
+        Ticks, TargetsHittable, Tags, MaxTargetsHit, UniqueTargetsHit, TargetFilter, FilteredTargets, TargetSelection, 
+        CastingLifetime, TagInfo},
 };
 use homing::track_homing;
 
 use self::non_damaging::*;
 
+#[derive(Component, Clone, PartialEq, Eq)]
+pub enum DamageType{
+    Physical,
+    Magical,
+    True,
+    Hybrid
+}
 
 #[derive(Clone)]
 pub struct HealthChangeEvent {
     pub amount: f32,
+    pub damage_type: DamageType,
     pub attacker: Option<Entity>,
     pub defender: Entity,
     pub when: Instant,
@@ -85,28 +95,35 @@ fn area_apply_tags(
         &Team,
         &TargetsHittable,
         &Tags,
+        Option<&DamageType>,
         Option<&Caster>,
+        Option<&Parent>,
         Option<&FiringInterval>,
         Option<&mut MaxTargetsHit>,
         Option<&mut TickBehavior>,
         Option<&mut UniqueTargetsHit>,
+        Option<&Ability>,
     )>,
-    mut targets_query: Query<(Entity, &Team, Option<&Ability>)>,
+    mut targets_query: Query<(Entity, &Team)>,
     mut health_events: EventWriter<HealthChangeEvent>,
     mut buff_events: EventWriter<BuffEvent>,
     mut cc_events: EventWriter<CCEvent>,
     mut cast_homing_events: EventWriter<FireHomingEvent>,
 ) {
-    for (sensor_entity, sensor_team, targets_hittable, tags, caster, interval,
-        mut max_targets_hit, mut tick_behavior, mut unique_targets_hit) in &mut sensor_query
+    for (sensor_entity, sensor_team, targets_hittable, tags, damage_type, 
+        caster, parent, interval, mut max_targets_hit,
+        mut tick_behavior, mut unique_targets_hit, ability) in &mut sensor_query
     {        
         let mut targets_that_got_hit: Vec<Entity> = Vec::new();
+        let ability = ability.unwrap_or(&Ability::BasicAttack);
+        let damage_type = damage_type.unwrap_or(&DamageType::True);
         for target_entity in targets_hittable.list.iter() {
-            let Ok((_, target_team, ability)) = targets_query.get_mut(*target_entity) else { continue };
-            let ability = ability.unwrap_or(&Ability::BasicAttack);
+            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else { continue };
             let caster = if let Some(caster) = caster{
                 Some(caster.0)
-            }else {
+            } else if let Some(parent) = parent{
+                Some(parent.get())
+            } else {
                 None
             };
             let on_same_team = sensor_team.0 == target_team.0;
@@ -122,6 +139,7 @@ fn area_apply_tags(
                             hit_a_target = true;
                             let health_change = HealthChangeEvent {
                                 amount: *amount,
+                                damage_type: damage_type.clone(),
                                 attacker: caster,
                                 defender: *target_entity,
                                 when: Instant::now(),
@@ -134,6 +152,7 @@ fn area_apply_tags(
                             hit_a_target = true;
                             let health_change = HealthChangeEvent {
                                 amount: -amount,
+                                damage_type: damage_type.clone(),
                                 attacker: caster,
                                 defender: *target_entity,
                                 when: Instant::now(),
@@ -172,7 +191,7 @@ fn area_apply_tags(
                     TagInfo::Homing(ref projectile_to_spawn) => {
                         hit_a_target = true;
                         cast_homing_events.send(FireHomingEvent {
-                            caster: sensor_entity,
+                            caster: caster.unwrap_or(sensor_entity),
                             ability: projectile_to_spawn.clone(),
                             target: *target_entity,
                         });

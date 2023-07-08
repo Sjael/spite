@@ -4,7 +4,7 @@ use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
 use std::time::Duration;
 
-use ability::{shape::load_ability_shape};
+use ability::shape::load_ability_shape;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
@@ -64,8 +64,10 @@ pub fn app_plugins_both(app: &mut App) {
         .add_plugin(StatsPlugin)
         .add_plugin(AreaPlugin)
         .add_plugin(InputPlugin)
-        // move buffs / cc into character plugin at some point
-        .add_systems((load_ability_shape, tick_game,));
+        .add_systems((
+            load_ability_shape.in_base_set(CoreSet::PostUpdate), // after systems that spawn ability_shape components
+            tick_game,
+        ));
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]

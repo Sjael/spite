@@ -7,9 +7,11 @@ use crate::{
     ability::{AbilityTooltip},
     game_manager::{GameModeDetails, DeathEvent, Team}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
-    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::{Attributes, Stat},     
+    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::{Attributes, Stat, AttributeTag},     
 };
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SpectatingUI;
 
 pub struct UiPlugin;
 impl Plugin for UiPlugin {
@@ -46,19 +48,21 @@ impl Plugin for UiPlugin {
             add_ingame_menu,
         ).in_schedule(OnEnter(GameState::InGame)));
         
+        app.configure_set(SpectatingUI.run_if(resource_exists::<Spectating>()).in_set(OnUpdate(GameState::InGame)));
+
         app.add_systems((
-            update_health.run_if(resource_exists::<Spectating>()),
-            update_character_resource.run_if(resource_exists::<Spectating>()),
-            update_cc_bar.run_if(resource_exists::<Spectating>()),
-            toggle_cc_bar.run_if(resource_exists::<Spectating>()),
-            update_cast_bar.run_if(resource_exists::<Spectating>()),
-            toggle_cast_bar.run_if(resource_exists::<Spectating>()),
-            update_cooldowns.run_if(resource_exists::<Spectating>()),
-            update_buff_stacks.run_if(resource_exists::<Spectating>()),
-            add_buffs.run_if(resource_exists::<Spectating>()),
-            spawn_floating_damage.run_if(resource_exists::<Spectating>()),   
-            update_damage_log_ui.run_if(resource_exists::<Spectating>()),         
-        ).in_set(OnUpdate(GameState::InGame)));
+            update_health,
+            update_character_resource,
+            update_cc_bar,
+            toggle_cc_bar,
+            update_cast_bar,
+            toggle_cast_bar,
+            update_cooldowns,
+            add_buffs,
+            update_buff_stacks,
+            spawn_floating_damage,   
+            update_damage_log_ui,         
+        ).in_set(SpectatingUI));
         app.add_systems((
             add_player_ui,
             add_ability_icons,
@@ -359,7 +363,6 @@ fn tick_despawn_timers(
     mut commands: Commands,
 ) {
     for (entity, mut timer) in &mut things_to_despawn {
-        // remove if finished
         timer.0.tick(time.delta());
         if timer.0.finished(){
             commands.entity(entity).despawn_recursive();
@@ -453,7 +456,7 @@ pub fn spawn_floating_health_bars(
             HealthBarHolder(entity)
         ).with_children(|parent| {
             parent.spawn(bar_background(12.0)).with_children(|parent| {
-                parent.spawn(bar_fill(Color::rgba(0.97, 0.078, 0.078, 0.95))).insert((
+                parent.spawn(bar_fill(Color::rgba(0.94, 0.228, 0.128, 0.95))).insert((
                     HealthBar,
                     BarTrack{
                         entity: entity,
@@ -486,6 +489,26 @@ fn show_floating_health_bars(
                 *vis = Visibility::Hidden;
             }
         }
+    }
+}
+
+#[derive(Component)]
+pub struct BarTrack{
+    pub entity: Entity,
+    pub current: AttributeTag,
+    pub max: AttributeTag,
+}
+
+pub fn bar_track(
+    query: Query<&Attributes, Changed<Attributes>>,
+    mut bar_query: Query<(&mut Style, &BarTrack)>,
+){
+    for (mut style, tracking) in &mut bar_query{
+        let Ok(attributes) = query.get(tracking.entity) else {continue};
+        let current = *attributes.get(&tracking.current).unwrap_or(&0.0);
+        let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
+        let new_size = current / max;
+        style.size.width = Val::Percent(new_size * 100.0);
     }
 }
 

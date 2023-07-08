@@ -2,10 +2,11 @@ use bevy::{prelude::*, utils::HashMap};
 use strum_macros::EnumIter;
 use strum::IntoEnumIterator;
 //use fixed::types::I40F24;
-use crate::area::HealthChangeEvent;
+use crate::area::{HealthChangeEvent, DamageType};
 //use crate::buff::BuffMap;
 use crate::{GameState};
 use std::fmt::Display;
+use std::time::Instant;
 
 // Use enum as stat instead of unit structs?
 //
@@ -24,6 +25,8 @@ pub enum Stat {
     Xp,
     PhysicalPower,
     Level,
+    PhysicalProtection,
+    MagicalProtection,
 }
 
 impl Stat{
@@ -34,6 +37,8 @@ impl Stat{
             Stat::HealthRegen => 12.0,
             Stat::CharacterResourceMax => 227.0,
             Stat::CharacterResourceRegen => 5.0,
+            Stat::MagicalProtection => 35.0,
+            Stat::PhysicalProtection => 35.0,
             _ => 0.0,
         }
     }
@@ -82,6 +87,7 @@ impl Display for Modifier {
 pub struct StatsPlugin;
 impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
+        app.add_event::<HealthMitigatedEvent>();
         app.register_type::<Vec<String>>();
         app.add_system(take_damage_or_heal.in_set(OnUpdate(GameState::InGame)));
         app.add_system(calculate_attributes.in_set(OnUpdate(GameState::InGame)));
@@ -90,21 +96,48 @@ impl Plugin for StatsPlugin {
     }
 }
 
+#[derive(Clone)]
+pub struct HealthMitigatedEvent{
+    pub change: f32,
+    pub mitigated: f32,
+    pub attacker: Option<Entity>,
+    pub defender: Entity,
+    pub damage_type: DamageType,
+    pub when: Instant,
+}
+
 pub fn take_damage_or_heal(
     mut health_events: EventReader<HealthChangeEvent>,
+    mut health_mitigated_events: EventWriter<HealthMitigatedEvent>,
     mut health_query: Query<&mut Attributes>,
 ) {
     for event in health_events.iter() {
         let Ok(mut attributes) = health_query.get_mut(event.defender) else {continue};
+        let prots = if event.damage_type == DamageType::Physical {
+            *attributes.get(&Stat::PhysicalProtection.into()).unwrap_or(&100.0)
+        } else if event.damage_type == DamageType::Magical {
+            *attributes.get(&Stat::MagicalProtection.into()).unwrap_or(&100.0)
+        } else {
+            0.0
+        };
         let health = attributes.entry(Stat::Health.into()).or_default();
-
         if event.amount > 0.0 {
             //println!("healing is {:?}", event.amount);
         } else {
             //println!("damage is {:?}", event.amount);
         }
+
+        let post_mitigation_damage = event.amount * 100.0 / (100.0 + prots);
         let new_hp = *health + event.amount; // Add since we flipped number back in team detection
         *health = new_hp;
+        health_mitigated_events.send(HealthMitigatedEvent{
+            change: post_mitigation_damage.clone(),
+            mitigated: event.amount - post_mitigation_damage,
+            attacker: event.attacker,
+            defender: event.defender,
+            damage_type: event.damage_type.clone(),
+            when: event.when,
+        });
     }
 }
 

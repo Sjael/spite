@@ -901,18 +901,13 @@ pub fn ability_holder() -> impl Bundle {(
     Name::new("Ability Holder"),
 )}
 
-pub fn ability_image(icons: &Res<Icons>, ability: Ability) -> impl Bundle {(
+pub fn ability_image(handle: Handle<Image>) -> impl Bundle {(
     ImageBundle {
         style: Style {
             size: Size::new(Val::Px(40.), Val::Px(40.)),
             ..default()
         },
-        image: match ability{
-            Ability::Frostbolt => icons.frostbolt.clone().into(),
-            Ability::Fireball => icons.fireball.clone().into(),
-            Ability::Dash => icons.dash.clone().into(),
-            _ => icons.basic_attack.clone().into(),
-        },
+        image: handle.into(),
         ..default()
     },
     Interaction::None,
@@ -1253,9 +1248,10 @@ pub struct IncomingLogUi;
 pub fn log_outgoing() -> impl Bundle {(    
     NodeBundle {
         style: Style {
+            size: Size::new(Val::Percent(50.), Val::Percent(100.)),
             flex_direction: FlexDirection::ColumnReverse,
             justify_content: JustifyContent::FlexEnd,
-            flex_grow: 1.0,
+            padding: UiRect::all(Val::Px(20.0)),
             ..default()
         },
         background_color: Color::rgba(0.14, 0.14, 0.3, 0.99).into(),
@@ -1266,9 +1262,11 @@ pub fn log_outgoing() -> impl Bundle {(
 pub fn log_incoming() -> impl Bundle {(    
     NodeBundle {
         style: Style {
+            size: Size::new(Val::Percent(50.), Val::Percent(100.)),
             flex_direction: FlexDirection::ColumnReverse,
             justify_content: JustifyContent::FlexEnd,
-            flex_grow: 1.0,
+            padding: UiRect::all(Val::Px(20.0)),
+            gap: Size::width(Val::Px(20.0)),
             ..default()
         },
         background_color: Color::rgba(0.3, 0.14, 0.1, 0.99).into(),
@@ -1277,31 +1275,38 @@ pub fn log_incoming() -> impl Bundle {(
     IncomingLogUi,
 )}
 
-pub fn damage_entry(damage: String, fonts: &Res<Fonts>,) -> impl Bundle {
-    let text = damage.to_string();
+pub fn damage_entry() -> impl Bundle {
     (
-    TextBundle {
+    NodeBundle {
         style: Style {
             margin : UiRect{
                 top: Val::Px(12.),
                 ..default()
             },
+            align_content: AlignContent::Center,
+            align_self:AlignSelf::Start,
+            justify_content: JustifyContent::Center,
+            gap: Size::width(Val::Px(10.0)),
             ..default()
         },
-        text: Text::from_section(
-            text,
-            TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 20.0,
-                color: Color::YELLOW,
-            },
-        ),
         ..default()
     },
     Name::new("Damage Entry"),
     DespawnTimer(
         Timer::new(Duration::from_secs(30), TimerMode::Once)
     )
+)}
+
+pub fn thin_image(image: Handle<Image>) -> impl Bundle{(
+    ImageBundle {
+        style: Style {
+            size: Size::new(Val::Px(55.0), Val::Px(22.)),
+            ..default()
+        },
+        image: image.into(),
+        ..default()
+    },
+    Name::new("CC Icon"),
 )}
 
 #[derive(Component, Debug)]
@@ -1546,15 +1551,42 @@ pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
 
 pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
-    (
-    TextBundle::from_section(
-        text.to_owned(),
-        TextStyle {
-            font: fonts.exo_semibold.clone(),
-            font_size: size as f32,
-            color: Color::rgb(1.0, 1.0, 1.0),
+    (       
+    TextBundle {
+        style: Style {
+            align_self:AlignSelf::Center,
+            ..default()
         },
-    )
+        text: Text::from_section(
+            text,
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: size as f32,
+                color: Color::WHITE.into(),
+            },
+        ),
+        ..default()
+    },
+)}
+
+pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color: Color) -> impl Bundle {
+    let text = text.into();
+    (       
+    TextBundle {
+        style: Style {
+            align_self:AlignSelf::Center,
+            ..default()
+        },
+        text: Text::from_section(
+            text,
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: size as f32,
+                color: color.into(),
+            },
+        ),
+        ..default()
+    },
 )}
 
 #[derive(Component, Debug)]

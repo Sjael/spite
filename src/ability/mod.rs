@@ -5,7 +5,7 @@ use std::{time::Duration, collections::HashMap};
 use bevy::prelude::*;
 use leafwing_input_manager::Actionlike;
 use derive_more::Display;
-use crate::{crowd_control::CCInfo, buff::BuffInfo};
+use crate::{crowd_control::CCInfo, buff::BuffInfo, assets::Icons};
 
 use self::bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo};
 
@@ -47,6 +47,15 @@ impl Ability {
             Ability::Fireball => true,
             Ability::Bomb => true,
             _ => false,
+        }
+    }
+
+    pub fn get_image(&self, icons: &Res<Icons>) -> Handle<Image>{
+        match self{
+            Ability::Frostbolt => icons.frostbolt.clone(),
+            Ability::Fireball => icons.fireball.clone(),
+            Ability::Dash => icons.dash.clone(),
+            _ => icons.basic_attack.clone(),
         }
     }
 
@@ -219,9 +228,4 @@ pub enum TagInfo {
     Buff(BuffInfo),
     CC(CCInfo),
     Homing(Ability),
-}
-
-#[derive(Default, Clone, Debug, Reflect, FromReflect)]
-pub struct HomingInfo {
-    projectile_to_spawn: Ability,
 }

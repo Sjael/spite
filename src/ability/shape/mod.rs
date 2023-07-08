@@ -2,7 +2,7 @@ pub mod arc;
 pub mod rectangle;
 
 pub use arc::*;
-use bevy_rapier3d::prelude::Collider;
+use bevy_rapier3d::prelude::{Collider, ActiveEvents, ActiveCollisionTypes};
 pub use rectangle::*;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use bevy::prelude::*;
 
 use crate::assets::MaterialPresets;
 
-use super::bundles::Targetter;
+use super::{bundles::Targetter, TargetsInArea, TargetsHittable};
 
 #[derive(Component, Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[reflect_value(Component, PartialEq, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ impl AbilityShape {
     pub fn load(self) -> (Mesh, Collider) {
         match self {
             AbilityShape::Arc { radius, angle } => {
-                let arc = Arc::extruded(radius, angle);
+                let arc = Arc::flat(radius, angle);
                 (arc.mesh(), Collider::cylinder(0.5, radius))
             }
             AbilityShape::Rectangle { length, width } => {
@@ -57,10 +57,16 @@ pub fn load_ability_shape(
             Visibility::default(),
             ComputedVisibility::default(),
             collider_shape,
+            ActiveEvents::COLLISION_EVENTS,
+            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+            TargetsInArea::default(),
         ));
         let new_material = presets.0.get("red").unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into())).clone();
         if let None = targetter{
-            commands.entity(entity).insert(new_material);
+            commands.entity(entity).insert((
+                new_material,           
+                TargetsHittable::default(),
+            ));
         }
     }
 }

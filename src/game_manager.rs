@@ -3,16 +3,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bevy::{prelude::*, ecs::{component::TableStorage}};
+use bevy::{prelude::*, ecs::component::TableStorage};
 use bevy_rapier3d::prelude::*;
 
 use crate::{
     ability::{Ability, bundles::Caster, TickBehavior, 
         MaxTargetsHit, TargetsInArea, TargetsHittable,},
-    area::{
-        homing::Homing,
-    },
-    actor::{cast_ability, IncomingDamageLog, player::{Player, Reticle}, SpawnEvent},
+    area::homing::Homing,
+    actor::{cast_ability, IncomingDamageLog, player::Player, SpawnEvent, view::Reticle},
     stats::{Attributes, Stat},
     ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
     GameState,
@@ -23,6 +21,8 @@ impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameModeDetails::default());
         app.insert_resource(Player::new(1507)); // change to be whatever the server says
+        app.insert_resource(TeamRoster::default());
+        
         app.register_type::<Bounty>();
         app.add_state::<CharacterState>();
 
@@ -30,7 +30,6 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
 
-        app.insert_resource(TeamRoster::default());
 
         app.add_systems((
                 check_deaths,
@@ -136,7 +135,8 @@ fn place_homing_ability(
         commands.entity(spawned).insert((
             Name::new("Tower shot"),
             team.clone(),
-            Homing(event.target)
+            Homing(event.target),
+            Caster(event.caster),
         ));
         
         // if has a shape
@@ -180,18 +180,7 @@ fn place_ability(
             Caster(event.caster),
         ));        
 
-        // if has a shape
-        commands.entity(spawned).insert((
-            ActiveEvents::COLLISION_EVENTS,
-            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-            TargetsInArea::default(),
-            TargetsHittable::default(),
-            TickBehavior::individual(),
-        ));
 
-
-
-        let mut additional_components: Vec<&dyn Component<Storage = TableStorage>> = Vec::new();
 
         // Apply special proc components
         if let Ok(procmap) = procmaps.get(event.caster){
@@ -203,9 +192,6 @@ fn place_ability(
                     }
                 }
             }
-        }
-        for comp in additional_components.iter(){
-            //commands.entity(spawned).insert((*comp));
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     buff::{BuffInfo, BuffTargets, BuffType},
     crowd_control::{CCInfo, CCType},
-    stats::{Attributes, Stat},
+    stats::{Attributes, Stat}, area::DamageType,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};
@@ -114,10 +114,10 @@ impl FrostboltInfo {
             MaxTargetsHit::new(1),
             Tags {
                 list: vec![
-                    TagInfo::Damage(44.0),
+                    TagInfo::Damage(38.0),
                     TagInfo::CC(CCInfo {
                         cctype: CCType::Stun,
-                        duration: 20.0,
+                        duration: 1.0,
                     }),
                     TagInfo::Buff(BuffInfo {
                         stat: Stat::Health.into(),
@@ -263,10 +263,13 @@ impl BombInfo {
             ..default()
         },
         Sensor,
-        UniqueTargetsHit::default(),
-        CastingLifetime { seconds: 1.0 },
+        Ticks::Unlimited,
+        DamageType::Magical,
+        FiringInterval(200),
+        TickBehavior::individual(),
+        CastingLifetime { seconds: 2.0 },
         Tags {
-            list: vec![TagInfo::Damage(11.0)],
+            list: vec![TagInfo::Damage(16.0)],
         },
     )}
 

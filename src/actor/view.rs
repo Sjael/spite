@@ -1,43 +1,11 @@
-use bevy::{prelude::*, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}, transform::TransformSystem};
+use bevy::{prelude::*, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}};
 use bevy_rapier3d::prelude::{RapierContext, QueryFilter, };
 
-use crate::{actor::{player::{Player, PlayerInput, Reticle}}, game_manager::{CharacterState, CAMERA_GROUPING}, GameState};
+use crate::{ game_manager::{CharacterState, CAMERA_GROUPING}, GameState};
+
+use super::player::PlayerInput;
 
 
-
-#[derive(Component)]
-pub struct SpectatorCam;
-
-#[derive(Resource, Deref, DerefMut)]
-pub struct Spectating(pub Entity);
-
-#[derive(Resource, Default, Clone, Debug)]
-pub struct SpectatableObjects{
-    map: Vec<Entity>,
-    current: isize,
-}
-
-#[derive(Component, Debug)]
-pub struct Spectatable;
-
-#[derive(Component, Debug)]
-pub struct PlayerCam;
-
-#[derive(Component, Clone, Debug)]
-pub struct AvoidIntersecting {
-    pub dir: Vec3,
-    pub max_toi: f32,
-    pub buffer: f32,
-}
-
-#[derive(Component, Debug)]
-pub struct OuterGimbal;
-#[derive(Component, Debug)]
-pub struct InnerGimbal;
-
-pub struct SpectateEvent{
-    pub entity: Entity,
-}
 
 pub struct ViewPlugin;
 impl Plugin for ViewPlugin {
@@ -101,16 +69,16 @@ fn swap_cameras(
     } else if mouse.just_pressed(MouseButton::Right){
         objects.current -= 1;
     }
-    let length = objects.map.len();
+    let length = objects.map.len() as isize;
     if length == 0 { 
         return 
     }
-    let mut index = objects.current % length as isize;
+    let mut index = objects.current % length;
     if index < 0{
-        index += length as isize;
+        index += length;
     }
-    if index > length as isize{
-        index -= length as isize;
+    if index > length{
+        index -= length;
     }
     objects.current = index;
     let spectate_new = objects.map.get(index as usize);
@@ -121,6 +89,17 @@ fn swap_cameras(
         spectate_events.send(SpectateEvent{
             entity: *spectate_new,
         })
+    }
+}
+
+pub fn move_reticle(
+    mut reticles: Query<(&mut Transform, &Reticle)>,
+    player_input: Res<PlayerInput>,
+) {
+    for (mut transform, reticle) in &mut reticles {
+        let current_angle = player_input.pitch.clamp(-1.57, 0.);
+        transform.translation.z = (1.57 + current_angle).tan() * -reticle.cam_height;
+        transform.translation.z = transform.translation.z.clamp(-reticle.max_distance, 0.);
     }
 }
 
@@ -137,29 +116,15 @@ fn follow_entity(
     }
 }
 
-pub fn move_reticle(
-    mut reticles: Query<(&mut Transform, &Reticle)>,
-    player_input: Res<PlayerInput>,
-) {
-    for (mut transform, reticle) in &mut reticles {
-        let current_angle = player_input.pitch.clamp(-1.57, 0.);
-        transform.translation.z = (1.57 + current_angle).tan() * -reticle.from_height;
-        transform.translation.z = transform.translation.z.clamp(-reticle.max_distance, 0.);
-    }
-}
-
 fn spectate_entity(
     mut spectate_events: EventReader<SpectateEvent>,
     mut gimbal_query: Query<&mut FollowEntity, With<OuterGimbal>>,
-    mut y_axis_gimbal: Query<&mut Transform, With<OuterGimbal>>,
     mut spectating: ResMut<Spectating>,
 ){    
     let Ok(mut follow_entity) = gimbal_query.get_single_mut() else { return };
-    let Ok(mut transform) = y_axis_gimbal.get_single_mut() else { return };
-    for possessed in spectate_events.iter(){
-        transform.rotation = Quat::IDENTITY;
-        follow_entity.0 = possessed.entity;
-        spectating.0 = possessed.entity;
+    for new_spectate in spectate_events.iter(){
+        follow_entity.0 = new_spectate.entity;
+        spectating.0 = new_spectate.entity;
     }
 }
 
@@ -171,10 +136,9 @@ fn spectate_entity(
     mut materials: ResMut<Assets<StandardMaterial>>,
     gimbal_query: Query<Entity, With<OuterGimbal>>,
 ){
-    if let Ok(_) = gimbal_query.get_single(){
-        return;
-    }
+    if let Ok(_) = gimbal_query.get_single(){ return; }    
     let Some(possessed) = spectate_events.iter().next() else { return };
+    
     spectating.0 = possessed.entity;
 
     let camera = commands.spawn((
@@ -241,7 +205,7 @@ fn spectate_entity(
         }),
         Reticle {
             max_distance: 7.0,
-            from_height: 1.0,
+            cam_height: 1.0,
         },
         Name::new("Reticle"),
     )).id();      
@@ -289,4 +253,46 @@ pub fn avoid_intersecting(
         };
         transform.translation = avoid.dir * toi + (normal * avoid.buffer);
     }
+}
+
+
+#[derive(Component, Debug)]
+pub struct Reticle {
+    pub max_distance: f32,
+    pub cam_height: f32,
+}
+
+
+#[derive(Component)]
+pub struct SpectatorCam;
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct Spectating(pub Entity);
+
+#[derive(Resource, Default, Clone, Debug)]
+pub struct SpectatableObjects{
+    map: Vec<Entity>,
+    current: isize,
+}
+
+#[derive(Component, Debug)]
+pub struct Spectatable;
+
+#[derive(Component, Debug)]
+pub struct PlayerCam;
+
+#[derive(Component, Clone, Debug)]
+pub struct AvoidIntersecting {
+    pub dir: Vec3,
+    pub max_toi: f32,
+    pub buffer: f32,
+}
+
+#[derive(Component, Debug)]
+pub struct OuterGimbal;
+#[derive(Component, Debug)]
+pub struct InnerGimbal;
+
+pub struct SpectateEvent{
+    pub entity: Entity,
 }

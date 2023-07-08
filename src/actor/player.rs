@@ -6,7 +6,153 @@ use std::{collections::HashMap, f32::consts::PI, fmt::Debug};
 
 use crate::{ability::{Ability, bundles::Targetter}, ui::mouse::MouseState, input::MouseSensitivity, assets::MaterialPresets};
 
-use super::{InputCastEvent, view::OuterGimbal, CooldownMap};
+use super::{InputCastEvent, view::{OuterGimbal, Reticle}, CooldownMap};
+
+
+
+
+pub fn player_mouse_input(
+    mut ev_mouse: EventReader<MouseMotion>,
+    mut player_input: ResMut<PlayerInput>,
+    sensitivity: Res<MouseSensitivity>,
+    mouse_state: Res<State<MouseState>>,
+) {
+    if mouse_state.0 == MouseState::Free { return; } // if mouse is free, dont turn character
+    let mut cumulative_delta = Vec2::ZERO;
+    for ev in ev_mouse.iter() {
+        cumulative_delta += ev.delta;
+    }
+    player_input.pitch -= sensitivity.0 * cumulative_delta.y / 180.0;
+    player_input.pitch = player_input.pitch.clamp(-PI / 2.0, PI / 2.0);
+    player_input.yaw -= sensitivity.0 * cumulative_delta.x / 180.0;
+    player_input.yaw = player_input.yaw.rem_euclid(std::f32::consts::TAU);
+}
+
+// change to use leafwing slots? Also input component?
+pub fn player_keys_input(
+    keyboard_input: Res<Input<KeyCode>>, 
+    mouse_input: Res<Input<MouseButton>>, 
+    mut player_input: ResMut<PlayerInput>
+) {
+    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
+    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
+    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
+    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+    player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
+    player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
+    player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
+    player_input.set_ability4(keyboard_input.pressed(KeyCode::Key4));
+    player_input.set_left_click(mouse_input.pressed(MouseButton::Left));
+    player_input.set_right_click(mouse_input.pressed(MouseButton::Right));
+}
+
+pub fn update_local_player_inputs(
+    player_input: Res<PlayerInput>,
+    mut query: Query<(&mut PlayerInput, &Player)>,
+    local_player: Res<Player>,
+) {
+    for (mut input, player) in &mut query{
+        if player.id != local_player.id { continue }
+        *input = player_input.clone();
+        //info!("setting local player inputs: {:?}", player_input);
+    }
+}
+
+
+// Make this local only? would be weird to sync other players cast settings, but sure?
+pub fn select_ability(
+    mut query: Query<(&mut HoveredAbility, &ActionState<Ability>, &AbilityCastSettings, Entity)>,
+    mut cast_event: EventWriter<InputCastEvent>,
+) {
+    for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
+        for ability in ab_state.get_just_pressed() {
+            let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
+            if *cast_type == CastType::Normal {
+                hover.0 = Some(ability.clone());
+            } else if *cast_type == CastType::Instant {
+                cast_event.send(InputCastEvent {
+                    caster: caster_entity,
+                    ability: ability,
+                });
+            }
+        }
+    }
+}
+
+pub fn show_targetter(
+    mut commands: Commands,
+    query: Query<(&HoveredAbility, &CooldownMap), Changed<HoveredAbility>>,
+    reticles: Query<Entity, With<Reticle>>,
+    gimbals: Query<Entity, With<OuterGimbal>>,
+    targetters: Query<(Entity, &Ability), With<Targetter>>,
+    presets: Res<MaterialPresets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+){
+    for (hovered, cooldowns) in &query{
+        let Ok(reticle_entity) = reticles.get_single() else {continue};
+        let Ok(gimbal_entity) = gimbals.get_single() else {continue};
+        for (targetter_entity, old_ability) in &targetters {
+            if let Some(hovered_ability) = hovered.0 {
+                if hovered_ability == *old_ability { continue }
+            } 
+            commands.entity(targetter_entity).despawn_recursive();            
+        }
+        let Some(hovered_ability) = hovered.0 else { continue };
+
+        let mut handle = presets.0.get("blue").unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into())).clone();
+        if cooldowns.map.contains_key(&hovered_ability) {
+            handle = presets.0.get("white").unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into())).clone();
+        }
+        let targetter = hovered_ability.get_targetter(&mut commands);
+        commands.entity(targetter).insert((
+            hovered_ability.clone(),
+            handle,
+        ));
+        
+        if hovered_ability.on_reticle(){
+            commands.entity(targetter).set_parent(reticle_entity);
+        } else{
+            commands.entity(targetter).set_parent(gimbal_entity);
+        }
+    }
+}
+
+pub fn change_targetter_color(
+    query: Query<(&HoveredAbility, &CooldownMap), Changed<CooldownMap>>,
+    mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
+    presets: Res<MaterialPresets>,
+){  
+    let Some(handle) = presets.0.get("blue") else {return};
+    for (hovered, cooldowns) in &query{
+        let Some(hovered_ability) = hovered.0 else { continue };
+        if cooldowns.map.contains_key(&hovered_ability) { continue }
+        for (old_ability, mut material) in &mut targetters{
+            if old_ability != &hovered_ability { continue }
+            *material = handle.clone();            
+        }
+    }
+}
+
+
+pub fn normal_casting(
+    mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>,
+    mut cast_event: EventWriter<InputCastEvent>,
+){
+    for (input, mut hovered, player) in &mut query{
+        let Some(hovered_ability) = hovered.0 else {continue};
+        if input.left_click(){
+            cast_event.send(InputCastEvent {
+                caster: player,
+                ability: hovered_ability,
+            });
+        }
+        if input.right_click(){
+            hovered.0 = None;
+        }
+    }
+}
+
+
 
 #[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, 
     PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut,)]
@@ -21,11 +167,6 @@ impl Player {
     }
 }
 
-#[derive(Component, Debug)]
-pub struct Reticle {
-    pub max_distance: f32,
-    pub from_height: f32,
-}
 
 #[derive(Component, Debug, Default, Reflect, FromReflect)]
 #[reflect(Component)]
@@ -227,152 +368,3 @@ impl Debug for Radians {
 }
 
 
-pub fn player_mouse_input(
-    mut ev_mouse: EventReader<MouseMotion>,
-    mut player_input: ResMut<PlayerInput>,
-    sensitivity: Res<MouseSensitivity>,
-    mouse_state: Res<State<MouseState>>,
-) {
-    if mouse_state.0 == MouseState::Free { return; } // if mouse is free, dont turn character
-    let mut cumulative_delta = Vec2::ZERO;
-    for ev in ev_mouse.iter() {
-        cumulative_delta += ev.delta;
-    }
-    player_input.pitch -= sensitivity.0 * cumulative_delta.y / 180.0;
-    player_input.pitch = player_input.pitch.clamp(-PI / 2.0, PI / 2.0);
-    player_input.yaw -= sensitivity.0 * cumulative_delta.x / 180.0;
-    player_input.yaw = player_input.yaw.rem_euclid(std::f32::consts::TAU);
-}
-
-// change to use leafwing slots? 
-pub fn player_keys_input(
-    keyboard_input: Res<Input<KeyCode>>, 
-    mouse_input: Res<Input<MouseButton>>, 
-    mut player_input: ResMut<PlayerInput>
-) {
-    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
-    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
-    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
-    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
-    player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
-    player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
-    player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
-    player_input.set_ability4(keyboard_input.pressed(KeyCode::Key4));
-    player_input.set_left_click(mouse_input.pressed(MouseButton::Left));
-    player_input.set_right_click(mouse_input.pressed(MouseButton::Right));
-}
-
-pub fn update_local_player_inputs(
-    player_input: Res<PlayerInput>,
-    mut query: Query<(&mut PlayerInput, &Player)>,
-    local_player: Res<Player>,
-) {
-    for (mut input, player) in &mut query{
-        if player.id != local_player.id { continue }
-        *input = player_input.clone();
-        //info!("setting local player inputs: {:?}", player_input);
-    }
-}
-
-pub fn show_targetter(
-    mut commands: Commands,
-    query: Query<(&HoveredAbility, &CooldownMap), Changed<HoveredAbility>>,
-    reticles: Query<Entity, With<Reticle>>,
-    gimbals: Query<Entity, With<OuterGimbal>>,
-    targetters: Query<(Entity, &Ability), With<Targetter>>,
-    presets: Res<MaterialPresets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-){
-    for (hovered, cooldowns) in &query{
-        let Ok(reticle_entity) = reticles.get_single() else {continue};
-        let Ok(gimbal_entity) = gimbals.get_single() else {continue};
-        let mut already_has_targetter = false;
-        for (targetter_entity, old_ability) in &targetters{
-            if let Some(hovered_ability) = hovered.0{
-                if hovered_ability != *old_ability{
-                    commands.entity(targetter_entity).despawn_recursive();
-                } else {
-                    already_has_targetter = true;
-                }
-            } else {
-                commands.entity(targetter_entity).despawn_recursive();
-            }
-        }
-        let Some(hovered_ability) = hovered.0 else { continue };
-
-        if !already_has_targetter{
-            let mut handle = presets.0.get("blue").unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into())).clone();
-            if cooldowns.map.contains_key(&hovered_ability) {
-                handle = presets.0.get("white").unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into())).clone();
-            }
-            let targetter = hovered_ability.get_targetter(&mut commands);
-            commands.entity(targetter).insert((
-                hovered_ability.clone(),
-                handle,
-            ));
-            
-            if hovered_ability.on_reticle(){
-                commands.entity(targetter).set_parent(reticle_entity);
-            } else{
-                commands.entity(targetter).set_parent(gimbal_entity);
-            }
-        }
-    }
-}
-
-pub fn change_targetter_color(
-    query: Query<(&HoveredAbility, &CooldownMap), Changed<CooldownMap>>,
-    mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
-    presets: Option<Res<MaterialPresets>>,
-){  
-    let Some(presets) = presets else { return } ;
-    let Some(handle) = presets.0.get("blue") else {return};
-    for (hovered, cooldowns) in &query{
-        let Some(hovered_ability) = hovered.0 else { continue };
-        if cooldowns.map.contains_key(&hovered_ability) { continue }
-        for (old_ability, mut material) in &mut targetters{
-            if old_ability != &hovered_ability { continue }
-            *material = handle.clone();            
-        }
-    }
-}
-
-
-// Make this local only? would be weird to sync other players cast settings, but sure?
-pub fn select_ability(
-    mut query: Query<(&mut HoveredAbility, &ActionState<Ability>, &AbilityCastSettings, Entity)>,
-    mut cast_event: EventWriter<InputCastEvent>,
-) {
-    for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
-        for ability in ab_state.get_just_pressed() {
-            let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
-            if *cast_type == CastType::Normal{
-                hover.0 = Some(ability.clone());
-            } else if *cast_type == CastType::Instant{
-                cast_event.send(InputCastEvent {
-                    caster: caster_entity,
-                    ability: ability,
-                });
-            }
-        }
-    }
-}
-
-pub fn normal_casting(
-    mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>,
-    mut cast_event: EventWriter<InputCastEvent>,
-    mouse: Res<Input<MouseButton>>, // change to track input better later, have .just_pressed() on PlayerInput
-){
-    for (_input, mut hovered, player) in &mut query{
-        let Some(hovered_ability) = hovered.0 else {continue};
-        if mouse.just_pressed(MouseButton::Left){
-            cast_event.send(InputCastEvent {
-                caster: player,
-                ability: hovered_ability,
-            });
-        }
-        if mouse.just_pressed(MouseButton::Right){
-            hovered.0 = None;
-        }
-    }
-}

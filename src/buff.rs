@@ -45,6 +45,7 @@ pub struct BuffInfo {
     pub refresh: StackRefresh,
     pub bufftargets: BuffTargets,
     pub bufftype: BuffType,
+    pub image: Option<Image>,
 }
 
 impl Default for BuffInfo {
@@ -58,6 +59,7 @@ impl Default for BuffInfo {
             refresh: StackRefresh::All,
             bufftargets: BuffTargets::Enemies,
             bufftype: BuffType::Debuff,
+            image: None,
         }
     }
 }

@@ -49,19 +49,17 @@ pub fn free_mouse(
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
 ){    
     let editor_active = editor.map(|state| state.active()).unwrap_or(false);
-    let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else {
-        return
-    };
-    let Ok(mut window) = windows.get_single_mut() else {
-        return
-    };
-    if mouse_is_free.0 == MouseState::Locked && window_is_focused && !editor_active{
-        window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
-        window.cursor.visible = false;
-    } else{
-        window.cursor.grab_mode = bevy::window::CursorGrabMode::None;
-        window.cursor.visible = true;
-    } 
+    let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else { return };
+    let Ok(mut window) = windows.get_single_mut() else { return };
+    if mouse_is_free.is_changed(){
+        if mouse_is_free.0 == MouseState::Locked && window_is_focused && !editor_active{
+            window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
+            window.cursor.visible = false;
+        } else{
+            window.cursor.grab_mode = bevy::window::CursorGrabMode::None;
+            window.cursor.visible = true;
+        } 
+    }
 }
 
 pub fn mouse_with_free_key(

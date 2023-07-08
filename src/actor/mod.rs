@@ -5,11 +5,11 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
-    ability::{Ability}, 
+    ability::Ability, 
     area::HealthChangeEvent, 
     game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING}, 
     crowd_control::{CCType, CCMap}, 
-    stats::{Stat, Attributes}, 
+    stats::{Stat, Attributes, HealthMitigatedEvent}, 
     input::SlotBundle, ui::Trackable, 
     actor::view::{SpectateEvent, Spectatable, Spectating}, 
     buff::BuffMap};
@@ -83,12 +83,12 @@ pub struct SpawnEvent {
 
 #[derive(Component, Default)]
 pub struct OutgoingDamageLog {
-    pub list: Vec<HealthChangeEvent>,
+    pub list: Vec<HealthMitigatedEvent>,
 }
 
 #[derive(Component, Default)]
 pub struct IncomingDamageLog {
-    pub list: Vec<HealthChangeEvent>,
+    pub list: Vec<HealthMitigatedEvent>,
     pub ui_entities: HashMap<Entity, HealthChangeEvent>,
 }
 
@@ -328,7 +328,7 @@ pub struct CooldownMap {
 fn update_damage_logs(
     mut incoming_logs: Query<&mut IncomingDamageLog>,
     mut outgoing_logs: Query<&mut OutgoingDamageLog>,
-    mut damage_events: EventReader<HealthChangeEvent>,
+    mut damage_events: EventReader<HealthMitigatedEvent>,
 ){
     for damage_instance in damage_events.iter(){
         if let Some(attacker) = damage_instance.attacker{
@@ -341,3 +341,6 @@ fn update_damage_logs(
         }
     }
 }
+
+#[derive(Component)]
+pub struct Tower;

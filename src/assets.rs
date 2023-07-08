@@ -52,6 +52,12 @@ pub struct Images {
     pub minimap: Handle<Image>,
     #[asset(path = "images/circle.png")]   
     pub circle: Handle<Image>,
+    #[asset(path = "images/enemy_tower.png")]   
+    pub enemy_tower: Handle<Image>,
+    #[asset(path = "images/friendly_tower.png")]   
+    pub friendly_tower: Handle<Image>,
+    #[asset(path = "images/default.png")]   
+    pub default: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]
@@ -99,4 +105,7 @@ fn load_presets(
         presets.insert(color_string.into(), materials.add(color.into()));
     }
     commands.insert_resource(MaterialPresets(presets));
+
+
+
 }

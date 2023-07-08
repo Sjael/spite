@@ -6,7 +6,6 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 
 
-use super::cross_product;
 
 pub struct Arc {
     positions: Vec<[f32; 3]>,
@@ -101,6 +100,32 @@ impl Arc {
     pub fn mesh(&self) -> Mesh {
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
+        let largest = self.positions.iter()
+            .map(|position| {
+                position[1]
+            }).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
+            .unwrap_or(0.0);
+
+        let smallest = self.positions.iter()
+            .map(|position| {
+                position[1]
+            }).min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
+            .unwrap_or(0.0);
+
+        let center_height = largest - smallest;
+        let normals;
+        if center_height < 0.1{
+            normals = std::iter::repeat([0.0, 1.0, 0.0])
+                .take(self.positions.len())
+                .collect::<Vec<_>>();
+        }else{
+            normals = self.positions.iter()
+                .map(|position|{
+                    let pos: Vec3 = Vec3::new(position[0], position[1]-center_height/2.0, position[2]).normalize();
+                    [pos.x, pos.y, pos.z]
+                }).collect::<Vec<_>>();
+        }
+
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             self.positions
@@ -116,21 +141,7 @@ impl Arc {
                 .collect::<Vec<_>>(),
         )));
 
-        // Face normal calculation
-        // bevy only does vertex normals right now so we apply to every vertex for sharp shading
         
-        let normals2 = self.indices.iter()
-            .map(|tri| {
-                let origin: Vec3 = self.positions[tri[0] as usize].into();
-                let p1: Vec3 = self.positions[tri[1] as usize].into();
-                let p2: Vec3 = self.positions[tri[2] as usize].into();
-                let normal = cross_product(p1-origin, p2-origin).normalize();
-            });
-         
-
-        let normals = std::iter::repeat([0.0, 1.0, 0.0])
-            .take(self.positions.len())
-            .collect::<Vec<_>>();
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
 
         let uvs = std::iter::repeat([0.0, 0.0])

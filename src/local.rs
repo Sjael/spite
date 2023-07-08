@@ -24,7 +24,7 @@ use sacred_aurora::{
         CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
         TERRAIN_GROUPING,
     },
-    actor::{IncomingDamageLog, view::Spectatable, HasHealthBar},
+    actor::{IncomingDamageLog, view::Spectatable, HasHealthBar, Tower},
     stats::*,
     GameState, area::non_damaging::ObjectiveHealthOwner,  
 };
@@ -94,7 +94,15 @@ pub fn setup_map(
             TERRAIN_GROUPING,
             TEAM_NEUTRAL,
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-            Attributes::default(),
+            {
+                let mut attributes = Attributes::default();
+                *attributes.entry(Stat::Health.into()).or_default() = 33.0;
+                *attributes.entry(Stat::MagicalProtection.into()).or_default() = 60.0;
+                *attributes.entry(Stat::PhysicalProtection.into()).or_default() = 60.0;
+                *attributes.entry(Stat::CharacterResource.into()).or_default() = 33.0;
+                attributes
+            },
+            Tower,
             Name::new("Tower"),
             Spectatable,
             ObjectiveHealthOwner{
