@@ -6,7 +6,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
     ability::Ability, 
-    area::HealthChangeEvent, 
+    area::{HealthChangeEvent, DamageType}, 
     game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING}, 
     crowd_control::{CCType, CCMap}, 
     stats::{Stat, Attributes, HealthMitigatedEvent}, 
@@ -30,6 +30,7 @@ impl Plugin for CharacterPlugin {
         app.add_event::<InputCastEvent>();
         app.add_event::<CastEvent>();
         app.add_event::<SpawnEvent>();
+        app.add_event::<LogHit>();
 
         //Plugins
 
@@ -79,17 +80,6 @@ pub struct PointsToBoom(Option<Entity>);
 pub struct SpawnEvent {
     pub player: Player,
     pub transform: Transform,
-}
-
-#[derive(Component, Default)]
-pub struct OutgoingDamageLog {
-    pub list: Vec<HealthMitigatedEvent>,
-}
-
-#[derive(Component, Default)]
-pub struct IncomingDamageLog {
-    pub list: Vec<HealthMitigatedEvent>,
-    pub ui_entities: HashMap<Entity, HealthChangeEvent>,
 }
 
 
@@ -324,23 +314,130 @@ pub struct CooldownMap {
     pub map: HashMap<Ability, Timer>,
 }
 
+#[derive(Component, Default)]
+pub struct OutgoingDamageLog {
+    pub list: Vec<HealthMitigatedEvent>,
+    pub sums: HashMap<Entity, HashMap<Entity, DamageSum>>,
+}
 
+#[derive(Component, Default)]
+pub struct IncomingDamageLog {
+    pub list: Vec<HealthMitigatedEvent>,
+    pub sums: HashMap<Entity, DamageSum>,
+}
+
+pub struct DamageSum{
+    total_change: u32,
+    total_mitigated: i32,
+    hit_amount: u32,
+    sub_list: Vec<HealthMitigatedEvent>,
+}
+
+impl DamageSum{
+    pub fn add_damage(&mut self, instance: HealthMitigatedEvent) {
+        self.total_change += instance.change as u32;
+        self.total_mitigated += instance.mitigated as i32;
+        self.hit_amount += 1;
+        self.sub_list.push(instance);
+    }
+
+    pub fn from_instance(instance: HealthMitigatedEvent) -> Self{
+        DamageSum{
+            total_change: instance.change as u32,
+            total_mitigated: instance.mitigated as i32,
+            hit_amount: 1,
+            sub_list: vec![instance.clone()],
+        }
+    }
+
+    pub fn total_change(&self) -> u32 {
+        self.total_change
+    }
+    pub fn total_mitigated(&self) -> i32 {
+        self.total_mitigated
+    }
+    pub fn hit_amount(&self) -> u32 {
+        self.hit_amount
+    }
+}
+
+// change mitigated function to round properly, dont need to cast to ints here
 fn update_damage_logs(
+    mut damage_events: EventReader<HealthMitigatedEvent>,
     mut incoming_logs: Query<&mut IncomingDamageLog>,
     mut outgoing_logs: Query<&mut OutgoingDamageLog>,
-    mut damage_events: EventReader<HealthMitigatedEvent>,
+    mut log_hit_events: EventWriter<LogHit>,
 ){
     for damage_instance in damage_events.iter(){
-        if let Some(attacker) = damage_instance.attacker{
-            if let Ok(mut attacker_log) = outgoing_logs.get_mut(attacker) {
-                attacker_log.list.push(damage_instance.clone());
+        if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
+            defender_log.list.push(damage_instance.clone());
+            if defender_log.sums.contains_key(&damage_instance.sensor){
+                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {continue};
+                hits.add_damage(damage_instance.clone());
+            } else {
+                defender_log.sums.insert(damage_instance.sensor.clone(), DamageSum::from_instance(damage_instance.clone()));
+                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::IncomingAdd));
             }
         }
-        if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
-            defender_log.list.push(damage_instance.clone());            
+
+        let Some(attacker) = damage_instance.attacker else { continue };
+        if let Ok(mut attacker_log) = outgoing_logs.get_mut(attacker) {
+            attacker_log.list.push(damage_instance.clone());
+            if attacker_log.sums.contains_key(&damage_instance.sensor){
+                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {continue};
+                if targets_hit.contains_key(&damage_instance.defender){
+                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {continue};
+                    hits.add_damage(damage_instance.clone());  
+                    log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::OutgoingStack));            
+                }
+                else {
+                    targets_hit.insert(damage_instance.defender.clone(), DamageSum::from_instance(damage_instance.clone()));
+                    
+                }
+            } else {
+                let init = HashMap::from([
+                    (damage_instance.defender, DamageSum::from_instance(damage_instance.clone()))
+                ]);
+                attacker_log.sums.insert(damage_instance.sensor.clone(), init);
+                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::OutgoingAdd));
+            }
         }
     }
 }
+
+#[derive(PartialEq, Eq)]
+pub enum LogType{
+    IncomingAdd,
+    IncomingStack,
+    OutgoingAdd,
+    OutgoingStack,
+}
+
+pub struct LogHit{
+    pub sensor: Entity,
+    pub attacker: Option<Entity>,
+    pub defender: Entity,
+    pub damage_type: DamageType,
+    pub ability: Ability,
+    pub change: f32,
+    pub mitigated: f32,
+    pub log_type: LogType,
+}
+impl LogHit{
+    fn new(event: HealthMitigatedEvent, log_type: LogType) -> Self{
+        LogHit{
+            sensor: event.sensor,
+            attacker: event.attacker,
+            defender: event.defender,
+            damage_type: event.damage_type,
+            ability: event.ability,
+            change: event.change,
+            mitigated: event.mitigated,
+            log_type,
+        }
+    }
+}
+
 
 #[derive(Component)]
 pub struct Tower;

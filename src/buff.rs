@@ -87,8 +87,8 @@ impl Plugin for BuffPlugin {
 
 pub struct BuffStackEvent {
     pub id: String,
-    pub stacks: u32,
     pub target: Entity,
+    pub stacks: u32,
 }
 
 pub struct BuffAddEvent {
@@ -123,8 +123,8 @@ pub fn apply_buffs(
                 applied.timer.reset(); // reset timer, TODO need individual stack timer support
                 stack_events.send(BuffStackEvent {
                     id: buff_id,
-                    stacks: applied.stacks,
                     target: event.target,
+                    stacks: applied.stacks,
                 });
             } else {
                 added_stack = true;

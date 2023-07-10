@@ -914,6 +914,20 @@ pub fn ability_image(handle: Handle<Image>) -> impl Bundle {(
     Name::new("Ability Image"),
 )}
 
+
+pub fn custom_image(handle: Handle<Image>, size: u32) -> impl Bundle {(
+    ImageBundle {
+        style: Style {
+            size: Size::new(Val::Px(size as f32), Val::Px(size as f32)),
+            ..default()
+        },
+        image: handle.into(),
+        ..default()
+    },
+    Interaction::None,
+    Name::new("Ability Image"),
+)}
+
 pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {(
     TextBundle {
         style: Style {
@@ -1275,8 +1289,29 @@ pub fn log_incoming() -> impl Bundle {(
     IncomingLogUi,
 )}
 
-pub fn damage_entry() -> impl Bundle {
-    (
+pub fn despawn_wrapper(delay: u32) -> impl Bundle {(
+    NodeBundle {
+        ..default()
+    },
+    Name::new("Despawen"),
+    DespawnTimer(
+        Timer::new(Duration::from_secs(delay.into()), TimerMode::Once)
+    )
+)}
+
+pub fn column_wrapper() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            gap: Size::width(Val::Px(10.0)),
+            ..default()
+        },
+        ..default()
+    },
+    Name::new("Damage column"),
+)}
+
+pub fn damage_entry() -> impl Bundle {(
     NodeBundle {
         style: Style {
             margin : UiRect{
@@ -1292,15 +1327,13 @@ pub fn damage_entry() -> impl Bundle {
         ..default()
     },
     Name::new("Damage Entry"),
-    DespawnTimer(
-        Timer::new(Duration::from_secs(30), TimerMode::Once)
-    )
 )}
 
 pub fn thin_image(image: Handle<Image>) -> impl Bundle{(
     ImageBundle {
         style: Style {
             size: Size::new(Val::Px(55.0), Val::Px(22.)),
+            align_self:AlignSelf::Center,
             ..default()
         },
         image: image.into(),

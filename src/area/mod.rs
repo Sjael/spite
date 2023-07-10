@@ -31,8 +31,10 @@ pub enum DamageType{
 pub struct HealthChangeEvent {
     pub amount: f32,
     pub damage_type: DamageType,
+    pub ability: Ability,
     pub attacker: Option<Entity>,
     pub defender: Entity,
+    pub sensor: Entity,
     pub when: Instant,
 }
 
@@ -140,8 +142,10 @@ fn area_apply_tags(
                             let health_change = HealthChangeEvent {
                                 amount: *amount,
                                 damage_type: damage_type.clone(),
+                                ability: ability.clone(),
                                 attacker: caster,
                                 defender: *target_entity,
+                                sensor: sensor_entity,
                                 when: Instant::now(),
                             };
                             health_events.send(health_change);
@@ -153,8 +157,10 @@ fn area_apply_tags(
                             let health_change = HealthChangeEvent {
                                 amount: -amount,
                                 damage_type: damage_type.clone(),
+                                ability: ability.clone(),
                                 attacker: caster,
                                 defender: *target_entity,
+                                sensor: sensor_entity,
                                 when: Instant::now(),
                             };
                             health_events.send(health_change);

@@ -55,6 +55,7 @@ impl Ability {
             Ability::Frostbolt => icons.frostbolt.clone(),
             Ability::Fireball => icons.fireball.clone(),
             Ability::Dash => icons.dash.clone(),
+            Ability::Bomb => icons.swarm.clone(),
             _ => icons.basic_attack.clone(),
         }
     }

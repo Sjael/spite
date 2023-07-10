@@ -16,6 +16,8 @@ pub struct Icons {
     pub dash: Handle<Image>,
     #[asset(path = "icons/fireball.png")]
     pub fireball: Handle<Image>,
+    #[asset(path = "icons/swarm.png")]
+    pub swarm: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]

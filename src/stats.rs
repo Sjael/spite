@@ -1,6 +1,7 @@
 use bevy::{prelude::*, utils::HashMap};
 use strum_macros::EnumIter;
 use strum::IntoEnumIterator;
+use crate::ability::Ability;
 //use fixed::types::I40F24;
 use crate::area::{HealthChangeEvent, DamageType};
 //use crate::buff::BuffMap;
@@ -100,8 +101,10 @@ impl Plugin for StatsPlugin {
 pub struct HealthMitigatedEvent{
     pub change: f32,
     pub mitigated: f32,
+    pub ability: Ability,
     pub attacker: Option<Entity>,
     pub defender: Entity,
+    pub sensor: Entity,
     pub damage_type: DamageType,
     pub when: Instant,
 }
@@ -133,8 +136,10 @@ pub fn take_damage_or_heal(
         health_mitigated_events.send(HealthMitigatedEvent{
             change: post_mitigation_damage.clone(),
             mitigated: event.amount - post_mitigation_damage,
+            ability: event.ability,
             attacker: event.attacker,
             defender: event.defender,
+            sensor: event.sensor,
             damage_type: event.damage_type.clone(),
             when: event.when,
         });

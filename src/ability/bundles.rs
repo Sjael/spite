@@ -205,6 +205,7 @@ impl FireballInfo {
             ..default()
         },
         Sensor,
+        DamageType::Magical,
         UniqueTargetsHit::default(),
         CastingLifetime { seconds: 2.0 },
         Tags {
@@ -339,6 +340,7 @@ impl DefaultAbilityInfo {
         Ability::BasicAttack,
         AbilityShape::default(),
         SpatialBundle::from_transform(transform.clone()),
+        DamageType::Physical,
         RigidBody::KinematicVelocityBased,
         Velocity {
             linvel: direction * speed,

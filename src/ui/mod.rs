@@ -4,7 +4,7 @@ use ui_bundles::team_thumbs_holder;
 
 use crate::{
     ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
-    ability::{AbilityTooltip},
+    ability::AbilityTooltip,
     game_manager::{GameModeDetails, DeathEvent, Team}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
     actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::{Attributes, Stat, AttributeTag},     
@@ -61,7 +61,7 @@ impl Plugin for UiPlugin {
             add_buffs,
             update_buff_stacks,
             spawn_floating_damage,   
-            update_damage_log_ui,         
+            update_damage_log_ui, 
         ).in_set(SpectatingUI));
         app.add_systems((
             add_player_ui,
@@ -70,7 +70,7 @@ impl Plugin for UiPlugin {
             floating_damage_cleanup,
             update_buff_timers,
             update_objective_health,
-            toggle_objective_health
+            toggle_objective_health,
         ).in_set(OnUpdate(GameState::InGame)));
         app.add_systems((
             draggables.run_if(in_state(MouseState::Free)),
