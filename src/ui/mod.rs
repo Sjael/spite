@@ -3,11 +3,11 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    ui::{ui_bundles::*,styles::*, player_ui::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
+    ui::{ui_bundles::*,styles::*, spectating::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
     ability::AbilityTooltip,
     game_manager::{GameModeDetails, DeathEvent, Team}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
-    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player}, stats::{Attributes, Stat, AttributeTag},     
+    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player,stats::{Attributes, Stat, AttributeTag}},     
 };
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -562,7 +562,7 @@ pub mod main_menu;
 pub mod ingame_menu;
 pub mod mouse;
 pub mod styles;
-pub mod player_ui;
+pub mod spectating;
 pub mod hud_editor;
 #[allow(unused_parens)]
 pub mod ui_bundles;

@@ -1,11 +1,11 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    area::{BuffEvent},
-    stats::{AttributeTag, Attributes, Stat},
+    area::BuffEvent,
     GameState,
 };
 use bevy::prelude::*;
+use super::stats::{AttributeTag, Attributes, Stat};
 
 #[derive(Default, Clone, Copy, Debug, Reflect, FromReflect, Eq, PartialEq)]
 pub enum BuffType {
@@ -107,11 +107,8 @@ pub fn apply_buffs(
     for event in buff_events.iter() {
         if let Ok((mut buffs, mut attributes)) = targets_query.get_mut(event.target) {
             let ability = format!("{}v{}", event.buff_originator.index(), event.buff_originator.generation());
-            let caster = if let Some(caster_entity) = event.caster {
-                format!("{}v{}", caster_entity.index(), caster_entity.generation())
-            } else {
-                "".to_string()
-            };
+            let caster = format!("{}v{}", event.caster.index(), event.caster.generation());
+                
             let buff_id = format!("{}_{}_{}", caster, ability, event.info.stat.to_string());
             let mut added_stack = false;
             if buffs.map.contains_key(&buff_id) {

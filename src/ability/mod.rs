@@ -5,7 +5,7 @@ use std::{time::Duration, collections::HashMap};
 use bevy::prelude::*;
 use leafwing_input_manager::Actionlike;
 use derive_more::Display;
-use crate::{crowd_control::CCInfo, buff::BuffInfo, assets::Icons};
+use crate::{actor::{crowd_control::CCInfo, buff::BuffInfo}, assets::Icons};
 
 use self::bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo};
 
@@ -228,5 +228,25 @@ pub enum TagInfo {
     Damage(f32),
     Buff(BuffInfo),
     CC(CCInfo),
-    Homing(Ability),
+    Homing(Ability), // All Abilities are Areas, but not all Areas are Abilities, Areas are parent of Abilities
+}
+
+
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DamageType{
+    Physical,
+    Magical,
+    True,
+    Hybrid
+}
+
+impl DamageType{
+    pub fn get_color(&self) -> Color{
+        match self{
+            DamageType::Physical => Color::rgb(0.863, 0.4, 0.353),
+            DamageType::True => Color::WHITE,
+            DamageType::Magical => Color::rgb(0.569, 0.665, 0.943),
+            DamageType::Hybrid => Color::PURPLE,
+        }
+    }
 }

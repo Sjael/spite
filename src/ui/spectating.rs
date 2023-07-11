@@ -2,16 +2,17 @@ use bevy::{prelude::*, ui::RelativeCursorPosition};
 use bevy_tweening::TweenCompleted;
 
 use crate::{
-    ability::{Ability, AbilityTooltip},
-    area::{HealthChangeEvent, DamageType},
+    ability::Ability,
     assets::{Fonts, Icons, Images},
-    buff::{BuffAddEvent, BuffStackEvent, BuffType},
     input::SlotAbilityMap,
-    stats::*,
     ui::ui_bundles::*,
-    actor::view::Spectating, crowd_control::{CCMap, CCType}, 
+    actor::view::Spectating,  
     game_manager::{AbilityFireEvent, Team}, 
-    actor::{WindupTimer, CastEvent, CooldownMap, player::Player, Tower, LogHit, LogType},
+    actor::{WindupTimer, CastEvent, CooldownMap, player::Player, Tower, LogHit, LogType, LogSide, 
+        crowd_control::{CCMap, CCType},
+        stats::*,
+        buff::{BuffAddEvent, BuffStackEvent, BuffType},
+    },
 };
 
 pub fn add_player_ui(
@@ -354,11 +355,10 @@ pub fn spawn_floating_damage(
     fonts: Res<Fonts>,
 ){
     for damage_instance in damage_events.iter(){
-        let Some(attacker_entity) = damage_instance.attacker else {continue};
-        if attacker_entity != spectating.0 { continue };
+        if damage_instance.attacker != spectating.0 { continue };
         let Ok(damaged) = damaged_query.get(damage_instance.defender) else {continue};
         commands.spawn(follow_wrapper(damaged)).with_children(|parent| {            
-            parent.spawn(follow_inner_text(damage_instance.change.abs().trunc().to_string(), &fonts));
+            parent.spawn(follow_inner_text(damage_instance.change.abs().to_string(), &fonts));
         });
     }
 }
@@ -393,29 +393,28 @@ pub fn update_damage_log_ui(
     entities: Query<(Option<&Tower>, Option<&Player>, &Name, &Team)>,
     mut log_holders: Query<(Entity, &DamageLogId, &mut DespawnTimer)>,
     children_query: Query<&Children>,
-    mut entry_text: Query<(&mut Text, &mut StoredNumber, &EntryText)>,
+    mut entry_text: Query<(&mut Text, &mut StoredNumber, &EntryText, &DamageLogId)>,
 ){
-    for damage_instance in damage_events.iter(){
+    for event in damage_events.iter(){
 
-        let log_ui = match damage_instance.log_type{
-            LogType::IncomingAdd | LogType::IncomingStack => {
-                if spectating.0 != damage_instance.defender{ continue }
+        let (log_ui, other_party, direction) = match event.log_direction{
+            LogSide::Incoming => {
+                if spectating.0 != event.defender{ continue }
                 let Ok(incoming_ui) = incoming_ui.get_single() else {continue};
-                incoming_ui
+                (incoming_ui, event.attacker, "from".to_string())
             },
-            LogType::OutgoingAdd | LogType::OutgoingStack => {
-                let Some(attacker) = damage_instance.attacker else { continue };
-                if spectating.0 != attacker{ continue }
+            LogSide::Outgoing => {
+                if spectating.0 != event.attacker{ continue }
                 let Ok(outgoing_ui) = outgoing_ui.get_single() else {continue};
-                outgoing_ui
+                (outgoing_ui, event.defender, "to".to_string())
             },
         };
         
-        if damage_instance.log_type == LogType::IncomingAdd || damage_instance.log_type == LogType::OutgoingAdd{
-
+        if event.log_type == LogType::Add {
+            
             let mut image: Handle<Image> = images.default.clone();
             let mut name = "".to_string(); 
-            if let Ok((is_tower, is_player, attacker_name, team)) = entities.get(damage_instance.defender) {
+            if let Ok((is_tower, is_player, attacker_name, team)) = entities.get(other_party) {
                 if is_tower.is_some(){
                     image = images.enemy_tower.clone();
                 } else if is_player.is_some(){
@@ -424,34 +423,28 @@ pub fn update_damage_log_ui(
                 name = attacker_name.as_str().clone().to_string();
             }
     
-            let sensor_image = damage_instance.ability.get_image(&icons);
-            let mut mitigated_string = format!("({})", damage_instance.mitigated.clone() as i32);
-            if damage_instance.mitigated == 0.0 {
+            let sensor_image = event.ability.get_image(&icons);
+            let mut mitigated_string = format!("(-{})", event.mitigated.clone() as i32);
+            if event.mitigated == 0 {
                 mitigated_string = "".to_string();
             }
-            let damage_color = match damage_instance.damage_type{
-                DamageType::Physical => Color::ORANGE,
-                DamageType::True => Color::WHITE,
-                DamageType::Magical => Color::TEAL,
-                DamageType::Hybrid => Color::PURPLE,
-            };
-            let change = damage_instance.change.abs();
+            let change = event.change.abs();
     
             commands.entity(log_ui).with_children(|parent| {
-                parent.spawn(despawn_wrapper(30)).insert(DamageLogId(damage_instance.sensor)).with_children(|parent| {
+                parent.spawn(despawn_wrapper(30)).insert(DamageLogId(event.sensor)).with_children(|parent| {
                     //parent.spawn(damage_column()).insert().with_children(|parent| {
                         parent.spawn(damage_entry()).with_children(|parent| {
                             parent.spawn(custom_image(sensor_image, 24));
-                            parent.spawn(plain_text("to".to_string(), 12, &fonts));
+                            parent.spawn(plain_text(direction, 14, &fonts));
                             parent.spawn(thin_image(image));
-                            parent.spawn(plain_text(name, 14, &fonts));
-                            parent.spawn(plain_text("did".to_string(), 12, &fonts));
-                            parent.spawn(plain_text((change as u32).to_string(), 16, &fonts))
-                                .insert((EntryText::Change, StoredNumber(change as i32)));
-                            parent.spawn(color_text(mitigated_string, 16, &fonts, damage_color))
-                                .insert((EntryText::Mitigated, StoredNumber(damage_instance.mitigated as i32)));
-                            parent.spawn(color_text("".to_string(), 14, &fonts, Color::GRAY))
-                                .insert((EntryText::Hits, StoredNumber(1 as i32)));
+                            parent.spawn(plain_text(name, 16, &fonts));
+                            parent.spawn(plain_text("dealt".to_string(), 14, &fonts));
+                            parent.spawn(plain_text((change as u32).to_string(), 18, &fonts))
+                                .insert((EntryText::Change, StoredNumber(change as i32), DamageLogId(other_party)));
+                            parent.spawn(color_text(mitigated_string, 18, &fonts, event.damage_type.get_color()))
+                                .insert((EntryText::Mitigated, StoredNumber(event.mitigated as i32), DamageLogId(other_party)));
+                            parent.spawn(color_text("".to_string(), 16, &fonts, Color::YELLOW))
+                                .insert((EntryText::Hits, StoredNumber(1 as i32), DamageLogId(other_party)));
                         });
                    // });
                 });
@@ -459,20 +452,25 @@ pub fn update_damage_log_ui(
         } else {
 
             for (log_ui_entity, log_id, mut despawn_timer) in log_holders.iter_mut() {
-                if damage_instance.sensor != log_id.0 { continue }
+                
+                if event.sensor != log_id.0 { continue }
                 despawn_timer.0.reset();
                 
                 for descendant in children_query.iter_descendants(log_ui_entity) {
-                    let Ok((mut text, mut number, entry_text)) = entry_text.get_mut(descendant) else { continue };
+                    let Ok((mut text, mut number, entry_text, log_id)) = entry_text.get_mut(descendant) else { continue };
+                    
+                    if other_party != log_id.0 {  continue }
                     let added;
                     match entry_text{
                         EntryText::Change => {                        
-                            added = number.0 + damage_instance.change.abs() as i32;
+                            added = number.0 + event.change.abs() as i32;
                             text.sections[0].value = added.to_string();
                         },
                         EntryText::Mitigated => {
-                            added = number.0 + damage_instance.mitigated as i32;
-                            text.sections[0].value = format!("({})", added);
+                            added = number.0 + event.mitigated as i32;
+                            if event.mitigated > 0{
+                                text.sections[0].value = format!("(-{})", added);
+                            }
                         },
                         EntryText::Hits => {
                             added = number.0 + 1;
@@ -481,7 +479,6 @@ pub fn update_damage_log_ui(
                     }
                     number.0 = added;
                 }
-                break // break cus we found the log, dont return cus we want to go to next event
             }
         }
     }
@@ -489,17 +486,17 @@ pub fn update_damage_log_ui(
 
 
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub enum EntryText{
     Change,
     Mitigated,
     Hits,
 }
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct StoredNumber(pub i32);
 
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct DamageLogId(pub Entity);
 
 

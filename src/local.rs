@@ -15,17 +15,18 @@ use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
     ability::{
         Ability, TickBehavior, TargetFilter, FilteredTargets, TagInfo, Tags,
-        TargetSelection, TargetsInArea, TargetsHittable, Ticks, PausesWhenEmpty, FiringInterval,
+        TargetSelection, TargetsInArea, TargetsHittable, Ticks, PausesWhenEmpty, FiringInterval, bundles::Caster,
     },
     assets::*,
-    buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
-    crowd_control::{CCMap, CCInfo, CCType},
     game_manager::{
         CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
         TERRAIN_GROUPING,
     },
-    actor::{IncomingDamageLog, view::Spectatable, HasHealthBar, Tower},
-    stats::*,
+    actor::{IncomingDamageLog, view::Spectatable, HasHealthBar, Tower,
+        stats::*,
+        buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
+        crowd_control::{CCMap, CCInfo, CCType},    
+    },
     GameState, area::non_damaging::ObjectiveHealthOwner,  
 };
 use winit::window::Icon;
@@ -99,7 +100,6 @@ pub fn setup_map(
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;
                 *attributes.entry(Stat::MagicalProtection.into()).or_default() = 60.0;
                 *attributes.entry(Stat::PhysicalProtection.into()).or_default() = 60.0;
-                *attributes.entry(Stat::CharacterResource.into()).or_default() = 33.0;
                 attributes
             },
             Tower,
@@ -127,6 +127,7 @@ pub fn setup_map(
             Ticks::Unlimited,
             TickBehavior::static_timer(),
             PausesWhenEmpty,
+            Caster(tower),
             TargetFilter {
                 number_of_targets: 1,
                 target_selection: TargetSelection::Closest,
@@ -274,7 +275,7 @@ pub fn setup_map(
                 TagInfo::Buff(BuffInfo {
                     stat: AttributeTag::Modifier {
                         modifier: Modifier::Add,
-                        target: Box::new(Stat::PhysicalPower.into()),
+                        target: Box::new(Stat::PhysicalPenetration.into()),
                     },
                     amount: 5.0,
                     max_stacks: 6,

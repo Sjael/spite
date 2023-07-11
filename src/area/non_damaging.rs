@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{Collider, Sensor, ActiveCollisionTypes};
 
-use crate::{actor::player::Player, ui::player_ui::FocusedHealthEntity, ability::TargetsInArea};
+use crate::{actor::player::Player, ui::spectating::FocusedHealthEntity, ability::TargetsInArea};
 
 use super::{AreaOverlapEvent, AreaOverlapType};
 

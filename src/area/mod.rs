@@ -8,31 +8,26 @@ use bevy_rapier3d::prelude::Sensor;
 use rand::Rng;
 
 use crate::{
-    buff::{BuffInfo, BuffTargets},
-    crowd_control::CCInfo,
+    actor::{
+        buff::{BuffInfo, BuffTargets},
+        crowd_control::CCInfo,
+    },
     game_manager::{Team, FireHomingEvent},
     ability::{bundles::Caster, AbilityTooltip, Ability, FiringInterval, TickBehavior, TargetsInArea, PausesWhenEmpty, 
         Ticks, TargetsHittable, Tags, MaxTargetsHit, UniqueTargetsHit, TargetFilter, FilteredTargets, TargetSelection, 
-        CastingLifetime, TagInfo},
+        CastingLifetime, TagInfo, DamageType},
 };
 use homing::track_homing;
 
 use self::non_damaging::*;
 
-#[derive(Component, Clone, PartialEq, Eq)]
-pub enum DamageType{
-    Physical,
-    Magical,
-    True,
-    Hybrid
-}
 
 #[derive(Clone)]
 pub struct HealthChangeEvent {
     pub amount: f32,
     pub damage_type: DamageType,
     pub ability: Ability,
-    pub attacker: Option<Entity>,
+    pub attacker: Entity,
     pub defender: Entity,
     pub sensor: Entity,
     pub when: Instant,
@@ -42,7 +37,7 @@ pub struct BuffEvent {
     pub info: BuffInfo,
     pub target: Entity,
     pub buff_originator: Entity,
-    pub caster: Option<Entity>,
+    pub caster: Entity,
     pub ability: Ability,
 }
 
@@ -122,11 +117,9 @@ fn area_apply_tags(
         for target_entity in targets_hittable.list.iter() {
             let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else { continue };
             let caster = if let Some(caster) = caster{
-                Some(caster.0)
-            } else if let Some(parent) = parent{
-                Some(parent.get())
+                caster.0
             } else {
-                None
+                sensor_entity
             };
             let on_same_team = sensor_team.0 == target_team.0;
             if let Some(ref unique_targets_hit) = unique_targets_hit{
@@ -197,7 +190,7 @@ fn area_apply_tags(
                     TagInfo::Homing(ref projectile_to_spawn) => {
                         hit_a_target = true;
                         cast_homing_events.send(FireHomingEvent {
-                            caster: caster.unwrap_or(sensor_entity),
+                            caster: caster,
                             ability: projectile_to_spawn.clone(),
                             target: *target_entity,
                         });

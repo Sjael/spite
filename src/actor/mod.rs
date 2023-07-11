@@ -5,19 +5,25 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
-    ability::Ability, 
-    area::{HealthChangeEvent, DamageType}, 
+    ability::{Ability, DamageType}, 
     game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING}, 
-    crowd_control::{CCType, CCMap}, 
-    stats::{Stat, Attributes, HealthMitigatedEvent}, 
+     
+     
     input::SlotBundle, ui::Trackable, 
     actor::view::{SpectateEvent, Spectatable, Spectating}, 
-    buff::BuffMap};
+    };
 
-use self::player::*;
+use self::{player::*, 
+    stats::{Stat, Attributes, HealthMitigatedEvent, StatsPlugin},
+    buff::{BuffMap, BuffPlugin},
+    crowd_control::{CCType, CCMap, CCPlugin}
+};
 
 pub mod view;
 pub mod player;
+pub mod stats;
+pub mod buff;
+pub mod crowd_control;
 
 pub struct CharacterPlugin;
 impl Plugin for CharacterPlugin {
@@ -33,6 +39,9 @@ impl Plugin for CharacterPlugin {
         app.add_event::<LogHit>();
 
         //Plugins
+        app.add_plugin(StatsPlugin)
+            .add_plugin(BuffPlugin)
+            .add_plugin(CCPlugin);
 
         //Systems
         app.add_system(setup_player.in_schedule(OnEnter(GameState::InGame)));
@@ -74,8 +83,6 @@ impl Plugin for CharacterPlugin {
 #[derive(Component)]
 pub struct HasHealthBar;
 
-#[derive(Component)]
-pub struct PointsToBoom(Option<Entity>);
 
 pub struct SpawnEvent {
     pub player: Player,
@@ -327,33 +334,33 @@ pub struct IncomingDamageLog {
 }
 
 pub struct DamageSum{
-    total_change: u32,
-    total_mitigated: i32,
+    total_change: i32,
+    total_mitigated: u32,
     hit_amount: u32,
     sub_list: Vec<HealthMitigatedEvent>,
 }
 
 impl DamageSum{
     pub fn add_damage(&mut self, instance: HealthMitigatedEvent) {
-        self.total_change += instance.change as u32;
-        self.total_mitigated += instance.mitigated as i32;
+        self.total_change += instance.change;
+        self.total_mitigated += instance.mitigated;
         self.hit_amount += 1;
         self.sub_list.push(instance);
     }
 
     pub fn from_instance(instance: HealthMitigatedEvent) -> Self{
         DamageSum{
-            total_change: instance.change as u32,
-            total_mitigated: instance.mitigated as i32,
+            total_change: instance.change,
+            total_mitigated: instance.mitigated,
             hit_amount: 1,
             sub_list: vec![instance.clone()],
         }
     }
 
-    pub fn total_change(&self) -> u32 {
+    pub fn total_change(&self) -> i32 {
         self.total_change
     }
-    pub fn total_mitigated(&self) -> i32 {
+    pub fn total_mitigated(&self) -> u32 {
         self.total_mitigated
     }
     pub fn hit_amount(&self) -> u32 {
@@ -374,57 +381,65 @@ fn update_damage_logs(
             if defender_log.sums.contains_key(&damage_instance.sensor){
                 let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {continue};
                 hits.add_damage(damage_instance.clone());
+                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Stack, LogSide::Incoming));
             } else {
                 defender_log.sums.insert(damage_instance.sensor.clone(), DamageSum::from_instance(damage_instance.clone()));
-                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::IncomingAdd));
+                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Add, LogSide::Incoming));
             }
         }
 
-        let Some(attacker) = damage_instance.attacker else { continue };
-        if let Ok(mut attacker_log) = outgoing_logs.get_mut(attacker) {
+        if let Ok(mut attacker_log) = outgoing_logs.get_mut(damage_instance.attacker) {
             attacker_log.list.push(damage_instance.clone());
             if attacker_log.sums.contains_key(&damage_instance.sensor){
                 let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {continue};
                 if targets_hit.contains_key(&damage_instance.defender){
                     let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {continue};
                     hits.add_damage(damage_instance.clone());  
-                    log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::OutgoingStack));            
+                    log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Stack, LogSide::Outgoing));            
                 }
                 else {
                     targets_hit.insert(damage_instance.defender.clone(), DamageSum::from_instance(damage_instance.clone()));
-                    
+                    log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Add, LogSide::Outgoing));
                 }
             } else {
                 let init = HashMap::from([
                     (damage_instance.defender, DamageSum::from_instance(damage_instance.clone()))
                 ]);
                 attacker_log.sums.insert(damage_instance.sensor.clone(), init);
-                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::OutgoingAdd));
+                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Add, LogSide::Outgoing));
             }
         }
     }
 }
 
-#[derive(PartialEq, Eq)]
-pub enum LogType{
-    IncomingAdd,
-    IncomingStack,
-    OutgoingAdd,
-    OutgoingStack,
+#[derive(PartialEq, Eq, Debug)]
+pub enum LogSide{
+    Incoming,
+    Outgoing,
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum LogType{
+    Add,
+    Stack,
+}
+
+// Change attacker to caster?
+#[derive(Debug)]
 pub struct LogHit{
     pub sensor: Entity,
-    pub attacker: Option<Entity>,
+    pub attacker: Entity,
     pub defender: Entity,
     pub damage_type: DamageType,
     pub ability: Ability,
-    pub change: f32,
-    pub mitigated: f32,
+    pub change: i32,
+    pub mitigated: u32,
     pub log_type: LogType,
+    pub log_direction: LogSide,
 }
+
 impl LogHit{
-    fn new(event: HealthMitigatedEvent, log_type: LogType) -> Self{
+    fn new(event: HealthMitigatedEvent, log_type: LogType, log_direction: LogSide) -> Self{
         LogHit{
             sensor: event.sensor,
             attacker: event.attacker,
@@ -434,6 +449,7 @@ impl LogHit{
             change: event.change,
             mitigated: event.mitigated,
             log_type,
+            log_direction,
         }
     }
 }

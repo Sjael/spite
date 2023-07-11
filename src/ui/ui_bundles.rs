@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, TextColorLens}, EaseFunction, Tween, Delay};
 
-use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, crowd_control::CCType};
+use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, actor::crowd_control::CCType};
 
 use rand::Rng;
 use super::styles::*;

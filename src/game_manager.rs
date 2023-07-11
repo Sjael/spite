@@ -10,8 +10,8 @@ use crate::{
     ability::{Ability, bundles::Caster, TickBehavior, 
         MaxTargetsHit, TargetsInArea, TargetsHittable,},
     area::homing::Homing,
-    actor::{cast_ability, IncomingDamageLog, player::Player, SpawnEvent, view::Reticle},
-    stats::{Attributes, Stat},
+    actor::{cast_ability, IncomingDamageLog, player::Player, SpawnEvent, view::Reticle, stats::{Attributes, Stat},},
+    
     ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
     GameState,
 };
@@ -292,8 +292,7 @@ fn check_deaths(
             if let Some(mut bounty) = bounty {
                 for instance in damagelog.list.iter() {
                     if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT){
-                        let Some(attacker) = instance.attacker else {continue};
-                        if let Ok(mut attributes) = attributes.get_mut(attacker) {
+                        if let Ok(mut attributes) = attributes.get_mut(instance.attacker) {
                             let gold = attributes.entry(Stat::Gold.into()).or_default();
                             *gold += bounty.gold;
                             let xp = attributes.entry(Stat::Xp.into()).or_default();

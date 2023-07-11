@@ -1,12 +1,12 @@
-use crate::{
+use crate::actor::{
     buff::{BuffInfo, BuffTargets, BuffType},
     crowd_control::{CCInfo, CCType},
-    stats::{Attributes, Stat}, area::DamageType,
+    stats::{Attributes, Stat}, 
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};
 
-use super::{*, shape::AbilityShape};
+use super::{*, shape::AbilityShape, DamageType};
 
 #[derive(Component)]
 pub struct Caster(pub Entity);
@@ -110,6 +110,7 @@ impl FrostboltInfo {
             },
             RigidBody::KinematicVelocityBased,
             Sensor,
+            DamageType::Physical,
             CastingLifetime { seconds: 1.0 },
             MaxTargetsHit::new(1),
             Tags {
@@ -266,9 +267,9 @@ impl BombInfo {
         Sensor,
         Ticks::Unlimited,
         DamageType::Magical,
-        FiringInterval(200),
+        FiringInterval(500),
         TickBehavior::individual(),
-        CastingLifetime { seconds: 2.0 },
+        CastingLifetime { seconds: 3.0 },
         Tags {
             list: vec![TagInfo::Damage(16.0)],
         },

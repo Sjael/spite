@@ -8,13 +8,10 @@ use ability::shape::load_ability_shape;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
-use buff::BuffPlugin;
-use crowd_control::CCPlugin;
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use actor::CharacterPlugin;
 use actor::view::ViewPlugin;
-use stats::StatsPlugin;
 use ui::UiPlugin;
 
 pub fn app_plugins_both(app: &mut App) {
@@ -59,9 +56,6 @@ pub fn app_plugins_both(app: &mut App) {
         .add_plugin(ViewPlugin)
         .add_plugin(UiPlugin)
         .add_plugin(CharacterPlugin)
-        .add_plugin(BuffPlugin)
-        .add_plugin(CCPlugin)
-        .add_plugin(StatsPlugin)
         .add_plugin(AreaPlugin)
         .add_plugin(InputPlugin)
         .add_systems((
@@ -103,11 +97,8 @@ pub fn on_gametick(game_timer: Res<GameTimer>) -> bool {
 pub mod area;
 pub mod ability;
 pub mod assets;
-pub mod buff;
 pub mod actor;
-pub mod crowd_control;
 pub mod game_manager;
 pub mod input;
 pub mod item;
-pub mod stats;
 pub mod ui;
