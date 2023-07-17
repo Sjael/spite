@@ -2,7 +2,7 @@ use std::{time::Duration, collections::{BTreeMap}};
 
 use bevy::prelude::*;
 
-use crate::{area::CCEvent, GameState, assets::Icons};
+use crate::{area::CCEvent, GameState, assets::Icons, game_manager::PreInGameSet};
 
 
 #[derive(Debug, Clone, Reflect, FromReflect, Copy)]
@@ -55,10 +55,10 @@ pub struct CCPlugin;
 impl Plugin for CCPlugin{
     fn build(&self, app: &mut App) {
 
-        app.add_systems((
-            tick_ccs.run_if(in_state(GameState::InGame)),
-            apply_ccs.run_if(in_state(GameState::InGame)),
-        ).chain().in_base_set(CoreSet::PreUpdate));
+        app.add_systems(PreInGameSet, (
+            tick_ccs,
+            apply_ccs,
+        ).chain());
     }
 }
 

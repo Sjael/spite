@@ -89,7 +89,7 @@ impl Plugin for GameAssetPlugin {
         .add_collection_to_loading_state::<_, Models>(GameState::Loading)
         .add_collection_to_loading_state::<_, Items>(GameState::Loading);
 
-        app.add_startup_system(load_presets);
+        app.add_systems(Startup, load_presets);
     }
 }
 

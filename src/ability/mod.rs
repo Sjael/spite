@@ -5,9 +5,9 @@ use std::{time::Duration, collections::HashMap};
 use bevy::prelude::*;
 use leafwing_input_manager::Actionlike;
 use derive_more::Display;
-use crate::{actor::{crowd_control::CCInfo, buff::BuffInfo}, assets::Icons};
+use crate::{actor::{crowd_control::CCInfo, buff::BuffInfo, stats::Stat}, assets::Icons};
 
-use self::bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo};
+use self::{bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo}, shape::AbilityShape};
 
 pub mod bundles;
 pub mod shape;
@@ -95,8 +95,91 @@ impl Ability {
                 image: "icons/BasicAttack.png".to_string(),
                 description: "A very boring attack".to_string(),
             },
-        }}
+        }
+    }
+
+    pub fn get_scaling(&self) -> u32{
+        match self{
+            Ability::Frostbolt => 30,
+            _ => 40,
+        }
+    }
 }
+
+
+pub struct AbilityBlueprint{
+    base_ability: Ability,
+    name: String,
+    pub stages: Vec<AbilityStage>,
+    cooldown: Cooldown,
+}
+
+pub struct AbilityStage{
+    scaling: Scaling,
+    base_damage: BaseDamage,
+    shape: AbilityShape,
+    path: Path,
+    trigger: Trigger,
+}
+
+pub enum Trigger{
+    Cast(TransformOrigin),
+    HitEnemy, // Merlin Frostbolt explosion
+    Detonate, // Isis Spirit ball, Thor 1
+}
+
+pub enum TransformOrigin{
+    Player,
+    Reticle,
+}
+
+pub enum Path{
+    Static,
+    Straight{
+        lifetime: f32,
+        speed: f32,
+    }
+}
+
+pub struct Scaling{
+    pub base: u32,
+    pub per_rank: u32,
+    pub stat: Stat,
+}
+pub struct BaseDamage{
+    pub base: u32,
+    pub per_rank: u32,
+}
+pub struct Cooldown{
+    pub base: u32,
+    pub per_rank: u32,
+}
+
+
+#[derive(Debug, Default, Clone)]
+pub struct AbilityBuilder{
+    base_ability: Ability,
+    scaling: Option<u32>,
+}
+
+impl AbilityBuilder{
+    pub fn new(ability: Ability) -> AbilityBuilder{
+        Self{
+            base_ability: ability,
+            scaling: None,
+        }
+    }
+    pub fn with_scaling(&mut self, scaling: u32)-> &mut Self{
+        self.scaling = Some(scaling);
+        self
+    }
+    pub fn build(&mut self, commands: &mut Commands) -> Entity{
+        dbg!(self);
+        let ability = FireballInfo::fire_bundle(&Transform::default());
+        commands.spawn(()).id()
+    }
+}
+
 
 #[derive(Component, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]

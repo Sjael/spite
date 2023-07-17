@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use crate::{
     area::BuffEvent,
-    GameState,
+    GameState, game_manager::InGameSet,
 };
 use bevy::prelude::*;
 use super::stats::{AttributeTag, Attributes, Stat};
@@ -78,10 +78,10 @@ impl Plugin for BuffPlugin {
         app.add_event::<BuffStackEvent>();
         app.register_type::<BuffMap>();
 
-        app.add_systems((
+        app.add_systems(InGameSet, (
             apply_buffs,
             tick_buffs,
-        ).in_set(OnUpdate(GameState::InGame)));
+        ));
     }
 }
 

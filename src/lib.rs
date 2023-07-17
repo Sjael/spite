@@ -58,10 +58,9 @@ pub fn app_plugins_both(app: &mut App) {
         .add_plugin(CharacterPlugin)
         .add_plugin(AreaPlugin)
         .add_plugin(InputPlugin)
-        .add_systems((
-            load_ability_shape.in_base_set(CoreSet::PostUpdate), // after systems that spawn ability_shape components
-            tick_game,
-        ));
+        .add_systems(PostUpdate, load_ability_shape)// after systems that spawn ability_shape components
+        .add_systems(Update, tick_game); 
+        
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]

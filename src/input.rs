@@ -18,14 +18,11 @@ impl Plugin for InputPlugin {
 
         app.insert_resource(MouseSensitivity(1.0));
 
-        app.add_system(clean_inputs.in_base_set(CoreSet::PostUpdate).in_schedule(OnEnter(GameState::InGame)));
-        app.add_systems((
-            copy_action_state
-                .in_base_set(CoreSet::PreUpdate)
-                .after(InputManagerSystem::ManualControl)
-                .run_if(in_state(GameState::InGame)),
-            report_abilities_used,
+        app.add_systems(OnEnter(GameState::InGame), clean_inputs);
+        app.add_systems(PreUpdate, (
+            copy_action_state.after(InputManagerSystem::ManualControl).run_if(in_state(GameState::InGame)),
         ));
+        app.add_systems(Update, report_abilities_used);
     }
 }
 

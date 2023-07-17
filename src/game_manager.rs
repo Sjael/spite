@@ -3,18 +3,25 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bevy::{prelude::*, ecs::component::TableStorage};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
     ability::{Ability, bundles::Caster, TickBehavior, 
         MaxTargetsHit, TargetsInArea, TargetsHittable,},
     area::homing::Homing,
-    actor::{cast_ability, IncomingDamageLog, player::Player, SpawnEvent, view::Reticle, stats::{Attributes, Stat},},
+    actor::{cast_ability, IncomingDamageLog, player::Player, SpawnEvent, view::Reticle, stats::{Attributes, Stat}, AbilityRanks,},
     
     ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
     GameState,
 };
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InGameSet;
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PreInGameSet;
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PostInGameSet;
 
 pub struct GameManagerPlugin;
 impl Plugin for GameManagerPlugin {
@@ -29,19 +36,21 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<DeathEvent>();
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
+ 
+        app.configure_set(Update, InGameSet.run_if(in_state(GameState::InGame)));
+        app.configure_set(PreUpdate, PreInGameSet.run_if(in_state(GameState::InGame)));
+        app.configure_set(PostUpdate, PostInGameSet.run_if(in_state(GameState::InGame)));
 
 
-        app.add_systems((
-                check_deaths,
-                increment_bounty,
-                handle_respawning,
-                show_respawn_ui,
-                tick_respawn_ui,
-                place_ability.after(cast_ability),
-                place_homing_ability,
-            )
-                .in_set(OnUpdate(GameState::InGame)),
-        );
+        app.add_systems(InGameSet, (
+            check_deaths,
+            increment_bounty,
+            handle_respawning,
+            show_respawn_ui,
+            tick_respawn_ui,
+            place_ability.after(cast_ability),
+            place_homing_ability,
+        ));
     }
 }
 
@@ -156,13 +165,13 @@ fn place_homing_ability(
 fn place_ability(
     mut commands: Commands,
     mut cast_events: EventReader<AbilityFireEvent>,
-    caster: Query<(&GlobalTransform, &Team)>,
+    caster: Query<(&GlobalTransform, &Team, &AbilityRanks)>,
     reticle: Query<&GlobalTransform, With<Reticle>>,
     procmaps: Query<&ProcMap>,
 ) {
     let Ok(reticle_transform) = reticle.get_single() else {return};
     for event in cast_events.iter() {
-        let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
+        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else {return};
 
         // Get ability-specific components
         let spawned ;
@@ -180,7 +189,8 @@ fn place_ability(
             Caster(event.caster),
         ));        
 
-
+        let rank = *ranks.map.get(&event.ability).unwrap_or(&0);
+        let scaling = rank * event.ability.get_scaling();
 
         // Apply special proc components
         if let Ok(procmap) = procmaps.get(event.caster){

@@ -5,13 +5,16 @@ use ui_bundles::team_thumbs_holder;
 use crate::{
     ui::{ui_bundles::*,styles::*, spectating::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
     ability::AbilityTooltip,
-    game_manager::{GameModeDetails, DeathEvent, Team}, 
+    game_manager::{GameModeDetails, DeathEvent, Team, InGameSet}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
-    actor::{view::{PlayerCam, Spectating}, HasHealthBar, player,stats::{Attributes, Stat, AttributeTag}},     
+    actor::{view::{PlayerCam, Spectating}, HasHealthBar, stats::{Attributes, Stat, AttributeTag}},     
 };
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SpectatingUI;
+pub struct SpectatingSet;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FreeMouseSet;
 
 pub struct UiPlugin;
 impl Plugin for UiPlugin {
@@ -28,29 +31,30 @@ impl Plugin for UiPlugin {
         app.insert_resource(FocusedHealthEntity(None));
 
 
-        app.add_systems((
+        app.add_systems(OnEnter(GameState::MainMenu), (
             spawn_main_menu, 
-        ).in_schedule(OnEnter(GameState::MainMenu)));
-        app.add_systems((
-            exit_game_main_menu,
-        ).in_set(OnUpdate(GameState::MainMenu)));
-        app.add_systems((
+        ));
+        app.add_systems(Update, (
+            exit_game_main_menu.run_if(in_state(GameState::MainMenu)),
+        ));
+        app.add_systems(OnExit(GameState::MainMenu), (
             cleanup, 
-        ).in_schedule(OnExit(GameState::MainMenu)));
+        ));
 
-        app.add_systems((
+        app.add_systems(Update, (
             button_hovers,
             button_actions,
         ));
 
-        app.add_systems((
+        app.add_systems(OnEnter(GameState::InGame), (
             add_base_ui,
             add_ingame_menu,
-        ).in_schedule(OnEnter(GameState::InGame)));
+        ));
         
-        app.configure_set(SpectatingUI.run_if(resource_exists::<Spectating>()).in_set(OnUpdate(GameState::InGame)));
+        app.configure_set(Update, SpectatingSet.run_if(resource_exists::<Spectating>()).run_if(in_state(GameState::InGame)));
+        app.configure_set(Update, FreeMouseSet.run_if(in_state(MouseState::Free)).run_if(in_state(GameState::InGame)));
 
-        app.add_systems((
+        app.add_systems(SpectatingSet, (
             update_health,
             update_character_resource,
             update_cc_bar,
@@ -62,8 +66,8 @@ impl Plugin for UiPlugin {
             update_buff_stacks,
             spawn_floating_damage,   
             update_damage_log_ui, 
-        ).in_set(SpectatingUI));
-        app.add_systems((
+        ));
+        app.add_systems(InGameSet, (
             add_player_ui,
             add_ability_icons,
             follow_in_3d,
@@ -71,8 +75,8 @@ impl Plugin for UiPlugin {
             update_buff_timers,
             update_objective_health,
             toggle_objective_health,
-        ).in_set(OnUpdate(GameState::InGame)));
-        app.add_systems((
+        ));
+        app.add_systems(InGameSet, (
             draggables.run_if(in_state(MouseState::Free)),
             menu_toggle,
             mouse_with_free_key,
@@ -85,27 +89,26 @@ impl Plugin for UiPlugin {
             //show_floating_health_bars.run_if(resource_exists::<Spectating>()),
             spawn_floating_health_bars,
             bar_track,
-        ).in_set(OnUpdate(GameState::InGame)));
-        
-        app.add_systems((
-            load_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
-            move_tooltip.run_if(in_state(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
-            hide_tooltip.in_schedule(OnExit(MouseState::Free)).in_set(OnUpdate(GameState::InGame)),
-        ));
-
-        app.add_systems((
-            state_ingame_menu.in_set(OnUpdate(GameState::InGame)),
-            toggle_ingame_menu.in_schedule(OnEnter(InGameMenu::Open)),
-            toggle_ingame_menu.in_schedule(OnEnter(InGameMenu::Closed)),
+            state_ingame_menu,
         ));
         
-
-        app.add_systems((
-            give_editable_ui.in_schedule(OnEnter(EditingHUD::Yes)),
-            remove_editable_ui.in_schedule(OnEnter(EditingHUD::No)),
-            scale_ui.in_set(OnUpdate(EditingHUD::Yes)),
-            reset_editable_ui.in_set(OnUpdate(EditingHUD::Yes))
+        app.add_systems(FreeMouseSet, (
+            load_tooltip,
+            move_tooltip,
         ));
+        app.add_systems(OnExit(MouseState::Free), hide_tooltip);
+
+        app.add_systems(OnEnter(InGameMenu::Open), toggle_ingame_menu);
+        app.add_systems(OnEnter(InGameMenu::Closed), toggle_ingame_menu);
+        
+
+        app.add_systems(OnEnter(EditingHUD::Yes), (
+            give_editable_ui,
+            scale_ui,
+            reset_editable_ui,
+        ));
+
+        app.add_systems(OnEnter(EditingHUD::No), remove_editable_ui);
 
     }
 }

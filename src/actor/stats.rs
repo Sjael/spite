@@ -31,7 +31,8 @@ pub enum Stat {
     MagicalProtection,
     PhysicalPenetration,
     MagicalPenetration,
-    AttacksPerSecond
+    AttacksPerSecond,
+    CooldownReduction,
 }
 
 impl Stat{
@@ -48,6 +49,7 @@ impl Stat{
             PhysicalProtection => 25.0,
             MagicalPower => 45.0,
             PhysicalPower => 200.0,
+            CooldownReduction => 50.0,
             _ => 0.0,
         }
     }
@@ -80,7 +82,7 @@ pub enum Modifier {
 }
 
 impl Modifier {
-    fn into_tag(self, stat: Stat) -> AttributeTag {
+    pub fn into_tag(self, stat: Stat) -> AttributeTag {
         AttributeTag::Modifier{
             modifier: self,
             target: Box::new(stat.into())
@@ -98,13 +100,13 @@ impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HealthMitigatedEvent>();
         app.register_type::<Vec<String>>();
-        app.add_systems((
+        app.add_systems(InGameSet, (
             calculate_attributes,
             regen_health,
             regen_resource,
             calculate_health_change,
             apply_health_change,
-        ).chain().in_set(OnUpdate(GameState::InGame)));
+        ).chain());
     }
 }
 
@@ -258,9 +260,9 @@ impl Default for Attributes{
 }
 
 pub fn calculate_attributes(
-    mut attributes: Query<(Entity, &mut Attributes), Changed<Attributes>>,
+    mut attributes: Query<&mut Attributes, Changed<Attributes>>,
 ){
-    for (entity, mut attributes) in &mut attributes {
+    for mut attributes in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before Mul<Base<Health>>
         let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
         tags.sort_by(|a, b| a.ordering().cmp(&b.ordering()));

@@ -17,7 +17,7 @@ pub fn player_mouse_input(
     sensitivity: Res<MouseSensitivity>,
     mouse_state: Res<State<MouseState>>,
 ) {
-    if mouse_state.0 == MouseState::Free { return; } // if mouse is free, dont turn character
+    if mouse_state == MouseState::Free { return; } // if mouse is free, dont turn character
     let mut cumulative_delta = Vec2::ZERO;
     for ev in ev_mouse.iter() {
         cumulative_delta += ev.delta;

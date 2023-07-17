@@ -1,7 +1,7 @@
-use bevy::{prelude::*, window::{PrimaryWindow}};
+use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_editor_pls::editor::Editor;
 
-use crate::{ui::ui_bundles::{StoreMain, TabPanel, TabMenuType}};
+use crate::ui::ui_bundles::{StoreMain, TabPanel, TabMenuType};
 
 use super::{ingame_menu::InGameMenu, hud_editor::EditingHUD};
 
@@ -44,15 +44,15 @@ pub fn window_focused(windows: Query<Option<&Window>, With<PrimaryWindow>>) -> b
 }
 
 pub fn free_mouse(
-    mouse_is_free: Res<State<MouseState>>,
+    mouse_state: Res<State<MouseState>>,
     editor: Option<Res<Editor>>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
 ){    
     let editor_active = editor.map(|state| state.active()).unwrap_or(false);
     let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else { return };
     let Ok(mut window) = windows.get_single_mut() else { return };
-    if mouse_is_free.is_changed(){
-        if mouse_is_free.0 == MouseState::Locked && window_is_focused && !editor_active{
+    if mouse_state.is_changed(){
+        if mouse_state == MouseState::Locked && window_is_focused && !editor_active{
             window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
             window.cursor.visible = false;
         } else{
@@ -70,19 +70,19 @@ pub fn mouse_with_free_key(
     editing_hud: Res<State<EditingHUD>>,
     mut next_state: ResMut<NextState<MouseState>>,
 ){  
-    if tab_menu.0 == TabMenu::Closed 
-        && store_menu.0 == StoreMenu::Closed
-        && ingame_menu.0 == InGameMenu::Closed
-        && editing_hud.0 == EditingHUD::No 
+    if tab_menu == TabMenu::Closed 
+        && store_menu == StoreMenu::Closed
+        && ingame_menu == InGameMenu::Closed
+        && editing_hud == EditingHUD::No 
     {
         next_state.set(MouseState::Locked);
     }
     
     if kb.pressed(KeyCode::Space) 
-        || tab_menu.0 == TabMenu::Open 
-        || store_menu.0 == StoreMenu::Open
-        || ingame_menu.0 == InGameMenu::Open
-        || editing_hud.0 == EditingHUD::Yes 
+        || tab_menu == TabMenu::Open 
+        || store_menu == StoreMenu::Open
+        || ingame_menu == InGameMenu::Open
+        || editing_hud == EditingHUD::Yes 
     {
         next_state.set(MouseState::Free);
     }

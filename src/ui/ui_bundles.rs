@@ -473,7 +473,8 @@ pub fn bottom_left_ui_holder() -> impl Bundle {(
 pub fn bottom_left_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             ..default()
         },
         ..default()

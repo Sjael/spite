@@ -6,7 +6,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
     ability::{Ability, DamageType}, 
-    game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING}, 
+    game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet, PostInGameSet}, 
      
      
     input::SlotBundle, ui::Trackable, 
@@ -44,39 +44,30 @@ impl Plugin for CharacterPlugin {
             .add_plugin(CCPlugin);
 
         //Systems
-        app.add_system(setup_player.in_schedule(OnEnter(GameState::InGame)));
-        app.add_systems((
-                player_keys_input.run_if(in_state(GameState::InGame)),
-                player_mouse_input.run_if(in_state(GameState::InGame)),
-                select_ability.run_if(in_state(GameState::InGame)),
-                update_local_player_inputs,
-            )
-                .in_base_set(CoreSet::PreUpdate),
-        );
-        app.add_systems((
-                cast_ability,
-                normal_casting,
-                show_targetter.after(normal_casting),
-                change_targetter_color,
-                trigger_cooldown.after(cast_ability),
-                tick_cooldowns.after(trigger_cooldown),
-                start_ability_windup.after(cast_ability),
-                tick_windup_timer,
-                spawn_player,
-                update_damage_logs,
-            )
-                .in_set(OnUpdate(GameState::InGame)),
-        );
-        // Process transforms always after inputs
-        app.add_systems((
-                actor_swivel.run_if(in_state(GameState::InGame)),
-                // Process translations after rotations
-                actor_movement
-                    .after(actor_swivel)
-                    .run_if(in_state(GameState::InGame))
-            )
-            .in_base_set(CoreSet::PostUpdate),
-        );
+        app.add_systems(OnEnter(GameState::InGame), setup_player);
+        app.add_systems(PreInGameSet, (
+            player_keys_input,
+            player_mouse_input,
+            select_ability,
+            update_local_player_inputs,
+        ));
+        app.add_systems(InGameSet, (
+            cast_ability,
+            normal_casting,
+            show_targetter.after(normal_casting),
+            change_targetter_color,
+            trigger_cooldown.after(cast_ability),
+            tick_cooldowns.after(trigger_cooldown),
+            start_ability_windup.after(cast_ability),
+            tick_windup_timer,
+            spawn_player,
+            update_damage_logs,
+        ));
+        // Process transforms always after inputs, and translations after rotations
+        app.add_systems(PostInGameSet, (
+            actor_swivel,            
+            actor_movement, 
+        ).chain());
     }
 }
 
@@ -140,6 +131,7 @@ fn spawn_player(
             }).insert((
                 TEAM_1,
                 AbilityCastSettings::default(),
+                AbilityRanks::default(),
                 IncomingDamageLog::default(),
                 OutgoingDamageLog::default(),
                 Bounty::default(),
@@ -285,13 +277,18 @@ fn tick_windup_timer(
     }
 }
 
-fn trigger_cooldown(mut cast_events: EventReader<AbilityFireEvent>, mut query: Query<&mut CooldownMap>) {
+fn trigger_cooldown(
+    mut cast_events: EventReader<AbilityFireEvent>, 
+    mut query: Query<(&mut CooldownMap, &Attributes)>,
+) {
     for event in cast_events.iter() {
-        let Ok(mut cooldowns) = query.get_mut(event.caster) else { continue };
+        let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else { continue };
+        let cdr = 1.0 - (*attributes.get(&Stat::CooldownReduction.into()).unwrap_or(&0.0) / 100.0);
+
         cooldowns.map.insert(
             event.ability.clone(),
             Timer::new(
-                Duration::from_millis((event.ability.get_cooldown() * 1000.) as u64),
+                Duration::from_millis((event.ability.get_cooldown() * cdr * 1000.) as u64),
                 TimerMode::Once,
             ),
         );
@@ -313,6 +310,19 @@ fn tick_cooldowns(
             !timer.finished()
         });
     }
+}
+
+#[derive(Component, Reflect, Default, Debug, Clone)]
+#[reflect]
+pub struct AbilityMap{
+    pub ranks: HashMap<Ability, u32>,
+    pub cds: HashMap<Ability, Timer>,
+}
+
+#[derive(Component, Reflect, Default, Debug, Clone)]
+#[reflect]
+pub struct AbilityRanks{
+    pub map: HashMap<Ability, u32>,
 }
 
 #[derive(Component, Reflect, Default, Debug, Clone)]

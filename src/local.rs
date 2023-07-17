@@ -20,7 +20,7 @@ use sacred_aurora::{
     assets::*,
     game_manager::{
         CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
-        TERRAIN_GROUPING,
+        TERRAIN_GROUPING, InGameSet,
     },
     actor::{IncomingDamageLog, view::Spectatable, HasHealthBar, Tower,
         stats::*,
@@ -35,14 +35,10 @@ fn main() {
     let mut app = App::new();
     sacred_aurora::app_plugins_both(&mut app);
     // Systems
-    app.add_system(setup_map.in_schedule(OnEnter(GameState::InGame)));
-    app.add_system(setup_camera.on_startup());
-    app.add_systems(
-        (camera_movement_system, mouse_motion_system)
-            .in_set(OnUpdate(CharacterState::Dead))
-            .in_set(OnUpdate(GameState::InGame)),
-    );
-    app.add_system(set_window_icon.on_startup());
+    app.add_systems(OnEnter(GameState::InGame), setup_map);
+    app.add_systems(Startup, setup_camera);
+    app.add_systems(InGameSet, (camera_movement_system, mouse_motion_system).run_if(in_state(CharacterState::Dead)));
+    app.add_systems(Startup, set_window_icon);
     app.run();
 }
 

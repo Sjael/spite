@@ -1,4 +1,4 @@
-use bevy::{prelude::*, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}};
+use bevy::{prelude::*, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}, transform::TransformSystem};
 use bevy_rapier3d::prelude::{RapierContext, QueryFilter, };
 
 use crate::{ game_manager::{CharacterState, CAMERA_GROUPING}, GameState};
@@ -14,20 +14,20 @@ impl Plugin for ViewPlugin {
 
         app.add_event::<SpectateEvent>();
 
-        app.add_systems((
-            avoid_intersecting.in_schedule(CoreSchedule::FixedUpdate).in_set(OnUpdate(GameState::InGame)),
-            follow_entity.in_schedule(CoreSchedule::FixedUpdate).in_base_set(CoreSet::PostUpdate),
+        app.add_systems(FixedUpdate, (
+            avoid_intersecting,
         ));
-        app.add_systems((
-            spawn_camera_gimbal.run_if(resource_exists::<Spectating>()),
-            swap_cameras.run_if(resource_exists::<Spectating>()).run_if(in_state(CharacterState::Dead)),
-            spectate_entity.run_if(resource_exists::<Spectating>()),
-        ).in_set(OnUpdate(GameState::InGame)));
-        app.add_systems((
-            update_spectatable.run_if(in_state(GameState::InGame)),
-            camera_swivel_and_tilt.run_if(in_state(GameState::InGame)).run_if(resource_exists::<Spectating>()),
-            move_reticle.after(camera_swivel_and_tilt).run_if(in_state(GameState::InGame)),
-        ).in_base_set(CoreSet::PostUpdate));
+        app.add_systems(SpectatingSet, (
+            spawn_camera_gimbal,
+            swap_cameras.run_if(in_state(CharacterState::Dead)),
+            spectate_entity,
+        ));
+        app.add_systems(PostInGameSet, (
+            update_spectatable,
+            camera_swivel_and_tilt.run_if(resource_exists::<Spectating>()),
+            move_reticle.after(camera_swivel_and_tilt),
+            follow_entity.after(TransformSystem::TransformPropagate),
+        ));
     }
 }
 

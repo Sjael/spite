@@ -56,24 +56,23 @@ impl Plugin for AreaPlugin {
         app.add_event::<BuffEvent>();
         app.add_event::<CCEvent>();
 
-        app.add_systems((
+        app.add_systems(PreUpdate, (
+            apply_interval, 
+            catch_collisions, 
+        ));
+        app.add_systems(Update, (
             tick_lifetime, 
             tick_hit_timers, 
             track_homing, 
             add_health_bar_detect_colliders,
             focus_objective_health,
         ));
-        app.add_systems((
-            apply_interval, 
-            catch_collisions, 
-        ).in_base_set(CoreSet::PreUpdate));
-        app.add_systems((
-                filter_targets,
-                area_queue_targets,
-                area_apply_tags,
-                despawn_after_max_hits,
-            ).chain().after(catch_collisions),
-        );
+        app.add_systems(Update, (
+            filter_targets,
+            area_queue_targets,
+            area_apply_tags,
+            despawn_after_max_hits,
+        ).chain());
     }
 }
 
