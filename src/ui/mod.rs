@@ -54,7 +54,7 @@ impl Plugin for UiPlugin {
         app.configure_set(Update, SpectatingSet.run_if(resource_exists::<Spectating>()).run_if(in_state(GameState::InGame)));
         app.configure_set(Update, FreeMouseSet.run_if(in_state(MouseState::Free)).run_if(in_state(GameState::InGame)));
 
-        app.add_systems(SpectatingSet, (
+        app.add_systems(Update, (
             update_health,
             update_character_resource,
             update_cc_bar,
@@ -66,8 +66,8 @@ impl Plugin for UiPlugin {
             update_buff_stacks,
             spawn_floating_damage,   
             update_damage_log_ui, 
-        ));
-        app.add_systems(InGameSet, (
+        ).in_set(SpectatingSet));
+        app.add_systems(Update, (
             add_player_ui,
             add_ability_icons,
             follow_in_3d,
@@ -75,8 +75,8 @@ impl Plugin for UiPlugin {
             update_buff_timers,
             update_objective_health,
             toggle_objective_health,
-        ));
-        app.add_systems(InGameSet, (
+        ).in_set(InGameSet::Update));
+        app.add_systems(Update, (
             draggables.run_if(in_state(MouseState::Free)),
             menu_toggle,
             mouse_with_free_key,
@@ -90,12 +90,12 @@ impl Plugin for UiPlugin {
             spawn_floating_health_bars,
             bar_track,
             state_ingame_menu,
-        ));
+        ).in_set(InGameSet::Update));
         
-        app.add_systems(FreeMouseSet, (
+        app.add_systems(Update, (
             load_tooltip,
             move_tooltip,
-        ));
+        ).in_set(FreeMouseSet));
         app.add_systems(OnExit(MouseState::Free), hide_tooltip);
 
         app.add_systems(OnEnter(InGameMenu::Open), toggle_ingame_menu);
@@ -118,7 +118,7 @@ fn button_hovers(
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => {
+            Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
             }
             Interaction::Hovered => {
@@ -231,15 +231,13 @@ fn draggables(
     let Some(cursor_pos) = window.cursor_position() else { return };  
     if !mouse.pressed(MouseButton::Left) { return }
     for (handle_entity, interaction, handle_parent) in &handle_query {
-        if *interaction != Interaction::Clicked{ 
+        if *interaction != Interaction::Pressed{ 
             continue
         };
         for draggable in [handle_entity, handle_parent.get()]{
             let Ok((mut style, parent, node, gt, draggable)) = draggable_query.get_mut(draggable) else { 
                 continue 
             };
-            // cursor is from bottom left, ui is from top left so we need to flip  
-            let cursor_y_flip = window.height() - cursor_pos.y; 
             if mouse.just_pressed(MouseButton::Left){
                 if let Ok((parent_node, parent_gt)) = parent_query.get(parent.get()){  
                     parent_offset.x = parent_gt.translation().x - parent_node.size().x/2.0;  
@@ -247,10 +245,10 @@ fn draggables(
                     *max_offset = parent_node.size() - node.size();
                 }
                 offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
-                offset.y = cursor_y_flip - (gt.translation().y - node.size().y/2.0);
+                offset.y = cursor_pos.y - (gt.translation().y - node.size().y/2.0);
             }   
             let mut left_position = cursor_pos.x - parent_offset.x - offset.x;
-            let mut top_position = cursor_y_flip - parent_offset.y - offset.y;
+            let mut top_position = cursor_pos.y - parent_offset.y - offset.y;
             // clamp cant go outside bounds, with border if wanted
             if let Draggable::BoundByParent(border) = *draggable{
                 let border = border as f32;
@@ -258,9 +256,8 @@ fn draggables(
                 top_position = top_position.clamp(0.0 - border, max_offset.y + border);
             };
             style.margin = UiRect::default();
-            style.position = UiRect::all(Val::Px(0.));
-            style.position.left = Val::Px(left_position);
-            style.position.top = Val::Px(top_position);
+            style.left = Val::Px(left_position);
+            style.top = Val::Px(top_position);
             style.position_type = PositionType::Absolute;
         } 
     }
@@ -273,8 +270,8 @@ fn move_tooltip(
 ){
     let Ok(mut style) = tooltip.get_single_mut() else{ return };
     if let Some(cursor_move) = move_events.iter().next(){        
-        style.position.left = Val::Px(cursor_move.position.x);
-        style.position.bottom = Val::Px(cursor_move.position.y);
+        style.left = Val::Px(cursor_move.position.x);
+        style.bottom = Val::Px(cursor_move.position.y);
     } 
 }
 
@@ -302,7 +299,7 @@ fn load_tooltip(
                     tooltip.0 = None;
                 }
             },
-            Interaction::Hovered | Interaction::Clicked =>{
+            Interaction::Hovered | Interaction::Pressed =>{
                 if let Some(last_hovered) = tooltip.0{
                     if last_hovered == hovering_entity {
                         return
@@ -410,7 +407,7 @@ pub fn button_actions(
     mut reset_ui_events: EventWriter<ResetUiEvent>,
 ) {
     for (button_action, interaction) in &mut interaction_query {
-        if *interaction != Interaction::Clicked {continue};
+        if *interaction != Interaction::Pressed {continue};
         match button_action {
             ButtonAction::Play => {
                 game_state_next.set(GameState::InGame);
@@ -422,13 +419,13 @@ pub fn button_actions(
                 game_state_next.set(GameState::MainMenu);
             }
             ButtonAction::Resume => {
-                ingamemenu_next.set(ingamemenu_state.0.toggle());
+                ingamemenu_next.set(ingamemenu_state.toggle());
             }
             ButtonAction::Exit => {
                 app_exit_writer.send(AppExit);
             }
             ButtonAction::EditUi => {
-                editing_hud_next.set(editing_hud_state.0.toggle());
+                editing_hud_next.set(editing_hud_state.toggle());
                 ingamemenu_next.set(InGameMenu::Closed);
             },
             ButtonAction::ResetUi => {
@@ -445,8 +442,8 @@ pub fn minimap_track(
     let Ok(mut style) = arrow_query.get_single_mut() else { return };
     for tracking in trackables.iter(){
         let (player_left, player_top) =  (tracking.translation().x, tracking.translation().z);
-        style.position.left = Val::Px(player_left);
-        style.position.top = Val::Px(player_top);
+        style.left = Val::Px(player_left);
+        style.top = Val::Px(player_top);
     }
 }
 
@@ -511,7 +508,7 @@ pub fn bar_track(
         let current = *attributes.get(&tracking.current).unwrap_or(&0.0);
         let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
         let new_size = current / max;
-        style.size.width = Val::Percent(new_size * 100.0);
+        style.width = Val::Percent(new_size * 100.0);
     }
 }
 
@@ -534,15 +531,11 @@ fn follow_in_3d(
             continue
         };
 
-        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 1.2) else {
+        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 2.0) else {
             continue;
         };
-
-        style.position = UiRect {
-            left: Val::Px(viewport.x),
-            bottom: Val::Px(viewport.y),
-            ..default()
-        };
+        style.left = Val::Px(viewport.x);
+        style.top = Val::Px(viewport.y);
     }
 }
 

@@ -43,7 +43,8 @@ pub struct UiForEditingUi;
 pub fn editing_ui_handle() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             position_type: PositionType::Absolute,
             ..default()
         },
@@ -80,7 +81,8 @@ pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bun
 pub fn editable_ui_wrapper() -> impl Bundle{(
     NodeBundle{
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             position_type: PositionType::Absolute,
             ..default()
         },
@@ -95,11 +97,8 @@ pub fn editing_ui() -> impl Bundle{(
         style: Style {
             flex_direction: FlexDirection::Column,
             position_type: PositionType::Absolute,
-            position: UiRect{
-                right: Val::Px(30.),
-                bottom: Val::Px(30.),
-                ..default()
-            },
+            right: Val::Px(30.),
+            bottom: Val::Px(30.),
             ..default()
         },
         z_index: ZIndex::Global(11),
@@ -134,15 +133,13 @@ pub struct RespawnText;
 pub fn respawn_holder() -> impl Bundle{(
     NodeBundle{
         style: Style {
-            size: Size::new(Val::Px(200.), Val::Px(150.)),
+            width: Val::Px(200.),
+            height: Val::Px(150.),
             position_type: PositionType::Absolute,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
-            position: UiRect {
-                left: Val::Percent(20.),
-                bottom: Val::Percent(10.),
-                ..default()
-            },
+            left: Val::Percent(20.),
+            bottom: Val::Percent(10.),
             ..default()
         },
         visibility: Visibility::Hidden,
@@ -180,16 +177,17 @@ pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
 pub fn minimap_holder() -> impl Bundle{(
     NodeBundle{
         style: Style {
-            size: Size::new(Val::Px(300.), Val::Px(300.)),
+            width: Val::Px(300.),
+            height: Val::Px(300.),
             position_type: PositionType::Absolute,
             margin: UiRect {
                 right: Val::Percent(20.),
                 ..UiRect::all(Val::Auto)
             },
-            position: UiRect {
-                right: Val::Percent(20.),
-                ..UiRect::all(Val::Px(0.))
-            },
+            right: Val::Percent(20.),
+            top: Val::Px(0.),
+            left: Val::Px(0.),
+            bottom: Val::Px(0.),
             ..default()
         },
         ..default()
@@ -203,7 +201,8 @@ pub struct Minimap;
 pub fn minimap(images: &Res<Images>) -> impl Bundle {(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             ..default()
         },
         image: images.minimap.clone().into(),
@@ -219,10 +218,14 @@ pub struct MinimapPlayerIcon;
 pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle{(    
     ImageBundle {
         style: Style {
-            max_size: Size::new(Val::Px(16.), Val::Px(16.)),
+            max_width: Val::Px(16.),
+            max_height: Val::Px(16.),
             position_type: PositionType::Absolute,
             margin: UiRect::all(Val::Auto),
-            position: UiRect::all(Val::Px(0.)),
+            top: Val::Px(0.),
+            bottom: Val::Px(0.),
+            left: Val::Px(0.),
+            right: Val::Px(0.),
             ..default()
         },
         image: images.circle.clone().into(),
@@ -235,7 +238,8 @@ pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle{(
 pub fn killfeed_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(150.), Val::Percent(45.)),
+            width: Val::Px(150.),
+            height: Val::Percent(45.),
             position_type: PositionType::Absolute,
             margin: UiRect {
                 right: Val::Px(30.),
@@ -254,7 +258,8 @@ pub struct Killfeed;
 pub fn killfeed() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             ..default()
         },
@@ -312,7 +317,8 @@ pub fn kill_notification() -> impl Bundle{
     (
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Px(64.)),
+            width: Val::Percent(100.),
+            height: Val::Px(64.),
             ..default()
         },
         background_color: Color::rgba(0.2, 0.2, 1.0, 0.1).into(),
@@ -359,7 +365,8 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
     NodeBundle {
         style: Style {
             position_type: PositionType::Absolute,
-            size: Size::new(Val::Px(100.), Val::Px(30.)),
+            width: Val::Px(100.),
+            height: Val::Px(30.),
             margin: UiRect{
                 left:Val::Px(-50.0),
                 ..default()
@@ -443,7 +450,8 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
 pub fn floating_health_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(120.), Val::Px(30.)),
+            width: Val::Px(120.),
+            height: Val::Px(30.),
             position_type: PositionType::Absolute,
             padding: UiRect::all(Val::Px(3.0)),
             ..default()
@@ -456,13 +464,11 @@ pub fn floating_health_bar() -> impl Bundle {(
 pub fn bottom_left_ui_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(220.), Val::Px(140.)),
+            width: Val::Px(220.),
+            height: Val::Px(140.),
             position_type: PositionType::Absolute,
-            position: UiRect {
-                bottom: Val::Px(40.),
-                left: Val::Px(40.),
-                ..default()
-            },
+            bottom: Val::Px(40.),
+            left: Val::Px(40.),
             ..default()
         },
         ..default()
@@ -484,7 +490,8 @@ pub fn bottom_left_ui() -> impl Bundle {(
 pub fn stats_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(60.), Val::Percent(100.)),
+            width: Val::Px(60.),
+            height: Val::Percent(100.),
             flex_direction:FlexDirection::Column,
             ..default()
         },
@@ -496,7 +503,8 @@ pub fn stats_ui() -> impl Bundle {(
 pub fn build_and_kda() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             flex_direction:FlexDirection::Column,
             ..default()
         },
@@ -509,7 +517,8 @@ pub struct BuildUI;
 pub fn build_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             ..default()
         },
         //background_color: Color::rgba(0.9, 0.6, 0.1, 0.2).into(),
@@ -521,7 +530,8 @@ pub fn build_ui() -> impl Bundle {(
 pub fn kda_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Px(40.)),
+            width: Val::Percent(100.),
+            height: Val::Px(40.),
             ..default()
         },
         //background_color: Color::rgba(0.1, 0.6, 0.9, 0.2).into(),
@@ -536,13 +546,11 @@ pub struct TeammateThumbs;
 pub fn team_thumbs_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(200.), Val::Px(80.)),
+            width: Val::Px(200.),
+            height: Val::Px(80.),
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(40.),
-                left: Val::Px(40.),
-                ..default()
-            },
+            top: Val::Px(40.),
+            left: Val::Px(40.),
             ..default()
         },
         ..default()
@@ -553,7 +561,8 @@ pub fn team_thumbs_holder() -> impl Bundle {(
 pub fn team_thumbs() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             ..default()
         },
         //background_color: Color::rgba(0.9, 0.9, 0.2, 0.4).into(),
@@ -567,7 +576,8 @@ pub fn team_thumbs() -> impl Bundle {(
 pub fn header_holder() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(35.), Val::Px(80.)),
+            width: Val::Percent(35.),
+            height: Val::Px(80.),
             position_type: PositionType::Absolute,
             margin: UiRect {
                 left: Val::Auto,
@@ -587,7 +597,8 @@ pub struct HeaderUI;
 pub fn header() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(35.), Val::Px(80.)),
+            width: Val::Percent(35.),
+            height: Val::Px(80.),
             position_type: PositionType::Absolute,
             justify_content:JustifyContent::Center,
             margin: UiRect {
@@ -632,7 +643,8 @@ pub struct RootUI;
 pub fn root_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             margin: UiRect {
                 left: Val::Auto,
                 right: Val::Auto,
@@ -649,7 +661,8 @@ pub fn root_ui() -> impl Bundle {(
 pub fn character_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             margin: UiRect {
                 left: Val::Auto,
                 right: Val::Auto,
@@ -668,12 +681,9 @@ pub struct PlayerUI;
 pub fn player_bottom_container() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(320.), Val::Auto),
+            width: Val::Px(320.),
             position_type: PositionType::Absolute,
-            position: UiRect{
-                bottom: Val::Px(0.),
-                ..default()
-            },
+            bottom: Val::Px(0.),
             margin: UiRect {
                 left: Val::Auto,
                 right: Val::Auto,
@@ -691,7 +701,8 @@ pub fn player_bottom_container() -> impl Bundle {(
 pub fn effect_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Auto),
+            width: Val::Percent(100.),
+            height: Val::Auto,
             margin: UiRect {
                 bottom: Val::Px(30.),
                 left: Val::Auto,
@@ -709,7 +720,8 @@ pub struct BuffBar;
 pub fn buff_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(50.), Val::Percent(100.)),
+            width: Val::Percent(50.),
+            height: Val::Percent(100.),
             flex_wrap: FlexWrap::WrapReverse, 
             ..default()
         },
@@ -724,7 +736,8 @@ pub struct DebuffBar;
 pub fn debuff_bar() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(50.), Val::Percent(100.)),
+            width: Val::Percent(50.),
+            height: Val::Percent(100.),
             flex_wrap: FlexWrap::WrapReverse, 
             ..default()
         },
@@ -768,7 +781,8 @@ pub fn buff_border(is_buff: bool) -> impl Bundle{
     (
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(28.), Val::Px(28.)),
+            width: Val::Px(28.),
+            height: Val::Px(28.),
             ..default()
         },
         background_color: color.into(),
@@ -779,7 +793,8 @@ pub fn buff_border(is_buff: bool) -> impl Bundle{
 pub fn buff_image(ability: Ability, icons: &Res<Icons>,) -> impl Bundle{(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Percent(90.), Val::Percent(90.)),
+            width: Val::Percent(90.),
+            height: Val::Percent(90.),
             margin: UiRect::all(Val::Auto),
             ..default()
         },
@@ -837,11 +852,8 @@ pub fn buff_stacks(fonts: &Res<Fonts>) -> impl Bundle{(
     TextBundle {
         style: Style {
             position_type: PositionType::Absolute,
-            position: UiRect{
-                bottom: Val::Px(5.0),
-                right: Val::Px(5.0),
-                ..default()
-            },
+            bottom: Val::Px(5.0),
+            right: Val::Px(5.0),
             ..default()
         },
         text: Text::from_section(
@@ -862,7 +874,7 @@ pub fn buff_stacks(fonts: &Res<Fonts>) -> impl Bundle{(
 pub fn player_bars_wrapper() -> impl Bundle{(
     NodeBundle{
         style: Style{            
-            size: Size::new(Val::Percent(100.0), Val::Auto),
+            width: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             margin: UiRect {
                 bottom: Val::Px(10.),
@@ -870,7 +882,7 @@ pub fn player_bars_wrapper() -> impl Bundle{(
                 right: Val::Auto,
                 ..default()
             },
-            gap: Size::height(Val::Px(4.0)),
+            row_gap: Val::Px(4.0),
             ..default()
         },
         ..default()
@@ -893,7 +905,7 @@ pub fn ability_holder() -> impl Bundle {(
                 bottom: Val::Px(30.),
                 ..default()
             },
-            gap:Size::new(Val::Px(6.), Val::Auto),
+            column_gap: Val::Px(6.),
             ..default()
         },
         ..default()
@@ -905,7 +917,8 @@ pub fn ability_holder() -> impl Bundle {(
 pub fn ability_image(handle: Handle<Image>) -> impl Bundle {(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(40.), Val::Px(40.)),
+            width: Val::Px(40.),
+            height: Val::Px(40.),
             ..default()
         },
         image: handle.into(),
@@ -919,7 +932,8 @@ pub fn ability_image(handle: Handle<Image>) -> impl Bundle {(
 pub fn custom_image(handle: Handle<Image>, size: u32) -> impl Bundle {(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(size as f32), Val::Px(size as f32)),
+            width: Val::Px(size as f32),
+            height: Val::Px(size as f32),
             ..default()
         },
         image: handle.into(),
@@ -934,10 +948,7 @@ pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {(
         style: Style {
             margin: UiRect::all(Val::Auto),
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top:Val::Px(-2.0),
-                ..default()
-            },
+            top:Val::Px(-2.0),
             ..default()
         },
         text: Text::from_section(
@@ -961,12 +972,10 @@ pub fn cast_bar_holder() -> impl Bundle {(
             align_items: AlignItems::Center,
             justify_content: JustifyContent::SpaceBetween,
             position_type: PositionType::Absolute,
-            size: Size::new(Val::Px(200.0), Val::Px(44.0)),
+            width: Val::Px(200.),
+            height: Val::Px(44.),
             margin: UiRect::all(Val::Auto),
-            position: UiRect{
-                bottom: Val::Px(-30.0),
-                ..default()
-            },
+            bottom: Val::Px(-30.0),
             ..default()
         },
         visibility: Visibility::Hidden,
@@ -988,12 +997,10 @@ pub fn cc_holder() -> impl Bundle {(
             align_items: AlignItems::Center,
             justify_content: JustifyContent::SpaceBetween,
             position_type: PositionType::Absolute,
-            size: Size::new(Val::Px(100.0), Val::Px(40.0)),
+            width: Val::Px(100.),
+            height: Val::Px(40.),
             margin: UiRect::all(Val::Auto),
-            position: UiRect{
-                bottom: Val::Px(100.0),
-                ..default()
-            },
+            bottom: Val::Px(100.0),
             ..default()
         },
         ..default()
@@ -1006,7 +1013,8 @@ pub fn cc_holder_top() -> impl Bundle {(
         style: Style {
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
-            gap: Size::all(Val::Px(6.0)),
+            column_gap: Val::Px(6.),
+            row_gap: Val::Px(6.),
             ..default()
         },
         ..default()
@@ -1022,7 +1030,8 @@ pub struct CCIconSelf;
 pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(22.), Val::Px(22.)),
+            width: Val::Px(22.),
+            height: Val::Px(22.),
             ..default()
         },
         image: cctype.get_icon(icons).into(),
@@ -1039,7 +1048,8 @@ pub fn tooltip() -> impl Bundle{(
     NodeBundle{
         style:Style {
             position_type: PositionType::Absolute,
-            min_size: Size::new(Val::Px(150.), Val::Px(100.)), // only cus adding to an empty makes it weird 1 frame
+            min_width: Val::Px(150.),
+            min_height: Val::Px(100.), // only cus adding to an empty makes it weird 1 frame
             ..default()
         },
         background_color: Color::NONE.into(),
@@ -1084,12 +1094,6 @@ pub fn tooltip_bg() -> impl Bundle {(
 
 pub fn tooltip_title(fonts: &Res<Fonts>, text: String) -> impl Bundle {(
     TextBundle {
-        style: Style {
-            position: UiRect {
-                ..default()
-            },
-            ..default()
-        },
         text: Text::from_section(
             text,
             TextStyle {
@@ -1111,10 +1115,8 @@ pub fn tooltip_desc(fonts: &Res<Fonts>, text: String) -> impl Bundle {(
                 left: Val::Px(0.),
                 ..default()
             },
-            position: UiRect {
-                ..default()
-            },
-            max_size: Size::new(Val::Px(320.), Val::Auto),
+            max_width: Val::Px(320.),
+            max_height: Val::Auto,
             ..default()
         },
         text: Text::from_section(
@@ -1140,13 +1142,11 @@ pub enum TooltipContents {
 pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(64.), Val::Px(64.)),
+            width: Val::Px(64.),
+            height: Val::Px(64.),
             position_type: PositionType::Absolute,
-            position: UiRect {
-                left: Val::Px(-74.),
-                top: Val::Px(0.),
-                ..default()
-            },
+            left: Val::Px(-74.),
+            top: Val::Px(0.),
             ..default()
         },
         image: match path.to_lowercase().as_str(){
@@ -1167,7 +1167,8 @@ pub struct InGameMenuUi;
 pub fn ingame_menu() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(20.), Val::Percent(50.)),
+            width: Val::Percent(20.),
+            height: Val::Percent(50.),
             position_type: PositionType::Absolute,
             flex_direction: FlexDirection::Column,
             margin: UiRect::all(Val::Auto),
@@ -1217,7 +1218,8 @@ pub struct TabPanel;
 pub fn tab_panel() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(70.), Val::Percent(70.)),
+            width: Val::Percent(70.),
+            height: Val::Percent(70.),
             position_type: PositionType::Absolute,
             margin: UiRect::all(Val::Auto),
             ..default()
@@ -1245,7 +1247,8 @@ pub enum TabMenuType{
 pub fn damage_log() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             position_type: PositionType::Absolute,
             ..default()
         },
@@ -1263,7 +1266,8 @@ pub struct IncomingLogUi;
 pub fn log_outgoing() -> impl Bundle {(    
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(50.), Val::Percent(100.)),
+            width: Val::Percent(50.),
+            height: Val::Percent(100.),
             flex_direction: FlexDirection::ColumnReverse,
             justify_content: JustifyContent::FlexEnd,
             padding: UiRect::all(Val::Px(20.0)),
@@ -1277,11 +1281,12 @@ pub fn log_outgoing() -> impl Bundle {(
 pub fn log_incoming() -> impl Bundle {(    
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(50.), Val::Percent(100.)),
+            width: Val::Percent(50.),
+            height: Val::Percent(100.),
             flex_direction: FlexDirection::ColumnReverse,
             justify_content: JustifyContent::FlexEnd,
             padding: UiRect::all(Val::Px(20.0)),
-            gap: Size::width(Val::Px(20.0)),
+            column_gap: Val::Px(20.0),
             ..default()
         },
         background_color: Color::rgba(0.3, 0.14, 0.1, 0.99).into(),
@@ -1304,7 +1309,7 @@ pub fn column_wrapper() -> impl Bundle {(
     NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Column,
-            gap: Size::width(Val::Px(10.0)),
+            column_gap: Val::Px(10.0),
             ..default()
         },
         ..default()
@@ -1322,7 +1327,7 @@ pub fn damage_entry() -> impl Bundle {(
             align_content: AlignContent::Center,
             align_self:AlignSelf::Start,
             justify_content: JustifyContent::Center,
-            gap: Size::width(Val::Px(10.0)),
+            column_gap: Val::Px(10.0),
             ..default()
         },
         ..default()
@@ -1333,7 +1338,8 @@ pub fn damage_entry() -> impl Bundle {(
 pub fn thin_image(image: Handle<Image>) -> impl Bundle{(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(55.0), Val::Px(22.)),
+            width: Val::Px(55.),
+            height: Val::Px(22.),
             align_self:AlignSelf::Center,
             ..default()
         },
@@ -1349,7 +1355,8 @@ pub struct DespawnTimer(pub Timer);
 pub fn scoreboard() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(300.), Val::Px(200.)),
+            width: Val::Px(300.),
+            height: Val::Px(200.),
             position_type: PositionType::Absolute,
             ..default()
         },
@@ -1361,7 +1368,8 @@ pub fn scoreboard() -> impl Bundle {(
 pub fn abilities_panel() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(300.), Val::Px(200.)),
+            width: Val::Px(300.),
+            height: Val::Px(200.),
             position_type: PositionType::Absolute,
             ..default()
         },
@@ -1373,7 +1381,8 @@ pub fn abilities_panel() -> impl Bundle {(
 pub fn death_recap() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(300.), Val::Px(200.)),
+            width: Val::Px(300.),
+            height: Val::Px(200.),
             position_type: PositionType::Absolute,
             ..default()
         },
@@ -1391,23 +1400,21 @@ pub fn store() -> impl Bundle {(
         style: Style {
             position_type: PositionType::Absolute,
             flex_direction: FlexDirection::Row,
-            size: Size::new(Val::Percent(45.), Val::Percent(75.)),
+            width: Val::Percent(45.),
+            height: Val::Percent(75.),
             padding: UiRect{
                 top: Val::Px(20.),
                 ..default()
             },
-            position: UiRect {
-                left: Val::Px(210.0),
-                top: Val::Percent(10.0),
-                ..default()
-            },
+            left: Val::Px(210.0),
+            top: Val::Percent(10.0),
             ..default()
         },
         background_color: Color::rgba(0.2, 0.2, 0.4, 1.0).into(),
         visibility: Visibility::Hidden,
         ..default()
     },
-    Draggable::BoundByParent(100),
+    Draggable::BoundByParent(20),
     StoreMain,
     Name::new("Store"),
 )}
@@ -1426,13 +1433,11 @@ pub fn drag_bar() -> impl Bundle{(
         style: Style {
             position_type: PositionType::Absolute,
             align_items: AlignItems::Baseline,
-            size: Size::new(Val::Percent(100.), Val::Px(20.)),
-            position: UiRect {
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                ..default()
-            },
+            width: Val::Percent(100.),
+            height: Val::Px(20.),
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
+            top: Val::Px(0.0),
             ..default()
         },
         z_index: ZIndex::Global(6),
@@ -1452,7 +1457,8 @@ pub fn drag_bar() -> impl Bundle{(
 pub fn list_categories() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(20.), Val::Percent(100.)),
+            width: Val::Percent(20.),
+            height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             ..default()
         },
@@ -1485,7 +1491,8 @@ pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle
 pub fn list_items() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(60.), Val::Percent(100.)),
+            width: Val::Percent(60.),
+            height: Val::Percent(100.),
             ..default()
         },
         background_color: Color::rgba(1., 0.5, 0.2, 0.3).into(),
@@ -1496,7 +1503,8 @@ pub fn list_items() -> impl Bundle {(
 pub fn inspector() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(20.), Val::Percent(100.)),
+            width: Val::Percent(20.),
+            height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             ..default()
         },
@@ -1508,7 +1516,8 @@ pub fn inspector() -> impl Bundle {(
 pub fn item_image(items: &Res<Items>, item: Item) -> impl Bundle {(
     ImageBundle {
         style: Style {
-            size: Size::new(Val::Px(36.), Val::Px(36.)),
+            width: Val::Px(36.),
+            height: Val::Px(36.),
             ..default()
         },
         image: match item{
@@ -1530,7 +1539,8 @@ pub struct HoverButton;
 pub fn button() -> impl Bundle {(
     ButtonBundle {
         style: Style {
-            size: Size::new(Val::Px(120.0), Val::Px(50.0)),
+            width: Val::Px(120.),
+            height: Val::Px(50.),
             // horizontally center child text
             justify_content: JustifyContent::Center,
             // vertically center child text
@@ -1639,12 +1649,10 @@ pub fn objective_health_bar_holder() -> impl Bundle {(
             flex_direction: FlexDirection::Column,
             justify_content: JustifyContent::SpaceBetween,
             position_type: PositionType::Absolute,
-            size: Size::new(Val::Px(150.0), Val::Px(50.0)),
+            width: Val::Px(150.),
+            height: Val::Px(50.),
             margin: UiRect::all(Val::Auto),
-            position: UiRect{
-                bottom: Val::Percent(30.0),
-                ..default()
-            },
+            bottom: Val::Percent(30.0),
             ..default()
         },
         visibility: Visibility::Hidden, 
@@ -1663,7 +1671,8 @@ pub struct HealthBar;
 pub fn bar_fill(color: Color) -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(60.0), Val::Percent(100.0)),
+            width: Val::Percent(60.),
+            height: Val::Percent(100.),
             ..default()
         },
         background_color: color.into(),
@@ -1675,7 +1684,8 @@ pub fn bar_fill(color: Color) -> impl Bundle {(
 pub fn bar_background(height: f32) -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Px(height)),
+            width: Val::Percent(100.),
+            height: Val::Px(height),
             ..default()
         },
         background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
@@ -1687,7 +1697,8 @@ pub fn bar_background(height: f32) -> impl Bundle {(
 pub fn bar_text_wrapper() -> impl Bundle{(    
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             position_type: PositionType::Absolute,
             align_items: AlignItems::Center,
@@ -1718,7 +1729,8 @@ pub fn custom_text(fonts: &Res<Fonts>, size: f32, offset: f32) -> impl Bundle {(
 pub fn template() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            size: Size::new(Val::Px(300.), Val::Px(200.)),
+            height: Val::Px(200.),
+            width:Val::Px(300.),
             position_type: PositionType::Absolute,
             ..default()
         },

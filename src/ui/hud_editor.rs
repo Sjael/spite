@@ -80,6 +80,7 @@ pub fn scale_ui(
     }
 }
 
+#[derive(Event)]
 pub struct ResetUiEvent;
 
 pub fn reset_editable_ui(
@@ -88,8 +89,8 @@ pub fn reset_editable_ui(
 ){
     if reset_ui_events.is_empty() {return}
     for (mut style, mut transform) in editables.iter_mut(){
-        style.position.top = Val::Px(0.0);
-        style.position.left = Val::Px(0.0);
+        style.top = Val::Px(0.0);
+        style.left = Val::Px(0.0);
         transform.scale = Vec3::ONE;
     }
 }

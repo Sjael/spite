@@ -113,9 +113,9 @@ pub fn update_health(
     let Ok(mut text) = text_query.get_single_mut() else {return};
     let Ok(mut bar) = bar_query.get_single_mut() else {return};
     let Ok(attributes) = query.get(spectating.0) else { return };
-    let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
-    let regen = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
-    let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
+    let current = *attributes.get(&Stat::Health.as_tag()).unwrap_or(&0.0);
+    let regen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
+    let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
 
     text.sections[0].value = format!(
         "{} / {} (+{})",
@@ -124,7 +124,7 @@ pub fn update_health(
         regen.trunc()
     );
     let new_size = current / max;
-    bar.size.width = Val::Percent(new_size * 100.0);
+    bar.width = Val::Percent(new_size * 100.0);
 }
 
 pub fn update_character_resource(
@@ -136,9 +136,9 @@ pub fn update_character_resource(
     let Ok(mut text) = text_query.get_single_mut() else {return};
     let Ok(mut bar) = bar_query.get_single_mut() else {return};
     let Ok(attributes) = query.get(spectating.0) else { return };
-    let current = *attributes.get(&Stat::CharacterResource.into()).unwrap_or(&0.0);
-    let regen = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
-    let max = *attributes.get(&Stat::CharacterResourceMax.into()).unwrap_or(&100.0);
+    let current = *attributes.get(&Stat::CharacterResource.as_tag()).unwrap_or(&0.0);
+    let regen = *attributes.get(&Stat::CharacterResourceRegen.as_tag()).unwrap_or(&0.0);
+    let max = *attributes.get(&Stat::CharacterResourceMax.as_tag()).unwrap_or(&100.0);
 
     text.sections[0].value = format!(
         "{} / {} (+{})",
@@ -148,7 +148,7 @@ pub fn update_character_resource(
     );
 
     let new_size = current / max;
-    bar.size.width = Val::Percent(new_size * 100.0);
+    bar.width = Val::Percent(new_size * 100.0);
 }
 
 pub fn update_cc_bar(
@@ -160,7 +160,7 @@ pub fn update_cc_bar(
     let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
     let Some((_, cc_timer)) = cc_vec.get(0) else {return};
     let Ok(mut style) = cc_bar_fill.get_single_mut() else {return};
-    style.size.width = Val::Percent(cc_timer.percent_left() * 100.0);    
+    style.width = Val::Percent(cc_timer.percent_left() * 100.0);    
 }
 
 pub fn toggle_cc_bar(
@@ -193,7 +193,7 @@ pub fn update_cast_bar(
 ){
     let Ok(windup) = windup_query.get(spectating.0) else {return}; 
     let Ok(mut style) = cast_bar_fill.get_single_mut() else {return};
-    style.size.width = Val::Percent(windup.0.percent() * 100.0);    
+    style.width = Val::Percent(windup.0.percent() * 100.0);    
 }
 
 pub fn toggle_cast_bar(
@@ -321,11 +321,11 @@ pub fn update_objective_health(
     let Some(focused_entity) = focused_health_entity.0 else {return};
     let Ok(mut bar) = bar_query.get_single_mut() else {return};
     let Ok(attributes) = query.get(focused_entity) else {return};
-    let current = *attributes.get(&Stat::Health.into()).unwrap_or(&0.0);
-    let max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
+    let current = *attributes.get(&Stat::Health.as_tag()).unwrap_or(&0.0);
+    let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
 
     let new_size = current / max;
-    bar.size.width = Val::Percent(new_size * 100.0);
+    bar.width = Val::Percent(new_size * 100.0);
 }
 
 pub fn toggle_objective_health(

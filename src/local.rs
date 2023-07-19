@@ -36,9 +36,12 @@ fn main() {
     sacred_aurora::app_plugins_both(&mut app);
     // Systems
     app.add_systems(OnEnter(GameState::InGame), setup_map);
-    app.add_systems(Startup, setup_camera);
-    app.add_systems(InGameSet, (camera_movement_system, mouse_motion_system).run_if(in_state(CharacterState::Dead)));
     app.add_systems(Startup, set_window_icon);
+    app.add_systems(Startup, setup_camera);
+    app.add_systems(Update, (
+        camera_movement_system, 
+        mouse_motion_system,
+    ).in_set(InGameSet::Update).run_if(in_state(CharacterState::Dead)));
     app.run();
 }
 

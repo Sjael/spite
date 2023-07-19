@@ -1,4 +1,5 @@
 
+use bevy::asset::ChangeWatcher;
 use bevy::prelude::*;
 use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -30,7 +31,7 @@ pub fn app_plugins_both(app: &mut App) {
                 ..default()
             })
             .set(AssetPlugin {
-                watch_for_changes: true,
+                watch_for_changes: ChangeWatcher::with_delay(Duration::from_millis(200)),
                 ..default()
             }),
     );
@@ -40,24 +41,27 @@ pub fn app_plugins_both(app: &mut App) {
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
         .add_state::<GameState>();
 
-    app.add_plugin(EditorPlugin::default())
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin(RapierDebugRenderPlugin {
-            always_on_top: true,
-            enabled: true,
-            style: Default::default(),
-            //mode: DebugRenderMode::COLLIDER_SHAPES,
-            ..default()
-        })
-        .add_plugin(TweeningPlugin);
+    app.add_plugins((
+            EditorPlugin::default(),
+            RapierPhysicsPlugin::<NoUserData>::default(),
+            RapierDebugRenderPlugin {
+                enabled: true,
+                style: Default::default(),
+                //mode: DebugRenderMode::COLLIDER_SHAPES,
+                ..default()
+            },
+            TweeningPlugin,
+        ));
 
-    app.add_plugin(GameAssetPlugin)
-        .add_plugin(GameManagerPlugin)
-        .add_plugin(ViewPlugin)
-        .add_plugin(UiPlugin)
-        .add_plugin(CharacterPlugin)
-        .add_plugin(AreaPlugin)
-        .add_plugin(InputPlugin)
+    app.add_plugins((
+            GameAssetPlugin,
+            GameManagerPlugin,
+            ViewPlugin,
+            UiPlugin,
+            CharacterPlugin,
+            AreaPlugin,
+            InputPlugin,
+        ))
         .add_systems(PostUpdate, load_ability_shape)// after systems that spawn ability_shape components
         .add_systems(Update, tick_game); 
         

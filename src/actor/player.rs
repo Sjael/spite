@@ -17,7 +17,7 @@ pub fn player_mouse_input(
     sensitivity: Res<MouseSensitivity>,
     mouse_state: Res<State<MouseState>>,
 ) {
-    if mouse_state == MouseState::Free { return; } // if mouse is free, dont turn character
+    if *mouse_state == MouseState::Free { return; } // if mouse is free, dont turn character
     let mut cumulative_delta = Vec2::ZERO;
     for ev in ev_mouse.iter() {
         cumulative_delta += ev.delta;
@@ -154,7 +154,7 @@ pub fn normal_casting(
 
 
 
-#[derive(Component, Resource, Reflect, FromReflect, Clone, Debug, Default, 
+#[derive(Component, Resource, Reflect, Clone, Debug, Default, 
     PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut,)]
 #[reflect(Component)]
 pub struct Player {
@@ -168,7 +168,7 @@ impl Player {
 }
 
 
-#[derive(Component, Debug, Default, Reflect, FromReflect)]
+#[derive(Component, Debug, Default, Reflect )]
 #[reflect(Component)]
 pub struct HoveredAbility(pub Option<Ability>);
 #[derive(Component, Debug, Default)]

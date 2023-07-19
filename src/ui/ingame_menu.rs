@@ -63,7 +63,7 @@ pub fn toggle_ingame_menu(
     state: Res<State<InGameMenu>>,
 ){
     let Ok(mut vis) = ingame_menu.get_single_mut() else {return};
-    if state.0 == InGameMenu::Closed{
+    if *state == InGameMenu::Closed{
         *vis = Visibility::Hidden;
     } else{
         *vis = Visibility::Visible;
@@ -76,6 +76,6 @@ pub fn state_ingame_menu(
     state: Res<State<InGameMenu>>,
 ){
     if kb.just_pressed(KeyCode::Escape){
-        next_state.set(state.0.toggle());
+        next_state.set(state.toggle());
     }
 }

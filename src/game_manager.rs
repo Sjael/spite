@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bevy::prelude::*;
+use bevy::{prelude::*,};
 use bevy_rapier3d::prelude::*;
 
 use crate::{
@@ -17,12 +17,11 @@ use crate::{
 };
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InGameSet;
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PreInGameSet;
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PostInGameSet;
-
+pub enum InGameSet{
+    Pre,
+    Update,
+    Post,
+}
 pub struct GameManagerPlugin;
 impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
@@ -37,12 +36,12 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
  
-        app.configure_set(Update, InGameSet.run_if(in_state(GameState::InGame)));
-        app.configure_set(PreUpdate, PreInGameSet.run_if(in_state(GameState::InGame)));
-        app.configure_set(PostUpdate, PostInGameSet.run_if(in_state(GameState::InGame)));
+        app.configure_set(Update, InGameSet::Update.run_if(in_state(GameState::InGame)));
+        app.configure_set(PreUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)));
+        app.configure_set(PostUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)));
 
 
-        app.add_systems(InGameSet, (
+        app.add_systems(Update, (
             check_deaths,
             increment_bounty,
             handle_respawning,
@@ -50,7 +49,7 @@ impl Plugin for GameManagerPlugin {
             tick_respawn_ui,
             place_ability.after(cast_ability),
             place_homing_ability,
-        ));
+        ).in_set(InGameSet::Update));
     }
 }
 
@@ -262,6 +261,7 @@ fn tick_respawn_ui(
     }
 }
 
+#[derive(Event)]
 pub struct DeathEvent {
     pub character: Entity,
     pub was_local_player: bool,
@@ -325,22 +325,24 @@ fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
 }
 
 
+#[derive(Event)]
 pub struct AbilityFireEvent {
     pub caster: Entity,
     pub ability: Ability,
 }
 
+#[derive(Event)]
 pub struct FireHomingEvent {
     pub caster: Entity,
     pub ability: Ability,
     pub target: Entity,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect, FromReflect)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect )]
 pub struct Team(pub TeamMask);
 // Team masks
 bitflags::bitflags! {
-    #[derive(Reflect, FromReflect, Default)]
+    #[derive(Reflect, Default)]
     pub struct TeamMask: u32 {
         const ALL = 1 << 0;
         const TEAM_1 = 1 << 1;

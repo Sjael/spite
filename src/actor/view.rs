@@ -1,7 +1,7 @@
 use bevy::{prelude::*, core_pipeline::{bloom::BloomSettings, tonemapping::{DebandDither, Tonemapping}, fxaa::Fxaa}, transform::TransformSystem};
 use bevy_rapier3d::prelude::{RapierContext, QueryFilter, };
 
-use crate::{ game_manager::{CharacterState, CAMERA_GROUPING}, GameState};
+use crate::{ game_manager::{CharacterState, CAMERA_GROUPING, InGameSet}, GameState, ui::SpectatingSet};
 
 use super::player::PlayerInput;
 
@@ -17,17 +17,17 @@ impl Plugin for ViewPlugin {
         app.add_systems(FixedUpdate, (
             avoid_intersecting,
         ));
-        app.add_systems(SpectatingSet, (
+        app.add_systems(Update, (
             spawn_camera_gimbal,
             swap_cameras.run_if(in_state(CharacterState::Dead)),
             spectate_entity,
-        ));
-        app.add_systems(PostInGameSet, (
+        ).in_set(SpectatingSet));
+        app.add_systems(PostUpdate, (
             update_spectatable,
             camera_swivel_and_tilt.run_if(resource_exists::<Spectating>()),
             move_reticle.after(camera_swivel_and_tilt),
             follow_entity.after(TransformSystem::TransformPropagate),
-        ));
+        ).in_set(InGameSet::Post));
     }
 }
 
@@ -293,6 +293,7 @@ pub struct OuterGimbal;
 #[derive(Component, Debug)]
 pub struct InnerGimbal;
 
+#[derive(Event)]
 pub struct SpectateEvent{
     pub entity: Entity,
 }

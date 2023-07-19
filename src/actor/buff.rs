@@ -7,14 +7,14 @@ use crate::{
 use bevy::prelude::*;
 use super::stats::{AttributeTag, Attributes, Stat};
 
-#[derive(Default, Clone, Copy, Debug, Reflect, FromReflect, Eq, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, Reflect, Eq, PartialEq)]
 pub enum BuffType {
     #[default]
     Buff,
     Debuff,
 }
 
-#[derive(Default, Clone, Debug, Reflect, FromReflect, Eq, PartialEq)]
+#[derive(Default, Clone, Debug, Reflect, Eq, PartialEq)]
 pub enum BuffTargets {
     #[default]
     Allies,
@@ -22,20 +22,20 @@ pub enum BuffTargets {
     All,
 }
 
-#[derive(Clone, Debug, Reflect, FromReflect)]
+#[derive(Clone, Debug, Reflect )]
 pub enum StackFalloff {
     Individual,    // buff stacks drop one at a time,
     All,           // buff stacks drop at the same time,
     Multiple(u32), // varying amount of falloff, pretty niche
 }
 
-#[derive(Clone, Debug, Reflect, FromReflect)]
+#[derive(Clone, Debug, Reflect )]
 pub enum StackRefresh {
     None, // adding a stack doesnt refesh any,
     All,  // adding a stack refreshes all
 }
 
-#[derive(Clone, Debug, Reflect, FromReflect)]
+#[derive(Clone, Debug, Reflect )]
 pub struct BuffInfo {
     pub stat: AttributeTag,
     pub amount: f32,
@@ -64,7 +64,7 @@ impl Default for BuffInfo {
     }
 }
 
-#[derive(Debug, Clone, Reflect, FromReflect)]
+#[derive(Debug, Clone, Reflect )]
 pub struct BuffInfoApplied {
     pub info: BuffInfo,
     pub stacks: u32,
@@ -78,19 +78,21 @@ impl Plugin for BuffPlugin {
         app.add_event::<BuffStackEvent>();
         app.register_type::<BuffMap>();
 
-        app.add_systems(InGameSet, (
+        app.add_systems(Update, (
             apply_buffs,
             tick_buffs,
-        ));
+        ).in_set(InGameSet::Update));
     }
 }
 
+#[derive(Event)]
 pub struct BuffStackEvent {
     pub id: String,
     pub target: Entity,
     pub stacks: u32,
 }
 
+#[derive(Event)]
 pub struct BuffAddEvent {
     pub id: String,
     pub target: Entity,
@@ -170,7 +172,7 @@ pub fn tick_buffs(time: Res<Time>, mut query: Query<(&mut BuffMap, &mut Attribut
 // PLACE WITH STAT MODULE
 //
 
-#[derive(Component, Reflect, FromReflect, Default, Debug, Clone)]
+#[derive(Component, Reflect, Default, Debug, Clone)]
 pub struct BuffMap {
     pub map: HashMap<String, BuffInfoApplied>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
 }

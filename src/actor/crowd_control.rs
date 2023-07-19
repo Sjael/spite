@@ -2,16 +2,16 @@ use std::{time::Duration, collections::{BTreeMap}};
 
 use bevy::prelude::*;
 
-use crate::{area::CCEvent, GameState, assets::Icons, game_manager::PreInGameSet};
+use crate::{area::CCEvent, GameState, assets::Icons, game_manager::InGameSet};
 
 
-#[derive(Debug, Clone, Reflect, FromReflect, Copy)]
+#[derive(Debug, Clone, Reflect, Copy)]
 pub struct CCInfo{
     pub cctype: CCType,
     pub duration: f32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Reflect, FromReflect, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Reflect, Hash, PartialOrd, Ord)]
 pub enum CCType{
     Stun,
     Root,
@@ -55,10 +55,10 @@ pub struct CCPlugin;
 impl Plugin for CCPlugin{
     fn build(&self, app: &mut App) {
 
-        app.add_systems(PreInGameSet, (
+        app.add_systems(PreUpdate, (
             tick_ccs,
             apply_ccs,
-        ).chain());
+        ).chain().in_set(InGameSet::Pre));
     }
 }
 

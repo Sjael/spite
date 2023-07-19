@@ -15,17 +15,13 @@ pub fn spawn_main_menu(
     commands.spawn((
         NodeBundle{
             style: Style{
-                size: Size::new(
-                    Val::Percent(100.0),
-                    Val::Percent(100.0),
-                ),
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
                 align_items: AlignItems::Center,
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::Center,
-                gap: Size::new(
-                    Val::Percent(10.0),
-                    Val::Px(20.),
-                ),
+                column_gap: Val::Percent(10.),
+                row_gap: Val::Px(20.),
                 ..default()
             },
             ..default()

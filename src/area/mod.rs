@@ -22,7 +22,7 @@ use homing::track_homing;
 use self::non_damaging::*;
 
 
-#[derive(Clone)]
+#[derive(Event, Clone)]
 pub struct HealthChangeEvent {
     pub amount: f32,
     pub damage_type: DamageType,
@@ -33,6 +33,7 @@ pub struct HealthChangeEvent {
     pub when: Instant,
 }
 
+#[derive(Event)]
 pub struct BuffEvent {
     pub info: BuffInfo,
     pub target: Entity,
@@ -41,6 +42,7 @@ pub struct BuffEvent {
     pub ability: Ability,
 }
 
+#[derive(Event)]
 pub struct CCEvent {
     pub target_entity: Entity,
     pub ccinfo: CCInfo,
@@ -353,6 +355,7 @@ pub enum AreaOverlapType{
     Exited,
 }
 
+#[derive(Event)]
 pub struct AreaOverlapEvent{
     pub sensor: Entity,
     pub target: Entity,

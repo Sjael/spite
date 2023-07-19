@@ -52,7 +52,7 @@ pub fn free_mouse(
     let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else { return };
     let Ok(mut window) = windows.get_single_mut() else { return };
     if mouse_state.is_changed(){
-        if mouse_state == MouseState::Locked && window_is_focused && !editor_active{
+        if *mouse_state == MouseState::Locked && window_is_focused && !editor_active{
             window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
             window.cursor.visible = false;
         } else{
@@ -70,25 +70,26 @@ pub fn mouse_with_free_key(
     editing_hud: Res<State<EditingHUD>>,
     mut next_state: ResMut<NextState<MouseState>>,
 ){  
-    if tab_menu == TabMenu::Closed 
-        && store_menu == StoreMenu::Closed
-        && ingame_menu == InGameMenu::Closed
-        && editing_hud == EditingHUD::No 
+    if *tab_menu == TabMenu::Closed 
+        && *store_menu == StoreMenu::Closed
+        && *ingame_menu == InGameMenu::Closed
+        && *editing_hud == EditingHUD::No 
     {
         next_state.set(MouseState::Locked);
     }
     
     if kb.pressed(KeyCode::Space) 
-        || tab_menu == TabMenu::Open 
-        || store_menu == StoreMenu::Open
-        || ingame_menu == InGameMenu::Open
-        || editing_hud == EditingHUD::Yes 
+        || *tab_menu == TabMenu::Open 
+        || *store_menu == StoreMenu::Open
+        || *ingame_menu == InGameMenu::Open
+        || *editing_hud == EditingHUD::Yes 
     {
         next_state.set(MouseState::Free);
     }
 }
 
 
+#[derive(Event)]
 pub struct MenuEvent{
     pub menu: TabMenuType,
 }

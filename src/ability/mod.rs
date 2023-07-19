@@ -12,7 +12,7 @@ use self::{bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo},
 pub mod bundles;
 pub mod shape;
 
-#[derive(Actionlike, Component, Reflect, FromReflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,)]
+#[derive(Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,)]
 #[reflect(Component)]
 pub enum Ability {
     Frostbolt,
@@ -210,7 +210,7 @@ pub struct TargetFilter {
     pub number_of_targets: u8,
 }
 
-#[derive(Default, Debug, Clone, FromReflect, Reflect)]
+#[derive(Default, Debug, Clone , Reflect)]
 pub enum TargetSelection {
     #[default]
     Closest,
@@ -276,19 +276,19 @@ impl TickBehavior{
     }
 }
 
-#[derive(Default, Reflect, FromReflect, Debug, Clone)]
+#[derive(Default, Reflect, Debug, Clone)]
 pub struct StaticTimer(pub Timer);
 
 // map that holds what things have been hit by an ability instance
-#[derive(Default, Debug, Clone, FromReflect, Reflect)]
+#[derive(Default, Debug, Clone , Reflect)]
 pub struct IndividualTargetTimers {
     pub map: HashMap<Entity, Timer>,
 }
 
-#[derive(Component, Debug, Clone, Default, Reflect, FromReflect)]
+#[derive(Component, Debug, Clone, Default, Reflect )]
 pub struct PausesWhenEmpty;
 
-#[derive(Component, Debug, Clone, Default, Reflect, FromReflect)]
+#[derive(Component, Debug, Clone, Default, Reflect )]
 pub enum Ticks {
     #[default]
     Once,
@@ -296,7 +296,7 @@ pub enum Ticks {
     Unlimited,
 }
 
-#[derive(Component, Debug, Clone, Default, Reflect, FromReflect)]
+#[derive(Component, Debug, Clone, Default, Reflect )]
 pub struct FiringInterval(pub u32);
 
 

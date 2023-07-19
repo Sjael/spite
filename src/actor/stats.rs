@@ -6,13 +6,14 @@ use crate::ability::{Ability, DamageType};
 use crate::area::HealthChangeEvent;
 //use crate::buff::BuffMap;
 use crate::GameState;
+use crate::game_manager::InGameSet;
 use std::fmt::Display;
 use std::time::Instant;
 
 // Use enum as stat instead of unit structs?
 //
 //
-#[derive(Reflect, Debug, Default, Clone, FromReflect, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
+#[derive(Reflect, Debug, Default, Clone , PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
 pub enum Stat {
     Xp,
     Level,
@@ -61,14 +62,21 @@ impl Display for Stat {
     }
 }
 
-
-impl Into<AttributeTag> for Stat {
-    fn into(self) -> AttributeTag {
-        AttributeTag::Stat(self)
+impl Stat{
+    pub fn as_tag(self) -> AttributeTag{
+        AttributeTag::from(self)
     }
 }
 
-#[derive(Reflect, Debug, Default, Clone, FromReflect, PartialEq, Eq, PartialOrd, Ord, Hash)]
+
+
+impl From<Stat> for AttributeTag{
+    fn from(src: Stat) -> AttributeTag{
+        AttributeTag::Stat(src)
+    }
+}
+
+#[derive(Reflect, Debug, Default, Clone , PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Modifier {
     #[default]
     Add,
@@ -100,17 +108,17 @@ impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HealthMitigatedEvent>();
         app.register_type::<Vec<String>>();
-        app.add_systems(InGameSet, (
+        app.add_systems(Update, (
             calculate_attributes,
             regen_health,
             regen_resource,
             calculate_health_change,
             apply_health_change,
-        ).chain());
+        ).chain().in_set(InGameSet::Update));
     }
 }
 
-#[derive(Clone)]
+#[derive(Event, Clone)]
 pub struct HealthMitigatedEvent{
     pub change: i32,
     pub mitigated: u32,
@@ -137,14 +145,14 @@ pub fn calculate_health_change(
 
         let (prots, pen) = if event.damage_type == DamageType::Physical {
             (
-                *defender_stats.get(&Stat::PhysicalProtection.into()).unwrap_or(&100.0),
-                *attacker_stats.get(&Stat::PhysicalPenetration.into()).unwrap_or(&0.0)
+                *defender_stats.get(&Stat::PhysicalProtection.as_tag()).unwrap_or(&100.0),
+                *attacker_stats.get(&Stat::PhysicalPenetration.as_tag()).unwrap_or(&0.0)
             )
 
         } else if event.damage_type == DamageType::Magical {
             (
-                *defender_stats.get(&Stat::MagicalProtection.into()).unwrap_or(&100.0),
-                *attacker_stats.get(&Stat::MagicalPenetration.into()).unwrap_or(&0.0)
+                *defender_stats.get(&Stat::MagicalProtection.as_tag()).unwrap_or(&100.0),
+                *attacker_stats.get(&Stat::MagicalPenetration.as_tag()).unwrap_or(&0.0)
             )
         } else {
             (0.0 , 0.0)
@@ -173,7 +181,7 @@ pub fn apply_health_change(
 ){
     for event in health_mitigated_events.iter() {
         let Ok(mut defender_stats) = health_query.get_mut(event.defender) else {continue};
-        let health = defender_stats.entry(Stat::Health.into()).or_default();
+        let health = defender_stats.entry(Stat::Health.as_tag()).or_default();
         /*
         if event.change > 0 {
             println!("healing is {:?}", event.change);
@@ -190,9 +198,9 @@ pub fn regen_health(
     time: Res<Time>,
 ){
     for mut attributes in query.iter_mut() {
-        let healthregen = *attributes.get(&Stat::HealthRegen.into()).unwrap_or(&0.0);
-        let health_max = *attributes.get(&Stat::HealthMax.into()).unwrap_or(&100.0);
-        let health = attributes.entry(Stat::Health.into()).or_insert(1.0);
+        let healthregen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
+        let health_max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
+        let health = attributes.entry(Stat::Health.as_tag()).or_insert(1.0);
         if *health <= 0.0 {
             continue;
         }
@@ -209,9 +217,9 @@ pub fn regen_resource(
     time: Res<Time>,
 ){
     for mut attributes in query.iter_mut() {
-        let regen = *attributes.get(&Stat::CharacterResourceRegen.into()).unwrap_or(&0.0);
-        let max = *attributes.get(&Stat::CharacterResourceMax.into()).unwrap_or(&100.0);
-        let resource = attributes.entry(Stat::CharacterResource.into()).or_default();
+        let regen = *attributes.get(&Stat::CharacterResourceRegen.as_tag()).unwrap_or(&0.0);
+        let max = *attributes.get(&Stat::CharacterResourceMax.as_tag()).unwrap_or(&100.0);
+        let resource = attributes.entry(Stat::CharacterResource.as_tag()).or_default();
         let mut result = *resource + (regen * time.delta_seconds()) ;
         if result > max {
             result = max;
@@ -293,7 +301,7 @@ pub fn calculate_attributes(
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect, FromReflect)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect )]
 pub enum AttributeTag {
     Modifier {
         modifier: Modifier,

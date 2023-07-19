@@ -6,7 +6,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
     ability::{Ability, DamageType}, 
-    game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet, PostInGameSet}, 
+    game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet}, 
      
      
     input::SlotBundle, ui::Trackable, 
@@ -39,19 +39,21 @@ impl Plugin for CharacterPlugin {
         app.add_event::<LogHit>();
 
         //Plugins
-        app.add_plugin(StatsPlugin)
-            .add_plugin(BuffPlugin)
-            .add_plugin(CCPlugin);
+        app.add_plugins((
+            StatsPlugin,
+            BuffPlugin,
+            CCPlugin
+        ));
 
         //Systems
         app.add_systems(OnEnter(GameState::InGame), setup_player);
-        app.add_systems(PreInGameSet, (
+        app.add_systems(PreUpdate, (
             player_keys_input,
             player_mouse_input,
             select_ability,
             update_local_player_inputs,
-        ));
-        app.add_systems(InGameSet, (
+        ).in_set(InGameSet::Pre));
+        app.add_systems(Update, (
             cast_ability,
             normal_casting,
             show_targetter.after(normal_casting),
@@ -62,12 +64,12 @@ impl Plugin for CharacterPlugin {
             tick_windup_timer,
             spawn_player,
             update_damage_logs,
-        ));
+        ).in_set(InGameSet::Update));
         // Process transforms always after inputs, and translations after rotations
-        app.add_systems(PostInGameSet, (
+        app.add_systems(PostUpdate, (
             actor_swivel,            
             actor_movement, 
-        ).chain());
+        ).chain().in_set(InGameSet::Post));
     }
 }
 
@@ -75,6 +77,7 @@ impl Plugin for CharacterPlugin {
 pub struct HasHealthBar;
 
 
+#[derive(Event)]
 pub struct SpawnEvent {
     pub player: Player,
     pub transform: Transform,
@@ -182,7 +185,7 @@ pub fn actor_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), W
 pub fn actor_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput, &CCMap)>) {
     for (attributes, mut velocity, player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) { continue }
-        let speed = *attributes.get(&Stat::Speed.into()).unwrap_or(&1.0);
+        let speed = *attributes.get(&Stat::Speed.as_tag()).unwrap_or(&1.0);
         let mut direction = Vec3::new(0.0, 0.0, 0.0);
         if player_input.left() {
             direction.x += -1.;
@@ -225,11 +228,13 @@ pub fn cast_ability(
     }
 }
 
+#[derive(Event)]
 pub struct InputCastEvent {
     pub caster: Entity,
     pub ability: Ability,
 }
 
+#[derive(Event)]
 pub struct CastEvent {
     pub caster: Entity,
     pub ability: Ability,
@@ -283,7 +288,7 @@ fn trigger_cooldown(
 ) {
     for event in cast_events.iter() {
         let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else { continue };
-        let cdr = 1.0 - (*attributes.get(&Stat::CooldownReduction.into()).unwrap_or(&0.0) / 100.0);
+        let cdr = 1.0 - (*attributes.get(&Stat::CooldownReduction.as_tag()).unwrap_or(&0.0) / 100.0);
 
         cooldowns.map.insert(
             event.ability.clone(),
@@ -435,7 +440,7 @@ pub enum LogType{
 }
 
 // Change attacker to caster?
-#[derive(Debug)]
+#[derive(Event, Debug)]
 pub struct LogHit{
     pub sensor: Entity,
     pub attacker: Entity,
