@@ -154,7 +154,7 @@ pub fn normal_casting(
 
 
 
-#[derive(Component, Resource, Reflect, Clone, Debug, Default, 
+#[derive(Component, Resource, Reflect, Clone, Copy, Debug, Default, 
     PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut,)]
 #[reflect(Component)]
 pub struct Player {

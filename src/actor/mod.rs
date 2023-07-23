@@ -6,7 +6,7 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
     ability::{Ability, DamageType}, 
-    game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet}, 
+    game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet, ActorType}, 
      
      
     input::SlotBundle, ui::Trackable, 
@@ -79,7 +79,7 @@ pub struct HasHealthBar;
 
 #[derive(Event)]
 pub struct SpawnEvent {
-    pub player: Player,
+    pub actor: ActorType,
     pub transform: Transform,
 }
 
@@ -94,6 +94,12 @@ fn spawn_player(
     local_player: Res<Player>,
 ) {
     for event in spawn_events.iter() {
+        let player = match event.actor{
+            ActorType::Player(player) => player,
+            _ => continue,
+        };
+        let spawning_id = player.id.clone();
+        info!("spawning player {}", spawning_id);
         next_state.set(CharacterState::Alive);
         // reset the rotation so you dont spawn looking the other way
 
@@ -103,8 +109,6 @@ fn spawn_player(
         material.reflectance = 0.0;
         let green = materials.add(material);
 
-        let spawning_id = event.player.id.clone();
-        info!("spawning player {}", spawning_id);
         let player_entity = commands
             .spawn((
                 SpatialBundle::from_transform(event.transform.clone()),
@@ -166,7 +170,7 @@ fn spawn_player(
 
 fn setup_player(mut spawn_events: EventWriter<SpawnEvent>, local_player: Res<Player>) {
     spawn_events.send(SpawnEvent {
-        player: local_player.clone(),
+        actor: ActorType::Player(local_player.clone()),
         transform: Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),

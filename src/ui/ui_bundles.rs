@@ -493,9 +493,9 @@ pub fn stats_ui() -> impl Bundle {(
             width: Val::Px(60.),
             height: Val::Percent(100.),
             flex_direction:FlexDirection::Column,
+            justify_content: JustifyContent::Center,
             ..default()
         },
-        //background_color: Color::rgba(0.9, 0.1, 0.9, 0.2).into(),
         ..default()
     },
     Name::new("Stats"),
@@ -518,10 +518,29 @@ pub fn build_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
             width: Val::Percent(100.),
-            height: Val::Percent(100.),
+            height: Val::Percent(80.),
+            display: Display::Grid,
+            grid_template_columns: RepeatedGridTrack::auto(3),
+            grid_template_rows: RepeatedGridTrack::auto(2),
+            column_gap: Val::Px(8.),
+            row_gap: Val::Px(8.),
+            padding: UiRect::all(Val::Px(12.0)),
             ..default()
         },
-        //background_color: Color::rgba(0.9, 0.6, 0.1, 0.2).into(),
+        ..default()
+    },
+    BuildUI,
+    Name::new("BuildUI"),
+)}
+pub fn build_slot() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            height: Val::Px(48.),
+            aspect_ratio: Some(1.0),
+            padding: UiRect::all(Val::Px(1.0)),
+            ..default()
+        },
+        background_color: Color::rgba(0., 0., 0., 0.1).into(),
         ..default()
     },
     BuildUI,
@@ -531,14 +550,18 @@ pub fn kda_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
             width: Val::Percent(100.),
-            height: Val::Px(40.),
+            height: Val::Px(20.),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
             ..default()
         },
-        //background_color: Color::rgba(0.1, 0.6, 0.9, 0.2).into(),
         ..default()
     },
     Name::new("KDA"),
 )}
+
+#[derive(Component)]
+pub struct KDAText;
 
 #[derive(Component)]
 pub struct TeammateThumbs;
@@ -565,7 +588,6 @@ pub fn team_thumbs() -> impl Bundle {(
             height: Val::Percent(100.),
             ..default()
         },
-        //background_color: Color::rgba(0.9, 0.9, 0.2, 0.4).into(),
         ..default()
     },
     TeammateThumbs,
@@ -608,7 +630,6 @@ pub fn header() -> impl Bundle {(
             },
             ..default()
         },
-        //background_color: Color::rgba(0.1, 0.2, 0.7, 0.4).into(),
         ..default()
     },
     HeaderUI,
@@ -693,7 +714,6 @@ pub fn player_bottom_container() -> impl Bundle {(
             align_items:AlignItems::Center,
             ..default()
         },
-        //background_color: Color::rgba(0.1, 0.7, 0.7, 0.4).into(),
         ..default()
     },
 )}
@@ -725,7 +745,6 @@ pub fn buff_bar() -> impl Bundle {(
             flex_wrap: FlexWrap::WrapReverse, 
             ..default()
         },
-        //background_color: Color::rgba(0.1, 0.1, 1., 0.4).into(),
         ..default()
     },
     BuffBar,
@@ -741,7 +760,6 @@ pub fn debuff_bar() -> impl Bundle {(
             flex_wrap: FlexWrap::WrapReverse, 
             ..default()
         },
-        //background_color: Color::rgba(1., 0.1, 0.2, 0.4).into(),
         ..default()
     },
     DebuffBar,

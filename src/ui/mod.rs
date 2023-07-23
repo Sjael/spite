@@ -7,7 +7,7 @@ use crate::{
     ability::AbilityTooltip,
     game_manager::{GameModeDetails, DeathEvent, Team, InGameSet}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
-    actor::{view::{PlayerCam, Spectating}, HasHealthBar, stats::{Attributes, Stat, AttributeTag}},     
+    actor::{view::{PlayerCam, Spectating}, HasHealthBar, stats::{Attributes, Stat, AttributeTag}, player::Player},     
 };
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -171,10 +171,21 @@ fn add_base_ui(
         parent.spawn(bottom_left_ui_holder()).with_children(|parent| {
             parent.spawn(editable_ui_wrapper()).with_children(|parent| {
                 parent.spawn(bottom_left_ui()).with_children(|parent| {
-                    parent.spawn(stats_ui());
+                    parent.spawn(stats_ui()).with_children(|parent| {
+                        for x in 0..6{
+                            parent.spawn(plain_text(format!("stat {}", x), 16, &fonts));
+                        }
+                    });
                     parent.spawn(build_and_kda()).with_children(|parent| {
-                        parent.spawn(kda_ui());
-                        parent.spawn(build_ui());
+                        parent.spawn(kda_ui()).with_children(|parent| {
+                            parent.spawn(plain_text("0 / 0 / 0", 18, &fonts))
+                                .insert(KDAText);
+                        });
+                        parent.spawn(build_ui()).with_children(|parent| {
+                            for _ in 0..6{
+                                parent.spawn(build_slot());
+                            }
+                        });
                     });
                 });
             });
@@ -329,6 +340,22 @@ fn load_tooltip(
 }
 
 
+fn update_kda(
+    mut kda_query: Query<&mut Text, With<KDAText>>,
+    mut death_events: EventReader<DeathEvent>,
+    local_player: Res<Player>,
+
+){
+    let Ok(mut kda_text) = kda_query.get_single_mut() else {return};
+    for event in death_events.iter(){
+        if event.actor == ActorType::Player(*local_player) {
+            kda_text.sections[0].value = format!("{} / {} / {}", 0, 1, 0);
+        }
+        for killer in event.killers{
+            if killer == 
+        }
+    }
+}
 
 pub fn killfeed_update(
     mut commands: Commands,
