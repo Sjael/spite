@@ -101,7 +101,7 @@ pub fn editing_ui() -> impl Bundle{(
             bottom: Val::Px(30.),
             ..default()
         },
-        z_index: ZIndex::Global(11),
+        z_index: ZIndex::Global(9),
         ..default()
     },
     UiForEditingUi,
@@ -1078,7 +1078,7 @@ pub fn tooltip() -> impl Bundle{(
             ..default()
         },
         background_color: Color::NONE.into(),
-        z_index: ZIndex::Global(2),
+        z_index: ZIndex::Global(10),
         ..default()
     },
     Tooltip::default(),
@@ -1200,7 +1200,7 @@ pub fn ingame_menu() -> impl Bundle {(
             ..default()
         },
         background_color: Color::rgba(0.2, 0.2, 0.2, 0.4).into(),
-        z_index: ZIndex::Global(10),
+        z_index: ZIndex::Global(11),
         visibility: Visibility::Hidden,
         ..default()
     },
@@ -1250,7 +1250,7 @@ pub fn tab_panel() -> impl Bundle {(
             ..default()
         },
         visibility: Visibility::Hidden,
-        z_index: ZIndex::Global(8),
+        // z_index: ZIndex::Global(3)
         ..default()
     },
     TabPanel,
@@ -1494,7 +1494,7 @@ pub fn drag_bar() -> impl Bundle{(
             top: Val::Px(0.0),
             ..default()
         },
-        z_index: ZIndex::Global(6),
+        z_index: ZIndex::Global(2),
         background_color: Color::rgba(0.6, 0.7, 0.4, 0.2).into(),
         transform: Transform {
             translation: Vec3::new(0., 0., 1.),
@@ -1524,7 +1524,6 @@ pub fn list_categories() -> impl Bundle {(
 pub fn category() -> impl Bundle {(
     ButtonBundle {
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
-        z_index: ZIndex::Global(2),
         ..default()
     }
 )}
@@ -1625,7 +1624,6 @@ pub fn button() -> impl Bundle {(
             ..default()
         },
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
-        z_index: ZIndex::Global(2),
         ..default()
     },
     HoverButton,    

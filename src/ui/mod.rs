@@ -266,7 +266,7 @@ fn draggables(
     windows: Query<&mut Window, With<PrimaryWindow>>,
     // both queries can be the same entity or different
     handle_query: Query<(Entity, &Interaction, &Parent), With<DragHandle>>,
-    mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform, &Draggable)>,
+    mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform, &Draggable, &mut ZIndex)>,
     parent_query: Query<(&Node, &GlobalTransform)>,
     mut offset: Local<Vec2>,
     mut parent_offset: Local<Vec2>,
@@ -282,7 +282,7 @@ fn draggables(
             continue
         };
         for entity in [handle_entity, handle_parent.get()]{
-            let Ok((mut style, parent, node, gt, draggable)) = draggable_query.get_mut(entity) else { 
+            let Ok((mut style, parent, node, gt, draggable, mut z_index)) = draggable_query.get_mut(entity) else { 
                 continue 
             };
             if mouse.just_pressed(MouseButton::Left){
@@ -294,6 +294,9 @@ fn draggables(
                 offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
                 offset.y = cursor_pos.y - (gt.translation().y - node.size().y/2.0);
                 holding.0 = Some(entity);
+                if handle_entity == entity{
+                    *z_index = ZIndex::Global(7);
+                }
             }   
             let mut left_position = cursor_pos.x - parent_offset.x - offset.x;
             let mut top_position = cursor_pos.y - parent_offset.y - offset.y;
@@ -316,21 +319,31 @@ fn draggables(
 pub struct CursorHolding(Option<Entity>);
 
 fn droppables(
+    mut commands: Commands,
     windows: Query<&mut Window, With<PrimaryWindow>>,
     mouse: Res<Input<MouseButton>>,
     mut holding: ResMut<CursorHolding>,
-    mut drop_query: Query<(Entity, &Interaction, &mut Style, &mut BackgroundColor), With<DropSlot>>,
+    mut slot_query: Query<(Entity, &Interaction, &mut Style, &mut BackgroundColor), With<DropSlot>>,
+    mut drag_query: Query<(&mut Style, &Parent), Without<DropSlot>>,
 ){
-    if holding.0.is_none() { return }
+    let Some(holding_entity) = holding.0 else { return };
     let Ok(window) = windows.get_single() else { return };
     let Some(cursor_pos) = window.cursor_position() else { return };  
     if mouse.just_released(MouseButton::Left) { 
-        holding.0 = None;
-        for (drop_entity, interaction, mut style, mut bg) in &mut drop_query{
+        for (drop_entity, interaction, mut style, mut bg) in &mut slot_query{
             *bg = Color::GRAY.into();
+            if *interaction != Interaction::None{
+                commands.entity(holding_entity).set_parent(drop_entity);
+            }
+            let Ok((mut style, parent)) = drag_query.get_mut(holding_entity) else {continue};
+            if parent.get() != drop_entity { continue }
+            style.left = Val::default();
+            style.top = Val::default();
         }
+        holding.0 = None;
+
     } else {
-        for (drop_entity, interaction, mut style, mut bg) in &mut drop_query{
+        for (drop_entity, interaction, mut style, mut bg) in &mut slot_query{
             if *interaction == Interaction::None {
                 *bg = Color::GRAY.into();
             } else {
