@@ -383,14 +383,14 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
     }
 )}
 
-pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
+pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>, color: Color) -> impl Bundle{
     let mut rng = rand::thread_rng();
     let top_offset = 40.;
     let start_horizontal = rng.gen_range(-30..30);
     let spread = 30;
     let end_horizontal = rng.gen_range(start_horizontal - spread..start_horizontal + spread);
     let delay_seconds = 1;
-    let text_color = Color::WHITE;
+    let text_color = color.clone();
     let tween_pos = Tween::new(
         EaseFunction::QuadraticIn,
         Duration::from_millis(500),
@@ -431,7 +431,7 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>) -> impl Bundle{
             damage.to_string(),
             TextStyle {
                 font: fonts.exo_semibold.clone(),
-                font_size: 20.,
+                font_size: 25.,
                 color: text_color,
             },
         ),
@@ -532,6 +532,7 @@ pub fn build_ui() -> impl Bundle {(
     BuildUI,
     Name::new("BuildUI"),
 )}
+
 pub fn build_slot() -> impl Bundle {(
     NodeBundle {
         style: Style {
@@ -543,9 +544,12 @@ pub fn build_slot() -> impl Bundle {(
         background_color: Color::rgba(0., 0., 0., 0.1).into(),
         ..default()
     },
-    BuildUI,
-    Name::new("BuildUI"),
+    Name::new("Build slot"),
+    DropSlot,
 )}
+#[derive(Component)]
+pub struct DropSlot;
+
 pub fn kda_ui() -> impl Bundle {(
     NodeBundle {
         style: Style {
@@ -562,6 +566,8 @@ pub fn kda_ui() -> impl Bundle {(
 
 #[derive(Component)]
 pub struct KDAText;
+#[derive(Component)]
+pub struct PersonalKDA;
 
 #[derive(Component)]
 pub struct TeammateThumbs;
@@ -1370,19 +1376,48 @@ pub fn thin_image(image: Handle<Image>) -> impl Bundle{(
 #[derive(Component, Debug)]
 pub struct DespawnTimer(pub Timer);
 
+#[derive(Component, Debug)]
+pub struct ScoreboardUI;
 pub fn scoreboard() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            width: Val::Px(300.),
-            height: Val::Px(200.),
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
             position_type: PositionType::Absolute,
+            display: Display::Grid,
+            grid_template_columns: vec![GridTrack::min_content(), GridTrack::flex(1.0)],
+            /*
+            grid_auto_flow: GridAutoFlow::ColumnDense,
+            grid_template_rows: vec![
+                GridTrack::fr(1.0),
+            ],
+            grid_auto_rows: vec![GridTrack::flex(1.0), GridTrack::flex(1.0)],
+             */
+            padding: UiRect::all(Val::Px(15.)),
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.8, 0.5, 0.4).into(),
+        background_color: Color::rgba(0.14, 0.14, 0.2, 0.99).into(),
         ..default()
     },
     TabMenuType::Scoreboard,
+    ScoreboardUI,
 )}
+
+pub fn scoreboard_entry(color: Color) -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
+            justify_content: JustifyContent::Center,
+            align_content: AlignContent::Center,
+            ..default()
+        },
+        background_color: color.into(),
+        ..default()
+    },
+)}
+
+
 pub fn abilities_panel() -> impl Bundle {(
     NodeBundle {
         style: Style {
@@ -1547,6 +1582,26 @@ pub fn item_image(items: &Res<Items>, item: Item) -> impl Bundle {(
         ..default()
     },
     Draggable::BoundByParent(0),
+    DragHandle,
+    Interaction::default(),
+)}
+
+pub fn item_image_build(items: &Res<Items>, item: Item) -> impl Bundle {(
+    ImageBundle {
+        style: Style {
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
+            ..default()
+        },
+        image: match item{
+            Item::Arondight => items.arondight.clone().into(),
+            Item::SoulReaver => items.soul_reaver.clone().into(),
+            Item::HiddenDagger => items.hidden_dagger.clone().into(),
+        },
+        focus_policy: FocusPolicy::Block,
+        ..default()
+    },
+    Draggable::Unbound,
     DragHandle,
     Interaction::default(),
 )}

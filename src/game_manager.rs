@@ -29,6 +29,8 @@ impl Plugin for GameManagerPlugin {
         app.insert_resource(Player::new(1507)); // change to be whatever the server says
         app.insert_resource(TeamRoster::default());
         app.insert_resource(Scoreboard::default());
+        app.insert_resource(LoggedStats::default());
+        
         
         app.register_type::<Bounty>();
         app.add_state::<CharacterState>();
@@ -157,14 +159,23 @@ impl Default for Bounty {
 
 #[derive(Resource, Default)]
 pub struct Scoreboard{
+    pub kda_list: HashMap<Player, KDA>,
+}
+#[derive(Resource, Default)]
+pub struct LoggedStats{
     pub list: HashMap<Player, LoggedNumbers>,
 }
 
 #[derive(Default)]
-pub struct LoggedNumbers{
+pub struct KDA{    
     pub kills: u32,
     pub deaths: u32,
     pub assists: u32,
+}
+
+#[derive(Default)]
+pub struct LoggedNumbers{
+    pub gold_acquired: u32,
     pub damage_dealt: u32,
     pub damage_taken: u32,
     pub damage_mitigated: u32,
@@ -368,7 +379,7 @@ fn despawn_dead(
                     let Ok(ui) = ui.get_single() else {continue};
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }
-                let dead_guy = scoreboard.list.entry(player).or_default();
+                let dead_guy = scoreboard.kda_list.entry(player).or_default();
                 dead_guy.deaths += 1;
                 is_dead_player = true;
             },
@@ -380,8 +391,7 @@ fn despawn_dead(
         
 
         for (index, awardee) in event.killers.iter().enumerate() {
-            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else { continue};
-            
+            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else { continue };            
 
             if let Some(bounty) = bounty {
                 
@@ -393,7 +403,7 @@ fn despawn_dead(
 
             if !is_dead_player{ continue }
             if let ActorType::Player(killer) = awardee_actor{
-                let killer_scoreboard = scoreboard.list.entry(*killer).or_default();
+                let killer_scoreboard = scoreboard.kda_list.entry(*killer).or_default();
                 if index == 0{
                     killer_scoreboard.kills += 1;
                 }else {

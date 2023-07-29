@@ -9,7 +9,7 @@ use crate::{
     game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet, ActorType}, 
      
      
-    input::SlotBundle, ui::Trackable, 
+    input::{SlotBundle, copy_action_state}, ui::Trackable, 
     actor::view::{SpectateEvent, Spectatable, Spectating}, 
     };
 
@@ -50,7 +50,7 @@ impl Plugin for CharacterPlugin {
         app.add_systems(PreUpdate, (
             player_keys_input,
             player_mouse_input,
-            select_ability,
+            select_ability.after(copy_action_state),
             update_local_player_inputs,
         ).in_set(InGameSet::Pre));
         app.add_systems(Update, (
@@ -120,7 +120,8 @@ fn spawn_player(
                     .into(),
                 ),
                 green.clone(),
-                Player { id: spawning_id },
+                event.actor.clone(), // ActorType
+                player, // Player
                 Name::new(format!("Player {}", spawning_id.to_string())),
                 Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
                 ActiveEvents::COLLISION_EVENTS,
@@ -154,7 +155,7 @@ fn spawn_player(
             ))
             .id();
 
-        let player_is_owned = local_player.id == spawning_id; // make it check if you are that player
+        let player_is_owned = event.actor == ActorType::Player(*local_player); // make it check if you are that player
         if player_is_owned {
             spectate_events.send(SpectateEvent {
                 entity: player_entity,

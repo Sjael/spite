@@ -221,7 +221,7 @@ pub fn setup_map(
         Sensor,
         Tags {
             list: vec![
-                TagInfo::Damage(17.0),
+                TagInfo::Damage(27.0),
                 TagInfo::Buff(BuffInfo {
                     stat: AttributeTag::Modifier {
                         modifier: Modifier::Mul,

@@ -355,10 +355,14 @@ pub fn spawn_floating_damage(
     fonts: Res<Fonts>,
 ){
     for damage_instance in damage_events.iter(){
-        if damage_instance.attacker != spectating.0 { continue };
+        if damage_instance.attacker != spectating.0 && damage_instance.defender != spectating.0 { continue };
         let Ok(damaged) = damaged_query.get(damage_instance.defender) else {continue};
+        let mut color = Color::WHITE;
+        if damage_instance.defender == spectating.0{
+            color = Color::RED;
+        }
         commands.spawn(follow_wrapper(damaged)).with_children(|parent| {            
-            parent.spawn(follow_inner_text(damage_instance.change.abs().to_string(), &fonts));
+            parent.spawn(follow_inner_text(damage_instance.change.abs().to_string(), &fonts, color));
         });
     }
 }

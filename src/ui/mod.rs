@@ -5,7 +5,7 @@ use ui_bundles::team_thumbs_holder;
 use crate::{
     ui::{ui_bundles::*,styles::*, spectating::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
     ability::AbilityTooltip,
-    game_manager::{GameModeDetails, DeathEvent, Team, InGameSet}, 
+    game_manager::{GameModeDetails, DeathEvent, Team, InGameSet, Scoreboard, ActorType, TeamRoster, TEAM_1}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
     actor::{view::{PlayerCam, Spectating}, HasHealthBar, stats::{Attributes, Stat, AttributeTag}, player::Player},     
 };
@@ -75,6 +75,7 @@ impl Plugin for UiPlugin {
             update_buff_timers,
             update_objective_health,
             toggle_objective_health,
+            populate_scoreboard,
         ).in_set(InGameSet::Update));
         app.add_systems(Update, (
             draggables.run_if(in_state(MouseState::Free)),
@@ -90,6 +91,7 @@ impl Plugin for UiPlugin {
             spawn_floating_health_bars,
             bar_track,
             state_ingame_menu,
+            update_kda,
         ).in_set(InGameSet::Update));
         
         app.add_systems(Update, (
@@ -127,6 +129,34 @@ fn button_hovers(
             Interaction::None => {
                 *color = NORMAL_BUTTON.into();
             }
+        }
+    }
+}
+
+fn populate_scoreboard(
+    roster: Res<TeamRoster>,
+    mut commands: Commands,
+    scoreboard: Query<Entity, Added<ScoreboardUI>>,
+    fonts: Res<Fonts>,
+){
+    let Ok(scoreboard_ui) = scoreboard.get_single() else {return}; // else spawn scoreboard?
+    commands.entity(scoreboard_ui).despawn_descendants();
+    for (team, players) in roster.teams.iter(){
+        let mut color = Color::rgba(0.3, 0.15, 0.1, 0.95);
+        if team == &TEAM_1{
+            color = Color::rgba(0.15, 0.15, 0.2, 0.95);
+        } 
+        for player in players.iter(){
+            println!("spawning");
+            dbg!(player);
+            commands.entity(scoreboard_ui).with_children(|parent| {
+                parent.spawn(scoreboard_entry(color)).with_children(|parent| {
+                    parent.spawn(plain_text(player.id.clone().to_string(), 14, &fonts));
+                });
+                parent.spawn(scoreboard_entry(color)).with_children(|parent| {
+                    parent.spawn(plain_text("0 / 0 / 0", 14, &fonts)).insert(KDAText);
+                });
+            });
         }
     }
 }
@@ -179,10 +209,13 @@ fn add_base_ui(
                     parent.spawn(build_and_kda()).with_children(|parent| {
                         parent.spawn(kda_ui()).with_children(|parent| {
                             parent.spawn(plain_text("0 / 0 / 0", 18, &fonts))
-                                .insert(KDAText);
+                                .insert(PersonalKDA);
                         });
                         parent.spawn(build_ui()).with_children(|parent| {
-                            for _ in 0..6{
+                            for _ in 0..3{
+                                parent.spawn(build_slot()).with_children(|parent| {
+                                    parent.spawn(item_image_build(&items, Item::Arondight));
+                                });
                                 parent.spawn(build_slot());
                             }
                         });
@@ -274,6 +307,13 @@ fn draggables(
     }
 }
 
+fn droppables(
+    windows: Query<&mut Window, With<PrimaryWindow>>,
+){
+    let Ok(window) = windows.get_single() else { return };
+    let Some(cursor_pos) = window.cursor_position() else { return };  
+
+}
 
 fn move_tooltip(
     mut tooltip: Query<&mut Style, With<Tooltip>>,
@@ -341,18 +381,18 @@ fn load_tooltip(
 
 
 fn update_kda(
-    mut kda_query: Query<&mut Text, With<KDAText>>,
+    mut kda_query: Query<&mut Text, With<PersonalKDA>>,
+    mut scoreboard_kda_query: Query<&mut Text, (With<KDAText>, Without<PersonalKDA>)>,
+    scoreboard: Res<Scoreboard>,
     mut death_events: EventReader<DeathEvent>,
     local_player: Res<Player>,
-
 ){
-    let Ok(mut kda_text) = kda_query.get_single_mut() else {return};
-    for event in death_events.iter(){
-        if event.actor == ActorType::Player(*local_player) {
-            kda_text.sections[0].value = format!("{} / {} / {}", 0, 1, 0);
-        }
-        for killer in event.killers{
-            if killer == 
+    if scoreboard.is_changed(){
+        let Ok(mut kda_text) = kda_query.get_single_mut() else {return};
+        for (player, kda) in scoreboard.kda_list.iter(){            
+            if *player == *local_player {
+                kda_text.sections[0].value = format!("{} / {} / {}", kda.kills, kda.deaths, kda.assists);
+            }
         }
     }
 }

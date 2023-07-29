@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, f32::consts::PI, fmt::Debug};
 
 
-use crate::{ability::{Ability, bundles::Targetter}, ui::mouse::MouseState, input::MouseSensitivity, assets::MaterialPresets};
+use crate::{ability::{Ability, bundles::Targetter}, ui::mouse::MouseState, input::MouseSensitivity, assets::MaterialPresets, game_manager::ActorType};
 
 use super::{InputCastEvent, view::{OuterGimbal, Reticle}, CooldownMap};
 
@@ -48,11 +48,11 @@ pub fn player_keys_input(
 
 pub fn update_local_player_inputs(
     player_input: Res<PlayerInput>,
-    mut query: Query<(&mut PlayerInput, &Player)>,
+    mut query: Query<(&mut PlayerInput, &ActorType)>,
     local_player: Res<Player>,
 ) {
-    for (mut input, player) in &mut query{
-        if player.id != local_player.id { continue }
+    for (mut input, actortype) in &mut query{
+        if actortype != &ActorType::Player(*local_player) { continue }
         *input = player_input.clone();
         //info!("setting local player inputs: {:?}", player_input);
     }
@@ -67,6 +67,7 @@ pub fn select_ability(
     for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
         for ability in ab_state.get_just_pressed() {
             let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
+            dbg!(cast_type);
             if *cast_type == CastType::Normal {
                 hover.0 = Some(ability.clone());
             } else if *cast_type == CastType::Instant {
@@ -122,13 +123,19 @@ pub fn change_targetter_color(
     mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
     presets: Res<MaterialPresets>,
 ){  
-    let Some(handle) = presets.0.get("blue") else {return};
+    let Some(castable) = presets.0.get("blue") else {return};
+    let Some(on_cooldown) = presets.0.get("white") else {return};
     for (hovered, cooldowns) in &query{
         let Some(hovered_ability) = hovered.0 else { continue };
-        if cooldowns.map.contains_key(&hovered_ability) { continue }
+        let color;
+        if cooldowns.map.contains_key(&hovered_ability) { 
+            color = on_cooldown.clone();
+        } else {
+            color = castable.clone();
+        }
         for (old_ability, mut material) in &mut targetters{
             if old_ability != &hovered_ability { continue }
-            *material = handle.clone();            
+            *material = color.clone();            
         }
     }
 }

@@ -39,7 +39,7 @@ fn clean_inputs(
 // There are 3 layers of data (Keys -> Slots -> Abilities)
 // This is the system passing on actions from first 2 layers on to final layer
 // We can now have ability 'slots' in our game, like an actionbar in WoW or Diablo that we can drag stuff onto soon tm
-fn copy_action_state(
+pub fn copy_action_state(
     mut query: Query<(&ActionState<Slot>, &mut ActionState<Ability>, &SlotAbilityMap, &HoveredAbility)>,
     mouse_is_free: Res<State<MouseState>>,
 ) {

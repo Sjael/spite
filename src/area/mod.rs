@@ -469,12 +469,12 @@ fn tick_hit_timers(
             }
             TickBehavior::Static(ref mut static_timer) => {
                 // tick whole ability timer unless empty and pauses (towers)
-                static_timer.tick(time.delta());
                 if pauses.is_some() && targets_in_area.list.is_empty(){ 
                     static_timer.set_mode(TimerMode::Once);
-                } else if static_timer.mode() == TimerMode::Once{
+                } else{
                     static_timer.set_mode(TimerMode::Repeating);
                 }
+                static_timer.tick(time.delta());
                 match *ticks {
                     Ticks::Multiple(mut amount) => {
                         if static_timer.just_finished() {
