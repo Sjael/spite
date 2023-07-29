@@ -544,6 +544,7 @@ pub fn build_slot() -> impl Bundle {(
         background_color: Color::rgba(0., 0., 0., 0.1).into(),
         ..default()
     },
+    Interaction::None,
     Name::new("Build slot"),
     DropSlot,
 )}
@@ -1578,10 +1579,10 @@ pub fn item_image(items: &Res<Items>, item: Item) -> impl Bundle {(
             Item::SoulReaver => items.soul_reaver.clone().into(),
             Item::HiddenDagger => items.hidden_dagger.clone().into(),
         },
-        focus_policy: FocusPolicy::Block,
+        //focus_policy: FocusPolicy::Block,
         ..default()
     },
-    Draggable::BoundByParent(0),
+    Draggable::Unbound,
     DragHandle,
     Interaction::default(),
 )}
@@ -1598,7 +1599,6 @@ pub fn item_image_build(items: &Res<Items>, item: Item) -> impl Bundle {(
             Item::SoulReaver => items.soul_reaver.clone().into(),
             Item::HiddenDagger => items.hidden_dagger.clone().into(),
         },
-        focus_policy: FocusPolicy::Block,
         ..default()
     },
     Draggable::Unbound,

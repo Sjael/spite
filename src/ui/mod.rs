@@ -29,6 +29,7 @@ impl Plugin for UiPlugin {
         app.add_event::<MenuEvent>();
 
         app.insert_resource(FocusedHealthEntity(None));
+        app.insert_resource(CursorHolding(None));
 
 
         app.add_systems(OnEnter(GameState::MainMenu), (
@@ -79,6 +80,7 @@ impl Plugin for UiPlugin {
         ).in_set(InGameSet::Update));
         app.add_systems(Update, (
             draggables.run_if(in_state(MouseState::Free)),
+            droppables.run_if(in_state(MouseState::Free)),
             menu_toggle,
             mouse_with_free_key,
             free_mouse,
@@ -263,13 +265,14 @@ fn add_base_ui(
 fn draggables(
     windows: Query<&mut Window, With<PrimaryWindow>>,
     // both queries can be the same entity or different
-    handle_query: Query<(Entity, &Interaction, &Parent,), With<DragHandle>>,
+    handle_query: Query<(Entity, &Interaction, &Parent), With<DragHandle>>,
     mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform, &Draggable)>,
     parent_query: Query<(&Node, &GlobalTransform)>,
     mut offset: Local<Vec2>,
     mut parent_offset: Local<Vec2>,
     mut max_offset: Local<Vec2>,
     mouse: Res<Input<MouseButton>>,
+    mut holding: ResMut<CursorHolding>,
 ){
     let Ok(window) = windows.get_single() else { return };
     let Some(cursor_pos) = window.cursor_position() else { return };  
@@ -278,8 +281,8 @@ fn draggables(
         if *interaction != Interaction::Pressed{ 
             continue
         };
-        for draggable in [handle_entity, handle_parent.get()]{
-            let Ok((mut style, parent, node, gt, draggable)) = draggable_query.get_mut(draggable) else { 
+        for entity in [handle_entity, handle_parent.get()]{
+            let Ok((mut style, parent, node, gt, draggable)) = draggable_query.get_mut(entity) else { 
                 continue 
             };
             if mouse.just_pressed(MouseButton::Left){
@@ -290,6 +293,7 @@ fn draggables(
                 }
                 offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
                 offset.y = cursor_pos.y - (gt.translation().y - node.size().y/2.0);
+                holding.0 = Some(entity);
             }   
             let mut left_position = cursor_pos.x - parent_offset.x - offset.x;
             let mut top_position = cursor_pos.y - parent_offset.y - offset.y;
@@ -303,21 +307,37 @@ fn draggables(
             style.left = Val::Px(left_position);
             style.top = Val::Px(top_position);
             style.position_type = PositionType::Absolute;
+            return // so we dont have to FocusPolicy::Block, can just return once we found something to drag
         } 
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct CursorHolding(Option<Entity>);
 
 fn droppables(
     windows: Query<&mut Window, With<PrimaryWindow>>,
     mouse: Res<Input<MouseButton>>,
+    mut holding: ResMut<CursorHolding>,
+    mut drop_query: Query<(Entity, &Interaction, &mut Style, &mut BackgroundColor), With<DropSlot>>,
 ){
+    if holding.0.is_none() { return }
     let Ok(window) = windows.get_single() else { return };
     let Some(cursor_pos) = window.cursor_position() else { return };  
-    if !mouse.just_released(MouseButton::Left) { return }
-
+    if mouse.just_released(MouseButton::Left) { 
+        holding.0 = None;
+        for (drop_entity, interaction, mut style, mut bg) in &mut drop_query{
+            *bg = Color::GRAY.into();
+        }
+    } else {
+        for (drop_entity, interaction, mut style, mut bg) in &mut drop_query{
+            if *interaction == Interaction::None {
+                *bg = Color::GRAY.into();
+            } else {
+                *bg = Color::GOLD.into();
+            }
+        }
+    }
 }
 
 fn move_tooltip(
