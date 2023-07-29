@@ -307,11 +307,16 @@ fn draggables(
     }
 }
 
+#[derive(Resource)]
+pub struct CursorHolding(Option<Entity>);
+
 fn droppables(
     windows: Query<&mut Window, With<PrimaryWindow>>,
+    mouse: Res<Input<MouseButton>>,
 ){
     let Ok(window) = windows.get_single() else { return };
     let Some(cursor_pos) = window.cursor_position() else { return };  
+    if !mouse.just_released(MouseButton::Left) { return }
 
 }
 
