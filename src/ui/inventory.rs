@@ -91,7 +91,10 @@ pub fn inspect_item(
             }
         }
         commands.entity(parents_entity).with_children(|parent| {
-            parent.spawn(item_image(&items, item.clone()));
+            let supers = item.get_ancestors();
+            for i in supers{
+                parent.spawn(item_image(&items, i));
+            }
         });
 
         let Ok(mut price_text) = price_text.get_single_mut() else{ return };
@@ -101,7 +104,7 @@ pub fn inspect_item(
 
 fn spawn_tree(commands: &mut Commands, item: Item, item_images: &Res<Items>, parent: Entity) {
     commands.entity(parent).with_children(|parent: &mut ChildBuilder<'_, '_, '_>| {
-        parent.spawn(item_image(&item_images, item.clone()));
+        parent.spawn(item_image(item_images, item.clone()));
     });
     let parts = item.get_parts();
     for part in parts{

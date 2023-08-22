@@ -76,6 +76,17 @@ lazy_static! {
             ),
         ])
     };
+    pub static ref ITEM_ANCESTORS: HashMap<Item, Vec<Item>> = {
+        let mut map = HashMap::new();
+        for (item, info) in ITEM_DB.clone().into_iter(){
+            for part in info.parts{
+                let ancestors: &mut Vec<Item> = map.entry(part.clone()).or_default();
+                if ancestors.contains(&item){ continue };
+                ancestors.push(item.clone());
+            }
+        }
+        map
+    };
 }
 
 impl Item{
@@ -113,6 +124,10 @@ impl Item{
 
     pub fn get_parts(&self) -> Vec<Item> {
         ITEM_DB.get(self).cloned().unwrap_or_default().parts
+    }
+
+    pub fn get_ancestors(&self) -> Vec<Item> {
+        ITEM_ANCESTORS.get(self).cloned().unwrap_or_default()
     }
     
 }
