@@ -151,6 +151,18 @@ pub fn update_character_resource(
     bar.width = Val::Percent(new_size * 100.0);
 }
 
+pub fn update_gold_inhand(
+    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
+    mut text_query: Query<&mut Text, With<GoldInhand>>,
+    spectating: Res<Spectating>,
+) {
+    let Ok(attributes) = query.get(spectating.0) else { return };
+    let gold = *attributes.get(&Stat::Gold.as_tag()).unwrap_or(&0.0);
+    for mut text in text_query.iter_mut() {
+        text.sections[0].value = gold.trunc().to_string();
+    }
+}
+
 pub fn update_cc_bar(
     spectating: Res<Spectating>,
     cc_maps: Query<&CCMap>,

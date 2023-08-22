@@ -20,6 +20,7 @@ bevy_asset_loader = "0.17.0"
 bevy_tweening = {git = "https://github.com/Sjael/bevy_tweening", branch="sjael"}
 strum = "0.24.1"
 strum_macros = "0.24.3"
+lazy_static = "1.4.0"
 # for geometric shapes as sprites
 #bevy_prototype_lyon = "0.8.0" 
 

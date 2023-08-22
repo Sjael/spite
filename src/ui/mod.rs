@@ -3,12 +3,13 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    ui::{ui_bundles::*,styles::*, spectating::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*},  
+    ui::{ui_bundles::*,styles::*, spectating::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*, inventory::*},  
     ability::AbilityTooltip,
     game_manager::{GameModeDetails, DeathEvent, Team, InGameSet, Scoreboard, ActorType, TeamRoster, TEAM_1}, 
     assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
     actor::{view::{PlayerCam, Spectating}, HasHealthBar, stats::{Attributes, Stat, AttributeTag}, player::Player},     
 };
+
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SpectatingSet;
@@ -28,6 +29,8 @@ impl Plugin for UiPlugin {
         app.add_event::<ResetUiEvent>();
         app.add_event::<MenuEvent>();
 
+        app.insert_resource(CategorySorted::default());
+        app.insert_resource(ItemInspected::default());
         app.insert_resource(FocusedHealthEntity(None));
         app.insert_resource(CursorHolding(None));
 
@@ -58,6 +61,7 @@ impl Plugin for UiPlugin {
         app.add_systems(Update, (
             update_health,
             update_character_resource,
+            update_gold_inhand,
             update_cc_bar,
             toggle_cc_bar,
             update_cast_bar,
@@ -79,8 +83,8 @@ impl Plugin for UiPlugin {
             populate_scoreboard,
         ).in_set(InGameSet::Update));
         app.add_systems(Update, (
-            draggables.run_if(in_state(MouseState::Free)),
-            droppables.run_if(in_state(MouseState::Free)),
+            drag_holdable.run_if(in_state(MouseState::Free)),
+            drop_holdable.run_if(in_state(MouseState::Free)),
             menu_toggle,
             mouse_with_free_key,
             free_mouse,
@@ -94,6 +98,11 @@ impl Plugin for UiPlugin {
             bar_track,
             state_ingame_menu,
             update_kda,
+        ).in_set(InGameSet::Update));
+        app.add_systems(Update, (
+            sort_items,
+            click_category,
+            inspect_item,
         ).in_set(InGameSet::Update));
         
         app.add_systems(Update, (
@@ -204,6 +213,7 @@ fn add_base_ui(
             parent.spawn(editable_ui_wrapper()).with_children(|parent| {
                 parent.spawn(bottom_left_ui()).with_children(|parent| {
                     parent.spawn(stats_ui()).with_children(|parent| {
+                        parent.spawn(color_text("0", 24, &fonts, Color::YELLOW)).insert(GoldInhand);
                         for x in 0..6{
                             parent.spawn(plain_text(format!("stat {}", x), 16, &fonts));
                         }
@@ -214,12 +224,18 @@ fn add_base_ui(
                                 .insert(PersonalKDA);
                         });
                         parent.spawn(build_ui()).with_children(|parent| {
-                            for _ in 0..3{
-                                parent.spawn(build_slot()).with_children(|parent| {
-                                    parent.spawn(item_image_build(&items, Item::Arondight));
-                                });
-                                parent.spawn(build_slot());
-                            }
+                            parent.spawn(build_slot(1)).with_children(|parent| {
+                                parent.spawn(item_image_build(&items, Item::Arondight));
+                            });
+                            parent.spawn(build_slot(2)).with_children(|parent| {
+                                parent.spawn(item_image_build(&items, Item::HiddenDagger));
+                            });
+                            parent.spawn(build_slot(3));
+                            parent.spawn(build_slot(4)).with_children(|parent| {
+                                parent.spawn(item_image_build(&items, Item::SoulReaver));
+                            });
+                            parent.spawn(build_slot(5));
+                            parent.spawn(build_slot(6));
                         });
                     });
                 });
@@ -239,12 +255,11 @@ fn add_base_ui(
         parent.spawn(store()).with_children(|parent| {
             parent.spawn(drag_bar());
             parent.spawn(list_categories()).with_children(|parent| {
-                parent.spawn(category()).with_children(|parent| {
-                    parent.spawn(category_text("Attack Damage", &fonts));
-                });
-                parent.spawn(category()).with_children(|parent| {
-                    parent.spawn(category_text("Magical Power", &fonts));
-                });
+                for stat in CATEGORIES.iter(){
+                    parent.spawn(category(stat.clone())).with_children(|parent| {
+                        parent.spawn(category_text(stat.to_string(), &fonts));
+                    });
+                }
             });
             parent.spawn(list_items()).with_children(|parent| {
                 parent.spawn(item_image(&items, Item::HiddenDagger));
@@ -252,22 +267,28 @@ fn add_base_ui(
                 parent.spawn(item_image(&items, Item::SoulReaver));
                 });
             parent.spawn(inspector()).with_children(|parent| {
-                parent.spawn(gold_text(&fonts));
+                parent.spawn(item_parents());
+                parent.spawn(item_tree());
+                parent.spawn(color_text("0", 14, &fonts, Color::YELLOW)).insert(ItemPriceText);
                 parent.spawn(button()).with_children(|parent| {
-                    parent.spawn(button_text("buy", &fonts));
-                });            
+                    parent.spawn(plain_text("BUY", 20, &fonts));
+                });
+                parent.spawn(color_text("0", 24, &fonts, Color::YELLOW)).insert(GoldInhand);
             });
         });
     });
 }
 
 
-fn draggables(
+fn drag_holdable(
+    mut commands: Commands,
+    //items: Res<Items>,
     windows: Query<&mut Window, With<PrimaryWindow>>,
     // both queries can be the same entity or different
     handle_query: Query<(Entity, &Interaction, &Parent), With<DragHandle>>,
     mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform, &Draggable, &mut ZIndex)>,
-    parent_query: Query<(&Node, &GlobalTransform)>,
+    parent_query: Query<(&Node, &GlobalTransform, Option<&mut ZTracker>)>,
+    build_slot_query: Query<&BuildSlotNumber>,
     mut offset: Local<Vec2>,
     mut parent_offset: Local<Vec2>,
     mut max_offset: Local<Vec2>,
@@ -286,17 +307,40 @@ fn draggables(
                 continue 
             };
             if mouse.just_pressed(MouseButton::Left){
-                if let Ok((parent_node, parent_gt)) = parent_query.get(parent.get()){  
+                if let Ok((parent_node, parent_gt, mut ztracker)) = parent_query.get(parent.get()){  
                     parent_offset.x = parent_gt.translation().x - parent_node.size().x/2.0;  
                     parent_offset.y = parent_gt.translation().y - parent_node.size().y/2.0;
                     *max_offset = parent_node.size() - node.size();
                 }
                 offset.x = cursor_pos.x - (gt.translation().x - node.size().x/2.0);
                 offset.y = cursor_pos.y - (gt.translation().y - node.size().y/2.0);
-                holding.0 = Some(entity);
+                if let Ok(build_number) = build_slot_query.get(parent.get()){
+                    holding.0 = Some(HeldItem{
+                        item: entity,
+                        slot: build_number.0,
+                    });
+                }
                 if handle_entity == entity{
                     *z_index = ZIndex::Global(7);
                 }
+
+                /*
+                // Add phantom item to show where it will be placed
+                commands.entity(parent.get()).with_children(|parent| {
+                    parent.spawn((
+                        ImageBundle {
+                            style: Style {
+                                width: Val::Px(node.size().x),
+                                height: Val::Px(node.size().y),
+                                ..default()
+                            },
+                            image:  items.hidden_dagger.clone().into(),
+                            ..default()
+                        },
+                        DragPhantom,
+                    ));
+                });
+                 */
             }   
             let mut left_position = cursor_pos.x - parent_offset.x - offset.x;
             let mut top_position = cursor_pos.y - parent_offset.y - offset.y;
@@ -315,35 +359,50 @@ fn draggables(
     }
 }
 
-#[derive(Resource, Default)]
-pub struct CursorHolding(Option<Entity>);
 
-fn droppables(
+#[derive(Component, Debug)]
+pub struct DragPhantom;
+
+#[derive(Resource, Default)]
+pub struct CursorHolding(Option<HeldItem>);
+
+#[derive(Copy, Clone)]
+struct HeldItem{
+    item: Entity,
+    slot: u32,
+}
+
+fn drop_holdable(
     mut commands: Commands,
     windows: Query<&mut Window, With<PrimaryWindow>>,
     mouse: Res<Input<MouseButton>>,
     mut holding: ResMut<CursorHolding>,
-    mut slot_query: Query<(Entity, &Interaction, &mut Style, &mut BackgroundColor), With<DropSlot>>,
-    mut drag_query: Query<(&mut Style, &Parent), Without<DropSlot>>,
+    mut slot_query: Query<(Entity, &Interaction, &mut Style, &mut BackgroundColor, Option<&Children>, &BuildSlotNumber), With<DropSlot>>,
+    mut drag_query: Query<(&mut Style, &Parent, &mut ZIndex), Without<DropSlot>>,
 ){
     let Some(holding_entity) = holding.0 else { return };
     let Ok(window) = windows.get_single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else { return };  
+    let Some(_) = window.cursor_position() else { return };  
     if mouse.just_released(MouseButton::Left) { 
-        for (drop_entity, interaction, mut style, mut bg) in &mut slot_query{
-            *bg = Color::GRAY.into();
-            if *interaction != Interaction::None{
-                commands.entity(holding_entity).set_parent(drop_entity);
+        let Ok((mut style, parent, mut zindex)) = drag_query.get_mut(holding_entity.item) else {return};
+
+        for (drop_entity, interaction, mut style, mut bg, children, slot_num) in &mut slot_query{
+            *bg = Color::GRAY.into(); 
+            if *interaction == Interaction::None{ continue }
+            commands.entity(holding_entity.item).set_parent(drop_entity);
+            if let Some(children) = children {
+                if let Some(prev_item) = children.iter().next(){
+                    commands.entity(*prev_item).set_parent(parent.get());
+                }
             }
-            let Ok((mut style, parent)) = drag_query.get_mut(holding_entity) else {continue};
-            if parent.get() != drop_entity { continue }
-            style.left = Val::default();
-            style.top = Val::default();
         }
+        style.left = Val::default();
+        style.top = Val::default();
+        *zindex = ZIndex::default();
         holding.0 = None;
 
     } else {
-        for (drop_entity, interaction, mut style, mut bg) in &mut slot_query{
+        for (drop_entity, interaction, mut style, mut bg, _, _) in &mut slot_query{
             if *interaction == Interaction::None {
                 *bg = Color::GRAY.into();
             } else {
@@ -661,6 +720,7 @@ pub enum ButtonAction{
 
 pub mod main_menu;
 pub mod ingame_menu;
+pub mod inventory;
 pub mod mouse;
 pub mod styles;
 pub mod spectating;

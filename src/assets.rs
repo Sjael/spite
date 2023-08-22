@@ -28,6 +28,10 @@ pub struct Items {
     pub hidden_dagger: Handle<Image>,
     #[asset(path = "icons/items/SoulReaver_T3.png")]   
     pub soul_reaver: Handle<Image>,
+    #[asset(path = "icons/items/Spellbook_T1.png")]   
+    pub book_of_souls: Handle<Image>,
+    #[asset(path = "icons/items/Witchblade_T3.png")]   
+    pub witchblade: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]

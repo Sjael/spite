@@ -45,6 +45,7 @@ impl Plugin for GameManagerPlugin {
 
         app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
         app.add_systems(Update, (
+            spool_gold,
             increment_bounty,
             handle_respawning,
             show_respawn_ui,
@@ -428,6 +429,16 @@ fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
     }
 }
 
+fn spool_gold(
+    mut attribute_query: Query<&mut Attributes, With<Player>>,
+    time: Res<Time>,
+){
+    let gold_per_second = 3.0;
+    for mut attributes in attribute_query.iter_mut() {
+        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1500.0);
+        *gold += gold_per_second * time.delta_seconds();
+    }
+}
 
 #[derive(Event)]
 pub struct AbilityFireEvent {

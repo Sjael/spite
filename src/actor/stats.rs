@@ -13,7 +13,7 @@ use std::time::Instant;
 // Use enum as stat instead of unit structs?
 //
 //
-#[derive(Reflect, Debug, Default, Clone , PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
+#[derive(Reflect, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
 pub enum Stat {
     Xp,
     Level,
@@ -58,7 +58,27 @@ impl Stat{
 
 impl Display for Stat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        let string = match self{
+            Stat::Xp => "Experience",
+            Stat::Speed => "Movement Speed",
+            Stat::HealthRegen => "Health Regen",
+            Stat::HealthMax => "Max Health",
+            Stat::CharacterResource => "Resource",
+            Stat::CharacterResourceRegen => "Resource Regen",
+            Stat::CharacterResourceMax => "Max Resource",
+            Stat::PhysicalPower => "Physical Power",
+            Stat::MagicalPower => "Magical Power",
+            Stat::PhysicalProtection => "Armor",
+            Stat::MagicalProtection => "Spell Shield",
+            Stat::PhysicalPenetration => "Armor Penetration",
+            Stat::MagicalPenetration => "Spell Pierce",
+            Stat::AttacksPerSecond => "Attack Speed",
+            Stat::CooldownReduction => "Cooldown Reduction",
+            Stat::Level => "Level",
+            Stat::Health => "Health",
+            Stat::Gold => "Gold",
+        };
+        write!(f, "{}", string)
     }
 }
 
@@ -198,17 +218,14 @@ pub fn regen_health(
     time: Res<Time>,
 ){
     for mut attributes in query.iter_mut() {
-        let healthregen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
-        let health_max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
+        let regen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
+        let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
         let health = attributes.entry(Stat::Health.as_tag()).or_insert(1.0);
         if *health <= 0.0 {
             continue;
         }
-        let mut result = *health + (healthregen * time.delta_seconds()) ;
-        if result > health_max {
-            result = health_max;
-        }
-        *health = result;
+        let result = *health + (regen * time.delta_seconds());
+        *health = result.clamp(0.0, max);
     }
 }
 
@@ -220,11 +237,8 @@ pub fn regen_resource(
         let regen = *attributes.get(&Stat::CharacterResourceRegen.as_tag()).unwrap_or(&0.0);
         let max = *attributes.get(&Stat::CharacterResourceMax.as_tag()).unwrap_or(&100.0);
         let resource = attributes.entry(Stat::CharacterResource.as_tag()).or_default();
-        let mut result = *resource + (regen * time.delta_seconds()) ;
-        if result > max {
-            result = max;
-        }
-        *resource = result;
+        let result = *resource + (regen * time.delta_seconds()) ;
+        *resource = result.clamp(0.0, max);
     }
 }
 /*

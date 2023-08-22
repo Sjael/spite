@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, TextColorLens}, EaseFunction, Tween, Delay};
 
-use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, actor::crowd_control::CCType};
+use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, actor::{crowd_control::CCType, stats::Stat}};
 
 use rand::Rng;
 use super::styles::*;
@@ -533,7 +533,7 @@ pub fn build_ui() -> impl Bundle {(
     Name::new("BuildUI"),
 )}
 
-pub fn build_slot() -> impl Bundle {(
+pub fn build_slot(number: u32) -> impl Bundle {(
     NodeBundle {
         style: Style {
             height: Val::Px(48.),
@@ -547,7 +547,13 @@ pub fn build_slot() -> impl Bundle {(
     Interaction::None,
     Name::new("Build slot"),
     DropSlot,
+    BuildSlotNumber(number),
 )}
+
+#[derive(Component)]
+pub struct BuildSlotNumber(pub u32);
+
+
 #[derive(Component)]
 pub struct DropSlot;
 
@@ -683,6 +689,7 @@ pub fn root_ui() -> impl Bundle {(
         ..default()
     },
     RootUI,
+    ZTracker::default(),
     Name::new("UI"),
 )}
 
@@ -1466,6 +1473,7 @@ pub fn store() -> impl Bundle {(
         },
         background_color: Color::rgba(0.2, 0.2, 0.4, 1.0).into(),
         visibility: Visibility::Hidden,
+        z_index: ZIndex::Global(3),
         ..default()
     },
     Draggable::BoundByParent(20),
@@ -1481,6 +1489,10 @@ pub enum Draggable{
 
 #[derive(Component, Debug)]
 pub struct DragHandle;
+
+
+#[derive(Component, Debug, Default)]
+pub struct ZTracker(pub u32);
 
 pub fn drag_bar() -> impl Bundle{(
     NodeBundle {
@@ -1521,12 +1533,15 @@ pub fn list_categories() -> impl Bundle {(
     }
 )}
 
-pub fn category() -> impl Bundle {(
+pub fn category(stat: Stat) -> impl Bundle {(
     ButtonBundle {
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
         ..default()
-    }
+    },
+    Category(stat),
 )}
+#[derive(Component, Debug)]
+pub struct Category(pub Stat);
 
 pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
@@ -1552,7 +1567,11 @@ pub fn list_items() -> impl Bundle {(
         ..default()
     },
     Name::new("Store List"),
+    StoreList,
 )}
+#[derive(Component, Debug)]
+pub struct StoreList;
+
 pub fn inspector() -> impl Bundle {(
     NodeBundle {
         style: Style {
@@ -1565,39 +1584,72 @@ pub fn inspector() -> impl Bundle {(
         ..default()
     }
 )}
+pub fn item_parents() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            width: Val::Percent(100.),
+            height: Val::Px(50.),
+            flex_direction: FlexDirection::Row,
+            ..default()
+        },
+        background_color: Color::rgba(0.0, 0.1, 0.6, 0.3).into(),
+        ..default()
+    },
+    ItemParents,
+)}
+#[derive(Component, Debug)]
+pub struct ItemParents;
+pub fn item_tree() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            flex_grow: 1.0,
+            ..default()
+        },
+        background_color: Color::rgba(1., 1.0, 0.6, 0.3).into(),
+        ..default()
+    },
+    ItemTree,
+)}
+#[derive(Component, Debug)]
+pub struct ItemTree;
 
-pub fn item_image(items: &Res<Items>, item: Item) -> impl Bundle {(
+pub fn item_image(item_images: &Res<Items>, item: Item) -> impl Bundle {
+    let list = item.get_categories();
+    (
     ImageBundle {
         style: Style {
             width: Val::Px(36.),
             height: Val::Px(36.),
             ..default()
         },
-        image: match item{
-            Item::Arondight => items.arondight.clone().into(),
-            Item::SoulReaver => items.soul_reaver.clone().into(),
-            Item::HiddenDagger => items.hidden_dagger.clone().into(),
-        },
+        image: item.get_image(item_images),
         //focus_policy: FocusPolicy::Block,
         ..default()
     },
-    Draggable::Unbound,
-    DragHandle,
+    // commentd cus i dont want dragging rn
+    //Draggable::Unbound,
+    //DragHandle,
     Interaction::default(),
+    ItemAttributes(list),
+    StoreItem,
+    item,
 )}
 
-pub fn item_image_build(items: &Res<Items>, item: Item) -> impl Bundle {(
+#[derive(Component, Debug)]
+pub struct StoreItem;
+#[derive(Component, Debug)]
+pub struct ItemAttributes(pub Vec<Stat>);
+
+
+pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {(
     ImageBundle {
         style: Style {
             width: Val::Percent(100.),
             height: Val::Percent(100.),
             ..default()
         },
-        image: match item{
-            Item::Arondight => items.arondight.clone().into(),
-            Item::SoulReaver => items.soul_reaver.clone().into(),
-            Item::HiddenDagger => items.hidden_dagger.clone().into(),
-        },
+        image: item.get_image(item_images),
         ..default()
     },
     Draggable::Unbound,
@@ -1706,6 +1758,8 @@ pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color:
 
 #[derive(Component, Debug)]
 pub struct GoldInhand;
+#[derive(Component, Debug)]
+pub struct ItemPriceText;
 
 #[derive(Component)]
 pub struct HealthBarHolder(pub Entity);

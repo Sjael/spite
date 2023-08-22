@@ -3546,6 +3546,7 @@ dependencies = [
  "derive_more",
  "fixed",
  "image",
+ "lazy_static",
  "leafwing-input-manager",
  "rand",
  "serde",
