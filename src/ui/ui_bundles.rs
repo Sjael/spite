@@ -1461,6 +1461,7 @@ pub fn store() -> impl Bundle {(
         style: Style {
             position_type: PositionType::Absolute,
             flex_direction: FlexDirection::Row,
+            min_width: Val::Px(600.),
             width: Val::Percent(45.),
             height: Val::Percent(75.),
             padding: UiRect{
@@ -1536,12 +1537,27 @@ pub fn list_categories() -> impl Bundle {(
 pub fn category(stat: Stat) -> impl Bundle {(
     ButtonBundle {
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
+        style: Style{
+            padding: UiRect::all(Val::Px(5.0)),
+            margin: UiRect{
+                bottom: Val::Px(0.0),
+                ..UiRect::all(Val::Px(5.0))
+            },
+            ..default()
+        },
         ..default()
     },
     Category(stat),
+    ButtonToggle::Off,
 )}
 #[derive(Component, Debug)]
 pub struct Category(pub Stat);
+#[derive(Component, Debug)]
+pub enum ButtonToggle{
+    On,
+    Off
+}
+
 
 pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
@@ -1575,7 +1591,7 @@ pub struct StoreList;
 pub fn inspector() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            width: Val::Percent(20.),
+            width: Val::Percent(30.),
             height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             ..default()
@@ -1603,7 +1619,6 @@ pub fn item_tree() -> impl Bundle {(
     NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Column,
-            flex_grow: 1.0,
             ..default()
         },
         background_color: Color::rgba(1., 1.0, 0.6, 0.3).into(),
@@ -1613,6 +1628,29 @@ pub fn item_tree() -> impl Bundle {(
 )}
 #[derive(Component, Debug)]
 pub struct ItemTree;
+
+pub fn vert() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        background_color: Color::rgba(0.0, 1.0, 0.6, 0.3).into(),
+        ..default()
+    },
+)}
+pub fn hori() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Row,
+            flex_grow: 1.0,
+            ..default()
+        },
+        background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
+        ..default()
+    },
+)}
 
 pub fn item_image(item_images: &Res<Items>, item: Item) -> impl Bundle {
     let list = item.get_categories();
@@ -1641,6 +1679,20 @@ pub struct StoreItem;
 #[derive(Component, Debug)]
 pub struct ItemAttributes(pub Vec<Stat>);
 
+#[derive(Component, Debug)]
+pub struct ItemDetails;
+pub fn item_details() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            flex_grow: 1.0,
+            ..default()
+        },
+        background_color: Color::rgba(0.0, 0.0, 0.6, 0.3).into(),
+        ..default()
+    },
+    ItemDetails
+)}
 
 pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {(
     ImageBundle {
@@ -1760,6 +1812,8 @@ pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color:
 pub struct GoldInhand;
 #[derive(Component, Debug)]
 pub struct ItemPriceText;
+#[derive(Component, Debug)]
+pub struct ItemNameText;
 
 #[derive(Component)]
 pub struct HealthBarHolder(pub Entity);

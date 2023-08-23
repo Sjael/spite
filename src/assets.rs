@@ -32,6 +32,10 @@ pub struct Items {
     pub book_of_souls: Handle<Image>,
     #[asset(path = "icons/items/Witchblade_T3.png")]   
     pub witchblade: Handle<Image>,
+    #[asset(path = "icons/items/DruidStone_T1.png")]   
+    pub druid_stone: Handle<Image>,
+    #[asset(path = "icons/items/Polynomicon_T3.png")]   
+    pub polynomicon: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]

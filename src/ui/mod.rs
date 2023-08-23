@@ -6,7 +6,7 @@ use crate::{
     ui::{ui_bundles::*,styles::*, spectating::*, mouse::*, ingame_menu::*, main_menu::*, hud_editor::*, inventory::*},  
     ability::AbilityTooltip,
     game_manager::{GameModeDetails, DeathEvent, Team, InGameSet, Scoreboard, ActorType, TeamRoster, TEAM_1}, 
-    assets::{Icons, Items, Fonts, Images}, GameState, item::Item, 
+    assets::{Icons, Items, Fonts, Images}, GameState, item::{Item, ITEM_DB}, 
     actor::{view::{PlayerCam, Spectating}, HasHealthBar, stats::{Attributes, Stat, AttributeTag}, player::Player},     
 };
 
@@ -29,12 +29,10 @@ impl Plugin for UiPlugin {
         app.add_event::<ResetUiEvent>();
         app.add_event::<MenuEvent>();
 
-        app.insert_resource(CategorySorted::default());
-        app.insert_resource(ItemInspected::default());
         app.insert_resource(FocusedHealthEntity(None));
         app.insert_resource(CursorHolding(None));
 
-
+        app.add_plugins(InventoryPlugin);
         app.add_systems(OnEnter(GameState::MainMenu), (
             spawn_main_menu, 
         ));
@@ -99,11 +97,6 @@ impl Plugin for UiPlugin {
             state_ingame_menu,
             update_kda,
         ).in_set(InGameSet::Update));
-        app.add_systems(Update, (
-            sort_items,
-            click_category,
-            inspect_item,
-        ).in_set(InGameSet::Update));
         
         app.add_systems(Update, (
             load_tooltip,
@@ -127,7 +120,7 @@ impl Plugin for UiPlugin {
 }
 
 fn button_hovers(
-    mut interaction_query: Query<(&Interaction, &mut BackgroundColor),(Changed<Interaction>, With<Button>)>,
+    mut interaction_query: Query<(&Interaction, &mut BackgroundColor),(Changed<Interaction>, With<Button>, Without<Category>)>,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
@@ -255,6 +248,11 @@ fn add_base_ui(
         parent.spawn(store()).with_children(|parent| {
             parent.spawn(drag_bar());
             parent.spawn(list_categories()).with_children(|parent| {
+                parent.spawn(button()).insert(
+                    ButtonAction::ClearFilter,
+                ).with_children(|parent| {
+                    parent.spawn(button_text("Clear", &fonts));
+                });
                 for stat in CATEGORIES.iter(){
                     parent.spawn(category(stat.clone())).with_children(|parent| {
                         parent.spawn(category_text(stat.to_string(), &fonts));
@@ -262,14 +260,18 @@ fn add_base_ui(
                 }
             });
             parent.spawn(list_items()).with_children(|parent| {
-                parent.spawn(item_image(&items, Item::HiddenDagger));
-                parent.spawn(item_image(&items, Item::Arondight));
-                parent.spawn(item_image(&items, Item::SoulReaver));
-                });
+                for item in ITEM_DB.keys(){
+                    parent.spawn(item_image(&items, item.clone()));
+                } 
+            });
             parent.spawn(inspector()).with_children(|parent| {
                 parent.spawn(item_parents());
                 parent.spawn(item_tree());
-                parent.spawn(color_text("0", 14, &fonts, Color::YELLOW)).insert(ItemPriceText);
+                parent.spawn(item_details()).with_children(|parent| {
+                    parent.spawn(color_text("", 14, &fonts, Color::YELLOW)).insert(ItemPriceText);
+                    parent.spawn(color_text("", 16, &fonts, Color::WHITE)).insert(ItemNameText);
+                    
+                });
                 parent.spawn(button()).with_children(|parent| {
                     parent.spawn(plain_text("BUY", 20, &fonts));
                 });
@@ -571,7 +573,7 @@ pub fn button_actions(
     mut reset_ui_events: EventWriter<ResetUiEvent>,
 ) {
     for (button_action, interaction) in &mut interaction_query {
-        if *interaction != Interaction::Pressed {continue};
+        if *interaction != Interaction::Pressed {continue}
         match button_action {
             ButtonAction::Play => {
                 game_state_next.set(GameState::InGame);
@@ -595,6 +597,7 @@ pub fn button_actions(
             ButtonAction::ResetUi => {
                 reset_ui_events.send(ResetUiEvent);
             },
+            _ => (),
         }
     }
 }
@@ -714,7 +717,8 @@ pub enum ButtonAction{
     Resume,
     Lobby,
     EditUi,
-    ResetUi
+    ResetUi,
+    ClearFilter,
 }
 
 

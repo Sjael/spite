@@ -67,7 +67,6 @@ pub fn select_ability(
     for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
         for ability in ab_state.get_just_pressed() {
             let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
-            dbg!(cast_type);
             if *cast_type == CastType::Normal {
                 hover.0 = Some(ability.clone());
             } else if *cast_type == CastType::Instant {

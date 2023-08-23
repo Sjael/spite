@@ -18,13 +18,21 @@ pub enum Item {
     HiddenDagger,
     BookOfSouls,
     Witchblade,
+    Polynomicon,
+    DruidStone,
 }
 
 #[derive(Default, Clone)]
 pub struct ItemInfo{
-    pub cost: u32,
+    pub price: u32,
     pub parts: Vec<Item>,
     pub stats: HashMap<Stat, u32>,
+}
+
+#[derive(Default, Clone)]
+pub struct ItemTotal{
+    pub price: u32,
+    pub parts: Vec<Item>,
 }
 
 lazy_static! {
@@ -35,8 +43,8 @@ lazy_static! {
             (
                 Arondight, 
                 ItemInfo{
-                    cost: 900,
-                    parts: vec![HiddenDagger, HiddenDagger],
+                    price: 900,
+                    parts: vec![HiddenDagger, DruidStone],
                     stats: HashMap::from([
                         (PhysicalPower, 60),
                         (CooldownReduction, 15),
@@ -46,8 +54,8 @@ lazy_static! {
             (
                 SoulReaver, 
                 ItemInfo{
-                    cost: 700,
-                    parts: vec![HiddenDagger, BookOfSouls],
+                    price: 700,
+                    parts: vec![HiddenDagger, Polynomicon],
                     stats: HashMap::from([
                         (MagicalPower, 60),
                         (MagicalPenetration, 15),
@@ -57,7 +65,7 @@ lazy_static! {
             (
                 HiddenDagger, 
                 ItemInfo{
-                    cost: 500,
+                    price: 500,
                     stats: HashMap::from([
                         (PhysicalPower, 15),
                     ]),
@@ -67,11 +75,22 @@ lazy_static! {
             (
                 BookOfSouls, 
                 ItemInfo{
-                    cost: 450,
+                    price: 450,
                     stats: HashMap::from([
                         (MagicalPower, 30),
                     ]),
                     ..default()
+                }
+            ),
+            (
+                Polynomicon, 
+                ItemInfo{
+                    price: 1150,
+                    stats: HashMap::from([
+                        (MagicalPower, 80),
+                        (CooldownReduction, 20),
+                    ]),
+                    parts: vec![BookOfSouls, BookOfSouls],
                 }
             ),
         ])
@@ -84,6 +103,13 @@ lazy_static! {
                 if ancestors.contains(&item){ continue };
                 ancestors.push(item.clone());
             }
+        }
+        map
+    };
+    pub static ref ITEM_TOTALS: HashMap<Item, ItemTotal> = {
+        let mut map = HashMap::new();
+        for (item, _) in ITEM_DB.clone().into_iter(){
+            map.insert(item.clone(), item.calculate_totals());
         }
         map
     };
@@ -108,18 +134,34 @@ impl Item{
             HiddenDagger => images.hidden_dagger.clone(),
             Witchblade => images.witchblade.clone(),
             BookOfSouls => images.book_of_souls.clone(),
+            Polynomicon => images.polynomicon.clone(),
+            DruidStone => images.druid_stone.clone(),
             _ => images.hidden_dagger.clone(),
         };
         image.into()
     }
 
-    pub fn calculate_cost(&self) -> u32 {
+    pub fn calculate_price(&self) -> u32 {
         let info = ITEM_DB.get(self).cloned().unwrap_or_default();
-        let mut price = info.cost;
+        let mut price = info.price;
         for part in info.parts {
-            price += part.calculate_cost();
+            price += part.calculate_price();
         }
         price
+    }
+    pub fn calculate_totals(&self) -> ItemTotal {
+        let info = ITEM_DB.get(self).cloned().unwrap_or_default();
+        let mut price = info.price;
+        let mut total_parts = info.parts.clone();
+        for part in info.parts {
+            let mut sub_total = part.calculate_totals();
+            price += sub_total.price;
+            total_parts.append(&mut sub_total.parts);
+        }
+        ItemTotal{
+            price: price,
+            parts: total_parts,
+        }
     }
 
     pub fn get_parts(&self) -> Vec<Item> {
