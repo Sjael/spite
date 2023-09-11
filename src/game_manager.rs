@@ -435,7 +435,7 @@ fn spool_gold(
 ){
     let gold_per_second = 3.0;
     for mut attributes in attribute_query.iter_mut() {
-        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1500.0);
+        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(2700.0);
         *gold += gold_per_second * time.delta_seconds();
     }
 }

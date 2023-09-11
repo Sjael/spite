@@ -9,7 +9,7 @@ use crate::{
     game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet, ActorType}, 
      
      
-    input::{SlotBundle, copy_action_state}, ui::Trackable, 
+    input::{SlotBundle, copy_action_state}, ui::{Trackable, inventory::Inventory}, 
     actor::view::{SpectateEvent, Spectatable, Spectating}, 
     };
 
@@ -130,6 +130,7 @@ fn spawn_player(
                 LockedAxes::ROTATION_LOCKED,
                 Velocity::default(),
                 PLAYER_GROUPING,
+                Inventory::default(),
             )).insert({
                 let mut attributes = Attributes::default();
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;

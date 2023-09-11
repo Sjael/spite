@@ -1813,6 +1813,8 @@ pub struct GoldInhand;
 #[derive(Component, Debug)]
 pub struct ItemPriceText;
 #[derive(Component, Debug)]
+pub struct ItemDiscountText;
+#[derive(Component, Debug)]
 pub struct ItemNameText;
 
 #[derive(Component)]

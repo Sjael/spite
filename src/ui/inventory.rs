@@ -1,13 +1,15 @@
 
 use bevy::prelude::*;
 
+use crate::actor::player::Player;
+use crate::actor::view::Spectating;
 use crate::assets::Items;
 use crate::game_manager::InGameSet;
 use crate::item::ITEM_TOTALS;
 use crate::{actor::stats::Stat::*, item::Item};
-use crate::actor::stats::Stat;
+use crate::actor::stats::{Stat, Attributes};
 
-use super::ButtonAction;
+use super::{ButtonAction, SpectatingSet};
 use super::styles::{PRESSED_BUTTON, NORMAL_BUTTON};
 use super::ui_bundles::*;
 
@@ -28,18 +30,25 @@ pub struct CategorySorted(pub Vec<Stat>);
 #[derive(Resource, Default)]
 pub struct ItemInspected(pub Option<Item>);
 
+#[derive(Component, Default, Deref, DerefMut, Reflect)]
+#[reflect]
+pub struct Inventory(pub [Option<Item>; 6]);
+
 pub struct InventoryPlugin;
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CategorySorted::default());
         app.insert_resource(ItemInspected::default());
+        app.add_event::<BuyItemEvent>();
+        app.register_type::<Inventory>();
         
         app.add_systems(Update, (
             sort_items,
             click_category,
             inspect_item,
             clear_filter,
-        ).in_set(InGameSet::Update));
+            try_buy_item,
+        ).in_set(SpectatingSet));
     }
 }
 
@@ -116,9 +125,14 @@ pub fn inspect_item(
     mut item_inspected: ResMut<ItemInspected>,
     tree_holder: Query<(Entity, Option<&Children>), With<ItemTree>>,
     parents_holder: Query<(Entity, Option<&Children>), With<ItemParents>>,
-    mut price_text: Query<&mut Text, With<ItemPriceText>>,
-    mut name_text: Query<&mut Text, (With<ItemNameText>, Without<ItemPriceText>)>,
+    mut text_set: ParamSet<(
+        Query<&mut Text, With<ItemPriceText>>,
+        Query<&mut Text, With<ItemDiscountText>>,
+        Query<&mut Text, With<ItemNameText>>,
+    )>,
     items: Res<Items>,
+    player: Res<Spectating>,
+    buyers: Query<&Inventory>,
 ) {
     for (item, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {continue};
@@ -147,11 +161,17 @@ pub fn inspect_item(
             }
         });
 
-        let Ok(mut price_text) = price_text.get_single_mut() else{ return };
-        //price_text.sections[0].value = item.calculate_price().to_string();
-        price_text.sections[0].value = ITEM_TOTALS.get(&item).cloned().unwrap_or_default().price.to_string();
-        let Ok(mut name_text) = name_text.get_single_mut() else{ return };
-        name_text.sections[0].value = item.to_string();
+        let Ok(inventory) = buyers.get(player.0) else{ return };
+
+        if let Ok(mut price_text) = text_set.p0().get_single_mut() {
+            price_text.sections[0].value = item.get_price().to_string();
+        }
+        if let Ok(mut discount_text) = text_set.p1().get_single_mut() {
+            discount_text.sections[0].value = item.calculate_discount(&inventory).to_string();
+        }
+        if let Ok(mut name_text) = text_set.p2().get_single_mut() {
+            name_text.sections[0].value = item.to_string();
+        }
     }
 }
 
@@ -168,4 +188,54 @@ fn spawn_tree(commands: &mut Commands, item: Item, item_images: &Res<Items>, par
     }
     vert
 
+}
+
+#[derive(Event)]
+pub struct BuyItemPressEvent;
+#[derive(Event)]
+pub struct BuyItemEvent{
+    pub item: Item,
+    pub player: Entity,
+}
+
+fn try_buy_item(
+    mut commands: Commands,
+    mut events: EventReader<BuyItemEvent>,
+    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
+    slot_query: Query<(Entity, Option<&Children>, &BuildSlotNumber)>,
+    items: Res<Items>,
+){
+    for event in events.iter(){
+        let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else {continue};
+        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1.0);
+        let discounted_price = event.item.calculate_discount(&inventory) as f32;
+        if *gold > discounted_price {
+            // remove components
+            for item in event.item.get_parts(){
+                if let Some(index) = inventory.iter().position(|old| *old == Some(item.clone())){
+                    for (slot_e, children, number) in &slot_query{
+                        if number.0 != index as u32 + 1 {continue}
+                        commands.entity(slot_e).despawn_descendants();
+                    }
+                    inventory.0[index] = None;
+                }
+            }
+            let open_slot = inventory.0.iter().position(|x| x == &None);
+            if let Some(slot) = open_slot{
+                // pay the price
+                *gold -= discounted_price;
+                // insert item
+                inventory.0[slot] = Some(event.item.clone());
+                for (slot_e, children, number) in &slot_query{
+                    if number.0 != slot as u32 + 1 {continue}
+                    let new_item = commands.spawn(item_image_build(&items, event.item.clone())).id();
+                    commands.entity(new_item).set_parent(slot_e);
+                }
+            } else {
+                dbg!("inventory full");
+            }
+        }else {
+            dbg!("you're too broke for that lol");
+        }
+    }
 }

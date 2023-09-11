@@ -350,7 +350,7 @@ impl AttributeTag {
             Self::Modifier { modifier, .. } => match modifier {
                 // do these first
                 Modifier::Base => 1,
-                //Modifier::Scale => 2, 
+                //Modifier::Scale => 2, // stats you get per level
                 Modifier::Add => 3,
                 Modifier::Sub => 3, // Move to after div for reduction of stats?
 

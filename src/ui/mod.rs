@@ -218,14 +218,14 @@ fn add_base_ui(
                         });
                         parent.spawn(build_ui()).with_children(|parent| {
                             parent.spawn(build_slot(1)).with_children(|parent| {
-                                parent.spawn(item_image_build(&items, Item::Arondight));
+                                //parent.spawn(item_image_build(&items, Item::Arondight));
                             });
                             parent.spawn(build_slot(2)).with_children(|parent| {
-                                parent.spawn(item_image_build(&items, Item::HiddenDagger));
+                                //parent.spawn(item_image_build(&items, Item::HiddenDagger));
                             });
                             parent.spawn(build_slot(3));
                             parent.spawn(build_slot(4)).with_children(|parent| {
-                                parent.spawn(item_image_build(&items, Item::SoulReaver));
+                                //parent.spawn(item_image_build(&items, Item::SoulReaver));
                             });
                             parent.spawn(build_slot(5));
                             parent.spawn(build_slot(6));
@@ -269,10 +269,11 @@ fn add_base_ui(
                 parent.spawn(item_tree());
                 parent.spawn(item_details()).with_children(|parent| {
                     parent.spawn(color_text("", 14, &fonts, Color::YELLOW)).insert(ItemPriceText);
-                    parent.spawn(color_text("", 16, &fonts, Color::WHITE)).insert(ItemNameText);
+                    parent.spawn(color_text("", 16, &fonts, Color::GREEN)).insert(ItemDiscountText);
+                    parent.spawn(color_text("", 18, &fonts, Color::WHITE)).insert(ItemNameText);
                     
                 });
-                parent.spawn(button()).with_children(|parent| {
+                parent.spawn(button()).insert(ButtonAction::BuyItem).with_children(|parent| {
                     parent.spawn(plain_text("BUY", 20, &fonts));
                 });
                 parent.spawn(color_text("0", 24, &fonts, Color::YELLOW)).insert(GoldInhand);
@@ -413,6 +414,7 @@ fn drop_holdable(
         }
     }
 }
+
 
 fn move_tooltip(
     mut tooltip: Query<&mut Style, With<Tooltip>>,
@@ -571,6 +573,9 @@ pub fn button_actions(
     editing_hud_state: Res<State<EditingHUD>>,
     mut app_exit_writer: EventWriter<AppExit>,
     mut reset_ui_events: EventWriter<ResetUiEvent>,
+    mut buy_events: EventWriter<BuyItemEvent>,
+    player: Option<Res<Spectating>>,
+    item_inspected: Res<ItemInspected>,
 ) {
     for (button_action, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {continue}
@@ -597,6 +602,14 @@ pub fn button_actions(
             ButtonAction::ResetUi => {
                 reset_ui_events.send(ResetUiEvent);
             },
+            ButtonAction::BuyItem => {
+                if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()){
+                    buy_events.send(BuyItemEvent{
+                        player: spectating.0.clone(),
+                        item: inspected,
+                    })
+                }
+            }
             _ => (),
         }
     }
@@ -719,6 +732,7 @@ pub enum ButtonAction{
     EditUi,
     ResetUi,
     ClearFilter,
+    BuyItem,
 }
 
 

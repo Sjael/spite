@@ -266,7 +266,7 @@ pub struct Reticle {
 #[derive(Component)]
 pub struct SpectatorCam;
 
-#[derive(Resource, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut, Debug)]
 pub struct Spectating(pub Entity);
 
 #[derive(Resource, Default, Clone, Debug)]
