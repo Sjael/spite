@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use crate::{
     GameState, 
-    ability::{Ability, DamageType}, 
+    ability::{Ability, DamageType, rank::Rank}, 
     game_manager::{AbilityFireEvent, TEAM_1, Bounty, CharacterState, PLAYER_GROUPING, InGameSet, ActorType}, 
      
      
@@ -333,7 +333,7 @@ pub struct AbilityMap{
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect]
 pub struct AbilityRanks{
-    pub map: HashMap<Ability, u32>,
+    pub map: HashMap<Ability, Rank>,
 }
 
 #[derive(Component, Reflect, Default, Debug, Clone)]

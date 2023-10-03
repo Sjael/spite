@@ -242,8 +242,8 @@ fn place_ability(
             Caster(event.caster),
         ));        
 
-        let rank = *ranks.map.get(&event.ability).unwrap_or(&0);
-        let scaling = rank * event.ability.get_scaling();
+        let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
+        let scaling = rank.current as u32 * event.ability.get_scaling();
 
         // Apply special proc components
         if let Ok(procmap) = procmaps.get(event.caster){

@@ -5,12 +5,13 @@ use std::{time::Duration, collections::HashMap};
 use bevy::prelude::*;
 use leafwing_input_manager::Actionlike;
 use derive_more::Display;
-use crate::{actor::{crowd_control::CCInfo, buff::BuffInfo, stats::Stat}, assets::Icons};
+use crate::{actor::{crowd_control::{CCInfo, CCType}, buff::BuffInfo, stats::Stat}, assets::Icons};
 
 use self::{bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo}, shape::AbilityShape};
 
 pub mod bundles;
 pub mod shape;
+pub mod rank;
 
 #[derive(Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,)]
 #[reflect(Component)]
@@ -98,6 +99,15 @@ impl Ability {
         }
     }
 
+    pub fn damage_type(&self) -> DamageType {
+        match self{
+            Ability::Frostbolt => DamageType::Magical,
+            Ability::Fireball => DamageType::Magical,
+            Ability::Bomb => DamageType::Physical,
+            _ => DamageType::True,
+        }
+    }
+    
     pub fn get_scaling(&self) -> u32{
         match self{
             Ability::Frostbolt => 30,
@@ -108,26 +118,27 @@ impl Ability {
 
 
 pub struct AbilityBlueprint{
-    base_ability: Ability,
-    name: String,
-    pub stages: Vec<AbilityStage>,
-    cooldown: Cooldown,
+    pub base_ability: Ability,
+    pub name: String,
+    pub stages: HashMap<Trigger, AbilityStage>,
+    pub cooldown: Cooldown,
 }
 
 pub struct AbilityStage{
-    scaling: Scaling,
-    base_damage: BaseDamage,
-    shape: AbilityShape,
-    path: Path,
-    trigger: Trigger,
+    pub effects: HashMap<AbilityComp, RankNumbers>,
+    pub shape: AbilityShape,
+    pub path: Path,
 }
 
+#[derive(PartialEq, PartialOrd)]
 pub enum Trigger{
     Cast(TransformOrigin),
-    HitEnemy, // Merlin Frostbolt explosion
+    Collision, // Merlin Frostbolt explosion // change to be the bitmask of walls/allies/enemies
     Detonate, // Isis Spirit ball, Thor 1
+    TimeDelay(f32),
 }
 
+#[derive(PartialEq, PartialOrd)]
 pub enum TransformOrigin{
     Player,
     Reticle,
@@ -139,6 +150,19 @@ pub enum Path{
         lifetime: f32,
         speed: f32,
     }
+}
+
+pub enum AbilityComp{
+    Scaling(Stat),
+    BaseDamage,
+    Cooldown,
+    Cost,
+    CC(CCType),
+}
+
+pub struct RankNumbers{
+    pub base: u32,
+    pub per_rank: u32,
 }
 
 pub struct Scaling{
@@ -155,6 +179,9 @@ pub struct Cooldown{
     pub per_rank: u32,
 }
 
+trait AbilityFactory{
+    fn build(ability: Ability) -> u32;
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct AbilityBuilder{
