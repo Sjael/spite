@@ -92,6 +92,7 @@ fn spawn_player(
     mut spectate_events: EventWriter<SpectateEvent>,
     mut next_state: ResMut<NextState<CharacterState>>,
     local_player: Res<Player>,
+    mut local_entity: ResMut<PlayerEntity>,
 ) {
     for event in spawn_events.iter() {
         let player = match event.actor{
@@ -161,6 +162,7 @@ fn spawn_player(
             spectate_events.send(SpectateEvent {
                 entity: player_entity,
             });
+            commands.insert_resource(PlayerEntity(Some(player_entity)));
             commands.insert_resource(Spectating(player_entity));
             commands.insert_resource(PlayerInput::default());
             commands.entity(player_entity).insert((

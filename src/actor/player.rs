@@ -173,6 +173,9 @@ impl Player {
     }
 }
 
+#[derive(Resource, Deref, DerefMut, Debug)]
+pub struct PlayerEntity(pub Option<Entity>);
+
 
 #[derive(Component, Debug, Default, Reflect )]
 #[reflect(Component)]

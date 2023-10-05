@@ -10,9 +10,9 @@ use crate::{
     ability::{Ability, bundles::Caster, TickBehavior, 
         MaxTargetsHit, TargetsInArea, TargetsHittable,},
     area::homing::Homing,
-    actor::{cast_ability, IncomingDamageLog, player::Player, SpawnEvent, view::Reticle, stats::{Attributes, Stat}, AbilityRanks,},
+    actor::{cast_ability, IncomingDamageLog, player::{Player, PlayerEntity}, SpawnEvent, view::Reticle, stats::{Attributes, Stat}, AbilityRanks,},
     
-    ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
+    ui::{ui_bundles::{PlayerUI, RespawnHolder, RespawnText}, inventory::{Inventory, CanBuy}},
     GameState,
 };
 
@@ -27,9 +27,9 @@ impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameModeDetails::default());
         app.insert_resource(Player::new(1507)); // change to be whatever the server says
+        app.insert_resource(PlayerEntity(None));
         app.insert_resource(TeamRoster::default());
         app.insert_resource(Scoreboard::default());
-        app.insert_resource(LoggedStats::default());
         
         
         app.register_type::<Bounty>();
@@ -81,12 +81,13 @@ pub enum CharacterState {
     Dead,
 }
 
-
 #[derive(Default)]
 pub enum GameMode {
     #[default]
     Arena,
     Tutorial,
+    Conquest,
+    Practice,
 }
 
 #[derive(Resource)]
@@ -97,14 +98,15 @@ pub struct GameModeDetails {
     pub spawn_points: HashMap<ActorType, Transform>,
 }
 
-pub struct RespawnDefaults{
+// how long things take to respawn
+pub struct RespawnTimeDefaults{
     camps: HashMap<ActorType, u32>,
     player_base: f32,
     player_scale_level: f32,
     player_scale_minutes: f32,
 }
 
-impl Default for RespawnDefaults{
+impl Default for RespawnTimeDefaults{
     fn default() -> Self {
         
         let camps = HashMap::from([
@@ -159,12 +161,26 @@ impl Default for Bounty {
 }
 
 #[derive(Resource, Default)]
-pub struct Scoreboard{
-    pub kda_list: HashMap<Player, KDA>,
+pub struct Scoreboard(pub HashMap<Player, PlayerInfo>);
+
+#[derive(Default)]
+pub struct PlayerInfo{
+    pub kda: KDA,
+    pub inv: Inventory,
+    stats: Attributes,
+    pub logs: LoggedNumbers,
+    // account_name: String,
+    // account_icon: Image,
+    // ping: u32,
+    // class: GameClass,
 }
-#[derive(Resource, Default)]
-pub struct LoggedStats{
-    pub list: HashMap<Player, LoggedNumbers>,
+
+pub enum GameClass{
+    Rogue,
+    Warrior,
+    Mage,
+    Shaman,
+    Cultist,
 }
 
 #[derive(Default)]
@@ -369,6 +385,7 @@ fn despawn_dead(
     ui: Query<Entity, With<PlayerUI>>,
     mut character_state_next: ResMut<NextState<CharacterState>>,
     local_player: Res<Player>,
+    mut can_buy: EventWriter<CanBuy>,
     mut scoreboard: ResMut<Scoreboard>,
 ){
     for event in death_events.iter(){
@@ -377,11 +394,12 @@ fn despawn_dead(
             ActorType::Player(player) => {
                 if player == *local_player{
                     character_state_next.set(CharacterState::Dead);
+                    can_buy.send(CanBuy);
                     let Ok(ui) = ui.get_single() else {continue};
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }
-                let dead_guy = scoreboard.kda_list.entry(player).or_default();
-                dead_guy.deaths += 1;
+                let dead_guy = scoreboard.0.entry(player).or_default();
+                dead_guy.kda.deaths += 1;
                 is_dead_player = true;
             },
             _ => (),
@@ -404,11 +422,11 @@ fn despawn_dead(
 
             if !is_dead_player{ continue }
             if let ActorType::Player(killer) = awardee_actor{
-                let killer_scoreboard = scoreboard.kda_list.entry(*killer).or_default();
+                let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
                 if index == 0{
-                    killer_scoreboard.kills += 1;
+                    killer_scoreboard.kda.kills += 1;
                 }else {
-                    killer_scoreboard.assists += 1;
+                    killer_scoreboard.kda.assists += 1;
                 }
             }
         }

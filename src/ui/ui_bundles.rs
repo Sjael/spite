@@ -1548,15 +1548,9 @@ pub fn category(stat: Stat) -> impl Bundle {(
         ..default()
     },
     Category(stat),
-    ButtonToggle::Off,
 )}
 #[derive(Component, Debug)]
 pub struct Category(pub Stat);
-#[derive(Component, Debug)]
-pub enum ButtonToggle{
-    On,
-    Off
-}
 
 
 pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {

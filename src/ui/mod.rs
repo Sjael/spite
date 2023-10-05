@@ -276,6 +276,12 @@ fn add_base_ui(
                 parent.spawn(button()).insert(ButtonAction::BuyItem).with_children(|parent| {
                     parent.spawn(plain_text("BUY", 20, &fonts));
                 });
+                parent.spawn(button()).insert(ButtonAction::SellItem).with_children(|parent| {
+                    parent.spawn(plain_text("Sell", 14, &fonts));
+                });
+                parent.spawn(button()).insert(ButtonAction::UndoStore).with_children(|parent| {
+                    parent.spawn(plain_text("Undo", 14, &fonts));
+                });
                 parent.spawn(color_text("0", 24, &fonts, Color::YELLOW)).insert(GoldInhand);
             });
         });
@@ -490,9 +496,9 @@ fn update_kda(
 ){
     if scoreboard.is_changed(){
         let Ok(mut kda_text) = kda_query.get_single_mut() else {return};
-        for (player, kda) in scoreboard.kda_list.iter(){            
+        for (player, info) in scoreboard.0.iter(){            
             if *player == *local_player {
-                kda_text.sections[0].value = format!("{} / {} / {}", kda.kills, kda.deaths, kda.assists);
+                kda_text.sections[0].value = format!("{} / {} / {}", info.kda.kills, info.kda.deaths, info.kda.assists);
             }
         }
     }
@@ -574,6 +580,8 @@ pub fn button_actions(
     mut app_exit_writer: EventWriter<AppExit>,
     mut reset_ui_events: EventWriter<ResetUiEvent>,
     mut buy_events: EventWriter<BuyItemEvent>,
+    mut sell_events: EventWriter<SellItemEvent>,
+    mut undo_events: EventWriter<UndoPressEvent>,
     player: Option<Res<Spectating>>,
     item_inspected: Res<ItemInspected>,
 ) {
@@ -605,6 +613,14 @@ pub fn button_actions(
             ButtonAction::BuyItem => {
                 if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()){
                     buy_events.send(BuyItemEvent{
+                        player: spectating.0.clone(),
+                        item: inspected,
+                    })
+                }
+            },
+            ButtonAction::SellItem => {
+                if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()){
+                    sell_events.send(SellItemEvent{
                         player: spectating.0.clone(),
                         item: inspected,
                     })
@@ -733,6 +749,8 @@ pub enum ButtonAction{
     ResetUi,
     ClearFilter,
     BuyItem,
+    SellItem,
+    UndoStore,
 }
 
 
