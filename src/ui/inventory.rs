@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::ability::TargetsInArea;
 use crate::actor::player::{Player, PlayerEntity};
 use crate::actor::view::Spectating;
-use crate::area::AreaOverlapEvent;
+use crate::area::{AreaOverlapEvent, AreaOverlapType};
 use crate::assets::Items;
 use crate::game_manager::{InGameSet, Fountain, CharacterState};
 use crate::item::ITEM_TOTALS;
@@ -44,6 +44,7 @@ impl Plugin for InventoryPlugin {
         app.insert_resource(StoreSnapshot::default());
         app.add_event::<BuyItemEvent>();
         app.add_event::<SellItemEvent>();
+        app.add_event::<UndoPressEvent>();
         app.register_type::<Inventory>();
         
         app.add_systems(Update, (
@@ -52,6 +53,7 @@ impl Plugin for InventoryPlugin {
             inspect_item,
             try_buy_item,
             try_sell_item,
+            confirm_buy,
         ).in_set(SpectatingSet));
     }
 }
@@ -288,39 +290,22 @@ fn try_undo_store(
     }
 }
 
-fn enter_store(
-    changed_sensors: Query<&TargetsInArea, (Changed<TargetsInArea>, With<Fountain>)>,
-    local_entity: Res<PlayerEntity>,
-    alive_state: Res<State<CharacterState>>,
-    mut can_buy: EventWriter<CanBuy>,
-){
-    let Some(local) = local_entity.0 else { return };
-    if alive_state.is_changed() && *alive_state == CharacterState::Dead{ 
-        can_buy.send(CanBuy);
-    } else {
-        for targets in changed_sensors.iter(){
-            for target in targets.list.iter(){
-                if target != &local {continue}
-                can_buy.send(CanBuy);
-            }
-        }
-    }
-}
 
-#[derive(Event)]
-pub struct CanBuy;
 
 fn confirm_buy(
     mut snapshot: ResMut<StoreSnapshot>,
-    mut can_buy: EventReader<CanBuy>,
     mut buyers: Query<&mut Inventory>,
     local_entity: Res<PlayerEntity>,
     mut area_events: EventReader<AreaOverlapEvent>,
+    sensors: Query<&TargetsInArea, With<Fountain>>,
 ){
     let Some(event) = area_events.iter().next() else { return };
     let Some(local) = local_entity.0 else { return };
+    if event.target != local || event.overlap == AreaOverlapType::Entered { return }
+    let Ok(_) = sensors.get(event.sensor) else { return };
     let Ok(mut inv) = buyers.get_mut(local) else { return };
         
     *snapshot.inventory = inv.clone();
+    dbg!(inv.clone());
     snapshot.gold = 0;
 }

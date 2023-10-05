@@ -94,8 +94,13 @@ pub enum GameMode {
 pub struct GameModeDetails {
     pub mode: GameMode,
     pub start_timer: i32,
-    pub respawns: HashMap<ActorType, Timer>,
+    pub respawns: HashMap<Entity, Respawn>,
     pub spawn_points: HashMap<ActorType, Transform>,
+}
+
+pub struct Respawn{
+    actortype: ActorType,
+    timer: Timer,
 }
 
 // how long things take to respawn
@@ -284,9 +289,9 @@ fn handle_respawning(
     // need to combine the loading and respawn system to go from an event
     // need character enum probably
 
-    gamemodedetails.respawns.retain(|redeemed, timer| {
-        timer.tick(time.delta());
-        if timer.finished() {
+    gamemodedetails.respawns.retain(|redeemed, respawn| {
+        respawn.timer.tick(time.delta());
+        if respawn.timer.finished() {
             spawn_events.send(SpawnEvent {
                 actor: redeemed.clone(), 
                 transform: Transform {
@@ -296,7 +301,7 @@ fn handle_respawning(
                 },
             });
         }
-        !timer.finished()
+        !respawn.timer.finished()
     });
 }
 
@@ -322,11 +327,12 @@ fn show_respawn_ui(
 fn tick_respawn_ui(
     mut death_timer: Query<&mut Text, With<RespawnText>>,
     gamemodedetails: ResMut<GameModeDetails>,
-    local_player: Res<Player>,
+    local_entity: Res<PlayerEntity>,
 ) {
     let Ok(mut respawn_text) = death_timer.get_single_mut() else { return };
-    let Some(timer) = gamemodedetails.respawns.get(&ActorType::Player(*local_player)) else { return};
-    let new_text = (timer.duration().as_secs() as f32 - timer.elapsed_secs()).floor() as u64;
+    let Some(local) = local_entity.0 else { return };
+    let Some(respawn) = gamemodedetails.respawns.get(&local) else { return};
+    let new_text = (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
     respawn_text.sections[1].value = new_text.to_string();
 }
 
@@ -379,13 +385,12 @@ fn check_deaths(
 fn despawn_dead(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
-    the_damned: Query<Option<&Bounty>, With<ActorType>>,
+    mut the_damned: Query<(&mut Transform, Option<&Bounty>), With<ActorType>>,
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
     mut character_state_next: ResMut<NextState<CharacterState>>,
     local_player: Res<Player>,
-    mut can_buy: EventWriter<CanBuy>,
     mut scoreboard: ResMut<Scoreboard>,
 ){
     for event in death_events.iter(){
@@ -394,7 +399,6 @@ fn despawn_dead(
             ActorType::Player(player) => {
                 if player == *local_player{
                     character_state_next.set(CharacterState::Dead);
-                    can_buy.send(CanBuy);
                     let Ok(ui) = ui.get_single() else {continue};
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }
@@ -406,7 +410,7 @@ fn despawn_dead(
         }
         let respawn_timer = 8; // change to calculate based on level and game time, or static for jg camps
         
-        let Ok(bounty) = the_damned.get(event.entity) else {return};
+        let Ok((mut transform, bounty)) = the_damned.get_mut(event.entity) else {return};
         
 
         for (index, awardee) in event.killers.iter().enumerate() {
@@ -431,10 +435,18 @@ fn despawn_dead(
             }
         }
 
-        commands.entity(event.entity).despawn_recursive();
+        //commands.entity(event.entity).despawn_recursive();
+        *transform = Transform {
+            translation: Vec3::new(0.0, 0.5, 0.0),
+            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+            ..default()
+        };
         gamemodedetails.respawns.insert(
-            event.actor.clone(),                                     
-            Timer::new(Duration::from_secs(respawn_timer), TimerMode::Once), 
+            event.entity.clone(),
+            Respawn{
+                actortype: event.actor.clone(),                                     
+                timer: Timer::new(Duration::from_secs(respawn_timer), TimerMode::Once)
+            }, 
         );
     }
 }
