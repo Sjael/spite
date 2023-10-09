@@ -247,12 +247,15 @@ fn add_base_ui(
         });
         parent.spawn(store()).with_children(|parent| {
             parent.spawn(drag_bar());
+            parent.spawn(gold_holder()).with_children(|parent| {
+                parent.spawn(color_text("0", 20, &fonts, Color::YELLOW)).insert((GoldInhand, ZIndex::Global(4)));
+            });
             parent.spawn(list_categories()).with_children(|parent| {
-                parent.spawn(button()).insert(
+                /*parent.spawn(button()).insert(
                     ButtonAction::ClearFilter,
                 ).with_children(|parent| {
                     parent.spawn(button_text("Clear", &fonts));
-                });
+                });*/
                 for stat in CATEGORIES.iter(){
                     parent.spawn(category(stat.clone())).with_children(|parent| {
                         parent.spawn(category_text(stat.to_string(), &fonts));
@@ -261,28 +264,32 @@ fn add_base_ui(
             });
             parent.spawn(list_items()).with_children(|parent| {
                 for item in ITEM_DB.keys(){
-                    parent.spawn(item_image(&items, item.clone()));
+                    parent.spawn(store_item(&items, item.clone()));
                 } 
             });
             parent.spawn(inspector()).with_children(|parent| {
                 parent.spawn(item_parents());
-                parent.spawn(item_tree());
+                parent.spawn(grow_wrap()).with_children(|parent| {
+                    parent.spawn(item_tree());
+                });
                 parent.spawn(item_details()).with_children(|parent| {
                     parent.spawn(color_text("", 14, &fonts, Color::YELLOW)).insert(ItemPriceText);
-                    parent.spawn(color_text("", 16, &fonts, Color::GREEN)).insert(ItemDiscountText);
+                    parent.spawn(color_text("", 16, &fonts, Color::GREEN)).insert((ItemDiscount(Item::Arondight), ItemDiscountText));
                     parent.spawn(color_text("", 18, &fonts, Color::WHITE)).insert(ItemNameText);
+                    parent.spawn(hori()).with_children(|parent| {
                     
+                        parent.spawn(button()).insert(ButtonAction::BuyItem).with_children(|parent| {
+                            parent.spawn(plain_text("BUY", 20, &fonts));
+                        });
+                        parent.spawn(button()).insert(ButtonAction::SellItem).with_children(|parent| {
+                            parent.spawn(plain_text("SELL", 16, &fonts));
+                        });
+                    });
+                    parent.spawn(button()).insert(ButtonAction::UndoStore).with_children(|parent| {
+                        parent.spawn(plain_text("UNDO", 16, &fonts));
+                    });
                 });
-                parent.spawn(button()).insert(ButtonAction::BuyItem).with_children(|parent| {
-                    parent.spawn(plain_text("BUY", 20, &fonts));
-                });
-                parent.spawn(button()).insert(ButtonAction::SellItem).with_children(|parent| {
-                    parent.spawn(plain_text("Sell", 14, &fonts));
-                });
-                parent.spawn(button()).insert(ButtonAction::UndoStore).with_children(|parent| {
-                    parent.spawn(plain_text("Undo", 14, &fonts));
-                });
-                parent.spawn(color_text("0", 24, &fonts, Color::YELLOW)).insert(GoldInhand);
+                
             });
         });
     });
@@ -579,8 +586,7 @@ pub fn button_actions(
     editing_hud_state: Res<State<EditingHUD>>,
     mut app_exit_writer: EventWriter<AppExit>,
     mut reset_ui_events: EventWriter<ResetUiEvent>,
-    mut buy_events: EventWriter<BuyItemEvent>,
-    mut sell_events: EventWriter<SellItemEvent>,
+    mut store_events: EventWriter<StoreEvent>,
     mut undo_events: EventWriter<UndoPressEvent>,
     player: Option<Res<Spectating>>,
     item_inspected: Res<ItemInspected>,
@@ -612,20 +618,28 @@ pub fn button_actions(
             },
             ButtonAction::BuyItem => {
                 if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()){
-                    buy_events.send(BuyItemEvent{
+                    store_events.send(StoreEvent{
                         player: spectating.0.clone(),
                         item: inspected,
+                        direction: TransactionType::Buy,
                     })
                 }
             },
             ButtonAction::SellItem => {
                 if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()){
-                    sell_events.send(SellItemEvent{
+                    store_events.send(StoreEvent{
                         player: spectating.0.clone(),
                         item: inspected,
+                        direction: TransactionType::Sell,
                     })
                 }
-            }
+            },
+            ButtonAction::UndoStore => {
+                let Some(spectating) = &player else {continue};
+                undo_events.send(UndoPressEvent{ 
+                    entity: spectating.0.clone(),
+                });
+            },
             _ => (),
         }
     }

@@ -10,9 +10,9 @@ use crate::{
     ability::{Ability, bundles::Caster, TickBehavior, 
         MaxTargetsHit, TargetsInArea, TargetsHittable,},
     area::homing::Homing,
-    actor::{cast_ability, IncomingDamageLog, player::{Player, PlayerEntity}, SpawnEvent, view::Reticle, stats::{Attributes, Stat}, AbilityRanks,},
+    actor::{cast_ability, IncomingDamageLog, player::{Player, PlayerEntity}, InitSpawnEvent, view::Reticle, stats::{Attributes, Stat}, AbilityRanks, RespawnEvent,},
     
-    ui::{ui_bundles::{PlayerUI, RespawnHolder, RespawnText}, inventory::{Inventory, CanBuy}},
+    ui::{ui_bundles::{PlayerUI, RespawnHolder, RespawnText}, inventory::Inventory},
     GameState,
 };
 
@@ -74,7 +74,7 @@ impl Default for TeamRoster{
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum CharacterState {
     Alive,
     #[default]
@@ -113,7 +113,6 @@ pub struct RespawnTimeDefaults{
 
 impl Default for RespawnTimeDefaults{
     fn default() -> Self {
-        
         let camps = HashMap::from([
             (ActorType::RedBuff, 240),
             (ActorType::BlueBuff, 120),
@@ -132,6 +131,31 @@ pub enum Spawnpoint{
     BlueBuff,
     Chaos,
     Order,
+}
+
+impl Spawnpoint{
+    fn transform(&self) -> Transform {
+        match self{
+            Spawnpoint::RedBuff => Transform {
+                translation: Vec3::new(0.0, 0.5, -6.0),
+                ..default()
+            },
+            Spawnpoint::BlueBuff => Transform {
+                translation: Vec3::new(0.0, 0.5, 6.0),
+                ..default()
+            },
+            Spawnpoint::Chaos => Transform {
+                translation: Vec3::new(-10.0, 0.5, 0.0),
+                rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 + std::f32::consts::PI),
+                ..default()
+            },
+            Spawnpoint::Order => Transform {
+                translation: Vec3::new(10.0, 0.5, 0.0),
+                rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+                ..default()
+            },
+        }
+    }
 }
 
 impl Default for GameModeDetails {
@@ -283,7 +307,10 @@ fn place_ability(
 fn handle_respawning(
     time: Res<Time>,
     mut gamemodedetails: ResMut<GameModeDetails>,
-    mut spawn_events: EventWriter<SpawnEvent>,
+    mut spawn_events: EventWriter<InitSpawnEvent>,
+    mut respawn_events: EventWriter<RespawnEvent>,
+    mut character_state_next: ResMut<NextState<CharacterState>>,
+    local_player: Res<Player>,
 ) {
     //let theredeemed = commands.spawn(()).id();
     // need to combine the loading and respawn system to go from an event
@@ -292,14 +319,13 @@ fn handle_respawning(
     gamemodedetails.respawns.retain(|redeemed, respawn| {
         respawn.timer.tick(time.delta());
         if respawn.timer.finished() {
-            spawn_events.send(SpawnEvent {
-                actor: redeemed.clone(), 
-                transform: Transform {
-                    translation: Vec3::new(2.0, 0.5, 8.0),
-                    rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
-                    ..default()
-                },
+            respawn_events.send(RespawnEvent {
+                entity: redeemed.clone(), 
+                actor: respawn.actortype.clone(),
             });
+            if respawn.actortype == ActorType::Player(*local_player){
+                character_state_next.set(CharacterState::Alive);
+            }
         }
         !respawn.timer.finished()
     });
@@ -308,7 +334,7 @@ fn handle_respawning(
 fn show_respawn_ui(
     mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
     mut death_events: EventReader<DeathEvent>,
-    mut spawn_events: EventReader<SpawnEvent>,
+    mut spawn_events: EventReader<RespawnEvent>,
     local_player: Res<Player>,
 ) {
     let Ok(mut vis) = death_timer.get_single_mut() else { return };
@@ -385,7 +411,7 @@ fn check_deaths(
 fn despawn_dead(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
-    mut the_damned: Query<(&mut Transform, Option<&Bounty>), With<ActorType>>,
+    mut the_damned: Query<(&mut Transform, &mut Visibility, &mut CharacterState, Option<&Bounty>), With<ActorType>>,
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
@@ -410,7 +436,7 @@ fn despawn_dead(
         }
         let respawn_timer = 8; // change to calculate based on level and game time, or static for jg camps
         
-        let Ok((mut transform, bounty)) = the_damned.get_mut(event.entity) else {return};
+        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity) else {return};
         
 
         for (index, awardee) in event.killers.iter().enumerate() {
@@ -436,11 +462,13 @@ fn despawn_dead(
         }
 
         //commands.entity(event.entity).despawn_recursive();
+        *state = CharacterState::Dead;
         *transform = Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
             ..default()
         };
+        *vis = Visibility::Hidden;
         gamemodedetails.respawns.insert(
             event.entity.clone(),
             Respawn{

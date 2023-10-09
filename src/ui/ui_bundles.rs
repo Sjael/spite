@@ -6,7 +6,7 @@ use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, Te
 use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, actor::{crowd_control::CCType, stats::Stat}};
 
 use rand::Rng;
-use super::styles::*;
+use super::{styles::*, inventory::Inventory};
 
 
 
@@ -1472,7 +1472,7 @@ pub fn store() -> impl Bundle {(
             top: Val::Percent(10.0),
             ..default()
         },
-        background_color: Color::rgba(0.2, 0.2, 0.4, 1.0).into(),
+        background_color: Color::rgba(0.15, 0.15, 0.18, 1.0).into(),
         visibility: Visibility::Hidden,
         z_index: ZIndex::Global(3),
         ..default()
@@ -1521,15 +1521,32 @@ pub fn drag_bar() -> impl Bundle{(
     Name::new("DragBar")
 )}
 
+pub fn gold_holder() -> impl Bundle{(
+    NodeBundle {
+        style: Style {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.),  
+            top: Val::Px(0.0),     
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        ..default()
+    },
+    Name::new("GoldInhand"),
+)}
+
 pub fn list_categories() -> impl Bundle {(
     NodeBundle {
         style: Style {
             width: Val::Percent(20.),
             height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(5.0),
+            padding: UiRect::all(Val::Px(5.0)),
             ..default()
         },
-        background_color: Color::rgba(1., 0.1, 0.2, 0.3).into(),
+        background_color: Color::rgba(1., 0.1, 0.2, 0.02).into(),
         ..default()
     }
 )}
@@ -1539,10 +1556,6 @@ pub fn category(stat: Stat) -> impl Bundle {(
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
         style: Style{
             padding: UiRect::all(Val::Px(5.0)),
-            margin: UiRect{
-                bottom: Val::Px(0.0),
-                ..UiRect::all(Val::Px(5.0))
-            },
             ..default()
         },
         ..default()
@@ -1559,7 +1572,7 @@ pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle
     TextBundle::from_section(
         text.to_owned(),
         TextStyle {
-            font: fonts.exo_regular.clone(),
+            font: fonts.exo_semibold.clone(),
             font_size: 15.0,
             color: Color::rgb(0.9, 0.9, 0.9),
         },
@@ -1571,9 +1584,12 @@ pub fn list_items() -> impl Bundle {(
         style: Style {
             width: Val::Percent(60.),
             height: Val::Percent(100.),
+            row_gap: Val::Px(5.),
+            column_gap: Val::Px(5.),
+            padding: UiRect::all(Val::Px(5.)),
             ..default()
         },
-        background_color: Color::rgba(1., 0.5, 0.2, 0.3).into(),
+        background_color: Color::rgba(1., 0.5, 0.2, 0.02).into(),
         ..default()
     },
     Name::new("Store List"),
@@ -1590,7 +1606,7 @@ pub fn inspector() -> impl Bundle {(
             flex_direction: FlexDirection::Column,
             ..default()
         },
-        background_color: Color::rgba(1., 0.1, 0.6, 0.3).into(),
+        //background_color: Color::rgba(1., 0.1, 0.6, 0.3).into(),
         ..default()
     }
 )}
@@ -1600,9 +1616,11 @@ pub fn item_parents() -> impl Bundle {(
             width: Val::Percent(100.),
             height: Val::Px(50.),
             flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(5.)),
+            column_gap: Val::Px(5.),
             ..default()
         },
-        background_color: Color::rgba(0.0, 0.1, 0.6, 0.3).into(),
+        //background_color: Color::rgba(0.0, 0.1, 0.6, 0.1).into(),
         ..default()
     },
     ItemParents,
@@ -1613,12 +1631,23 @@ pub fn item_tree() -> impl Bundle {(
     NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Column,
+            padding:UiRect::all(Val::Px(8.0)),
             ..default()
-        },
-        background_color: Color::rgba(1., 1.0, 0.6, 0.3).into(),
+        },        
+        background_color: Color::rgba(0., 0.01, 0.05, 0.5).into(),
         ..default()
     },
     ItemTree,
+)}
+pub fn grow_wrap() -> impl Bundle {(
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            flex_grow: 1.0,
+            ..default()
+        },
+        ..default()
+    },
 )}
 #[derive(Component, Debug)]
 pub struct ItemTree;
@@ -1628,25 +1657,47 @@ pub fn vert() -> impl Bundle {(
         style: Style {
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
+            width: Val::Percent(100.),
+            row_gap: Val::Px(8.0),
             ..default()
         },
-        background_color: Color::rgba(0.0, 1.0, 0.6, 0.3).into(),
+        //background_color: Color::rgba(0.0, 1.0, 0.6, 0.3).into(),
         ..default()
     },
+    Name::new("vert"),
 )}
 pub fn hori() -> impl Bundle {(
     NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Row,
-            flex_grow: 1.0,
+            column_gap: Val::Px(8.0),
+            width: Val::Percent(100.),
             ..default()
         },
-        background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
+        //background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
         ..default()
     },
+    Name::new("hori"),
 )}
 
-pub fn item_image(item_images: &Res<Items>, item: Item) -> impl Bundle {
+pub fn store_item_wrap(commands: &mut Commands, item_images: &Res<Items>, item: Item, inv: &Inventory) -> Entity{
+    let container = commands.spawn((
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(5.0),
+                padding: UiRect::all(Val::Px(5.)),
+                ..default()
+            },
+            //background_color: Color::rgba(1.0, 1.0, 1.0, 0.05).into(),
+            ..default()
+        },
+    )).id();
+    container
+}
+
+pub fn store_item(item_images: &Res<Items>, item: Item) -> impl Bundle {
     let list = item.get_categories();
     (
     ImageBundle {
@@ -1679,10 +1730,10 @@ pub fn item_details() -> impl Bundle {(
     NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Column,
-            flex_grow: 1.0,
+            row_gap: Val::Px(8.0),
+            padding: UiRect::all(Val::Px(8.0)),
             ..default()
         },
-        background_color: Color::rgba(0.0, 0.0, 0.6, 0.3).into(),
         ..default()
     },
     ItemDetails
@@ -1709,8 +1760,9 @@ pub struct HoverButton;
 pub fn button() -> impl Bundle {(
     ButtonBundle {
         style: Style {
-            width: Val::Px(120.),
-            height: Val::Px(50.),
+            max_width: Val::Px(120.),
+            max_height: Val::Px(50.),
+            flex_grow: 1.0,
             // horizontally center child text
             justify_content: JustifyContent::Center,
             // vertically center child text
@@ -1719,6 +1771,7 @@ pub fn button() -> impl Bundle {(
                 bottom: Val::Px(10.),
                 ..default()
             },
+            padding: UiRect::all(Val::Px(10.)),
             ..default()
         },
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
@@ -1742,13 +1795,6 @@ pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
 
 pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
     TextBundle {
-        style: Style {
-            margin : UiRect{
-                top: Val::Px(10.),
-                ..default()
-            },
-            ..default()
-        },
         text: Text::from_section(
             "200",
             TextStyle {
@@ -1757,6 +1803,7 @@ pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
                 color: Color::YELLOW,
             },
         ),
+        z_index: ZIndex::Global(4),
         ..default()
     },
     GoldInhand,
@@ -1806,6 +1853,8 @@ pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color:
 pub struct GoldInhand;
 #[derive(Component, Debug)]
 pub struct ItemPriceText;
+#[derive(Component, Debug)]
+pub struct ItemDiscount(pub Item);
 #[derive(Component, Debug)]
 pub struct ItemDiscountText;
 #[derive(Component, Debug)]

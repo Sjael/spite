@@ -9,7 +9,7 @@ use bevy::prelude::*;
 
 use crate::{actor::stats::Stat, assets::Items, ui::inventory::Inventory};
 
-#[derive(Component, Reflect, Clone, Debug, Default, Display, Eq, PartialEq, Hash)]
+#[derive(Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 #[reflect(Component)]
 pub enum Item {
     Arondight,
@@ -47,7 +47,7 @@ lazy_static! {
                 Arondight, 
                 ItemInfo{
                     price: 900,
-                    parts: vec![HiddenDagger, DruidStone],
+                    parts: vec![HiddenDagger, DruidStone, Polynomicon],
                     stats: HashMap::from([
                         (PhysicalPower, 60),
                         (CooldownReduction, 15),
@@ -81,6 +81,16 @@ lazy_static! {
                     price: 450,
                     stats: HashMap::from([
                         (MagicalPower, 30),
+                    ]),
+                    ..default()
+                }
+            ),
+            (
+                DruidStone, 
+                ItemInfo{
+                    price: 300,
+                    stats: HashMap::from([
+                        (PhysicalProtection, 20),
                     ]),
                     ..default()
                 }

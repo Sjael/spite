@@ -35,7 +35,8 @@ impl Plugin for CharacterPlugin {
         app.register_type::<HoveredAbility>();
         app.add_event::<InputCastEvent>();
         app.add_event::<CastEvent>();
-        app.add_event::<SpawnEvent>();
+        app.add_event::<InitSpawnEvent>();
+        app.add_event::<RespawnEvent>();
         app.add_event::<LogHit>();
 
         //Plugins
@@ -51,6 +52,7 @@ impl Plugin for CharacterPlugin {
             player_keys_input,
             player_mouse_input,
             select_ability.after(copy_action_state),
+            respawn_entity,
             update_local_player_inputs,
         ).in_set(InGameSet::Pre));
         app.add_systems(Update, (
@@ -62,7 +64,7 @@ impl Plugin for CharacterPlugin {
             tick_cooldowns.after(trigger_cooldown),
             start_ability_windup.after(cast_ability),
             tick_windup_timer,
-            spawn_player,
+            init_player,
             update_damage_logs,
         ).in_set(InGameSet::Update));
         // Process transforms always after inputs, and translations after rotations
@@ -78,17 +80,23 @@ pub struct HasHealthBar;
 
 
 #[derive(Event)]
-pub struct SpawnEvent {
+pub struct InitSpawnEvent {
     pub actor: ActorType,
     pub transform: Transform,
 }
 
+#[derive(Event)]
+pub struct RespawnEvent {
+    pub entity: Entity,
+    pub actor: ActorType,
+}
 
-fn spawn_player(
+
+fn init_player(
     mut commands: Commands,
     mut _meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut spawn_events: EventReader<SpawnEvent>,
+    mut spawn_events: EventReader<InitSpawnEvent>,
     mut spectate_events: EventWriter<SpectateEvent>,
     mut next_state: ResMut<NextState<CharacterState>>,
     local_player: Res<Player>,
@@ -131,6 +139,7 @@ fn spawn_player(
                 LockedAxes::ROTATION_LOCKED,
                 Velocity::default(),
                 PLAYER_GROUPING,
+                CharacterState::Alive,
                 Inventory::default(),
             )).insert({
                 let mut attributes = Attributes::default();
@@ -172,8 +181,26 @@ fn spawn_player(
     }
 }
 
-fn setup_player(mut spawn_events: EventWriter<SpawnEvent>, local_player: Res<Player>) {
-    spawn_events.send(SpawnEvent {
+fn respawn_entity(
+    mut respawn_events: EventReader<RespawnEvent>,
+    mut the_damned: Query<(&mut Visibility, &mut CharacterState)>,
+    local_player: Res<Player>,
+    mut spectate_events: EventWriter<SpectateEvent>,
+){
+    for event in respawn_events.iter(){
+        let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else { continue };
+        *vis = Visibility::Visible;
+        *state = CharacterState::Alive;
+        if event.actor == ActorType::Player(*local_player) {
+            spectate_events.send(SpectateEvent {
+                entity: event.entity,
+            });
+        }
+    }
+}
+
+fn setup_player(mut spawn_events: EventWriter<InitSpawnEvent>, local_player: Res<Player>) {
+    spawn_events.send(InitSpawnEvent {
         actor: ActorType::Player(local_player.clone()),
         transform: Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
