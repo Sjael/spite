@@ -1539,7 +1539,7 @@ pub fn gold_holder() -> impl Bundle{(
 pub fn list_categories() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            width: Val::Percent(20.),
+            width: Val::Percent(15.),
             height: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(5.0),
@@ -1582,11 +1582,14 @@ pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle
 pub fn list_items() -> impl Bundle {(
     NodeBundle {
         style: Style {
-            width: Val::Percent(60.),
+            width: Val::Percent(55.),
             height: Val::Percent(100.),
             row_gap: Val::Px(5.),
             column_gap: Val::Px(5.),
             padding: UiRect::all(Val::Px(5.)),
+            align_content: AlignContent::Start,
+            justify_content: JustifyContent::Start,
+            flex_wrap: FlexWrap::Wrap,
             ..default()
         },
         background_color: Color::rgba(1., 0.5, 0.2, 0.02).into(),
@@ -1680,25 +1683,28 @@ pub fn hori() -> impl Bundle {(
     Name::new("hori"),
 )}
 
-pub fn store_item_wrap(commands: &mut Commands, item_images: &Res<Items>, item: Item, inv: &Inventory) -> Entity{
-    let container = commands.spawn((
-        NodeBundle {
-            style: Style {
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(5.0),
-                padding: UiRect::all(Val::Px(5.)),
-                ..default()
-            },
-            //background_color: Color::rgba(1.0, 1.0, 1.0, 0.05).into(),
+pub fn store_item_wrap(item: Item) -> impl Bundle{
+    let list = item.get_categories();
+    (
+    NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            // align_items: AlignItems::Center,
+            row_gap: Val::Px(5.0),
+            padding: UiRect::all(Val::Px(5.)),
+            // margin: UiRect::all(Val::Auto),
             ..default()
         },
-    )).id();
-    container
-}
+        background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
+        ..default()
+    },
+    ItemAttributes(list),
+    Interaction::default(),
+    item,
+    StoreItem,
+)}
 
 pub fn store_item(item_images: &Res<Items>, item: Item) -> impl Bundle {
-    let list = item.get_categories();
     (
     ImageBundle {
         style: Style {
@@ -1713,10 +1719,6 @@ pub fn store_item(item_images: &Res<Items>, item: Item) -> impl Bundle {
     // commentd cus i dont want dragging rn
     //Draggable::Unbound,
     //DragHandle,
-    Interaction::default(),
-    ItemAttributes(list),
-    StoreItem,
-    item,
 )}
 
 #[derive(Component, Debug)]

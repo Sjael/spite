@@ -264,8 +264,12 @@ fn add_base_ui(
             });
             parent.spawn(list_items()).with_children(|parent| {
                 for item in ITEM_DB.keys(){
-                    parent.spawn(store_item(&items, item.clone()));
-                } 
+                    parent.spawn(store_item_wrap(item.clone())).with_children(|parent| {
+                        parent.spawn(store_item(&items, item.clone()));
+                        parent.spawn(color_text("", 16, &fonts, Color::WHITE)).insert(ItemDiscount(item.clone()));
+                    });
+                    
+                }
             });
             parent.spawn(inspector()).with_children(|parent| {
                 parent.spawn(item_parents());

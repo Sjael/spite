@@ -64,20 +64,15 @@ impl Plugin for InventoryPlugin {
 // HIDE ONLY ITEMS IN LIST node
 
 pub fn sort_items(
-    list_query: Query<&Children, With<StoreList>>,
-    mut item_query: Query<(&mut Style, &ItemAttributes)>,
+    mut item_query: Query<(&ItemAttributes, &mut Style)>,
     categories_toggled: Res<CategorySorted>,
 ){
-    if categories_toggled.is_changed(){
-        let Ok(children) = list_query.get_single() else {return};
-        for child in children.iter(){
-            let Ok((mut style, item_attributes)) = item_query.get_mut(*child) else {continue};
-            style.display = Display::default();
-            if categories_toggled.0.is_empty() { continue }
-            if !item_attributes.0.iter().any(|stat|categories_toggled.0.contains(stat)){
-                style.display = Display::None;
-            }
-        }
+    if !categories_toggled.is_changed(){ return }
+    for (attributes, mut style) in item_query.iter_mut(){
+        style.display = Display::default();
+        if categories_toggled.0.is_empty() { continue }
+        if attributes.0.iter().any(|stat|categories_toggled.0.contains(stat)){ continue }
+        style.display = Display::None;
     }
 }
 
@@ -112,23 +107,30 @@ pub fn update_discounts(
         Query<(&mut Text, &ItemDiscount)>,
     )>,
     player_entity: Res<PlayerEntity>,
-    mut players: ParamSet<(
-        Query<(&Inventory, Entity), Changed<Inventory>>,
-        Query<&Inventory>,
-    )>,
+    changed_inventories: Query<(&Inventory, Entity), Changed<Inventory>>,
+    inventories: Query<&Inventory>,
 ){
     let Some(local) = player_entity.0 else {return};
-    for (inv, entity) in players.p0().iter(){
+    for (inv, entity) in changed_inventories.iter(){
         if entity != local { continue }
         for (mut text, discounted_item) in query.p1().iter_mut(){
-            text.sections[0].value = discounted_item.0.calculate_discount(&inv).to_string();
+            discount_style(discounted_item.0.clone(), &inv, &mut text);
         }
     }
     for (mut text, discounted_item) in query.p0().iter_mut(){
-        let inv = if let Ok(inv) = players.p1().get(local) {
-            inv.clone()
-        }else {continue};
-        text.sections[0].value = discounted_item.0.calculate_discount(&inv).to_string();
+        let Ok(inv) = inventories.get(local) else {continue};
+        discount_style(discounted_item.0.clone(), &inv, &mut text);
+    }
+}
+
+fn discount_style(item: Item, inv: &Inventory, text: &mut Text){
+    let price = item.get_price();
+    let discount = item.calculate_discount(&inv.clone());
+    text.sections[0].value = discount.to_string();
+    if price > discount {
+        text.sections[0].style.color = Color::GREEN
+    } else {
+        text.sections[0].style.color = Color::WHITE
     }
 }
 

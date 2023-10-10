@@ -20,6 +20,7 @@ pub enum Item {
     Witchblade,
     Polynomicon,
     DruidStone,
+    Deathbringer,
 }
 
 #[derive(Default, Clone)]
@@ -62,6 +63,17 @@ lazy_static! {
                     stats: HashMap::from([
                         (MagicalPower, 60),
                         (MagicalPenetration, 15),
+                    ]),
+                }
+            ),
+            (
+                Deathbringer, 
+                ItemInfo{
+                    price: 900,
+                    parts: vec![HiddenDagger, HiddenDagger],
+                    stats: HashMap::from([
+                        (PhysicalPower, 60),
+                        (PhysicalPenetration, 15),
                     ]),
                 }
             ),
@@ -145,6 +157,7 @@ impl Item{
             BookOfSouls => images.book_of_souls.clone(),
             Polynomicon => images.polynomicon.clone(),
             DruidStone => images.druid_stone.clone(),
+            Deathbringer => images.witchblade.clone(),
             _ => images.hidden_dagger.clone(),
         };
         image.into()
