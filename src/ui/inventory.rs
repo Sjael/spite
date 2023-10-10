@@ -124,7 +124,7 @@ pub fn update_discounts(
 }
 
 fn discount_style(item: Item, inv: &Inventory, text: &mut Text){
-    let price = item.get_price();
+    let price = item.totals().price;
     let discount = item.calculate_discount(&inv.clone());
     text.sections[0].value = discount.to_string();
     if price > discount {
@@ -171,14 +171,14 @@ pub fn inspect_item(
             }
         }
         commands.entity(parents_entity).with_children(|parent| {
-            let ancestors = item.get_ancestors();
+            let ancestors = item.totals().ancestors;
             for ancestor in ancestors{
                 parent.spawn(store_item(&items, ancestor));
             }
         });
 
         if let Ok(mut price_text) = text_set.p0().get_single_mut() {
-            price_text.sections[0].value = item.get_price().to_string();
+            price_text.sections[0].value = item.totals().price.to_string();
         }
         if let Ok(mut discount) = text_set.p1().get_single_mut() {
             discount.0 = item.clone();
@@ -193,7 +193,7 @@ fn spawn_tree(commands: &mut Commands, item: Item, item_images: &Res<Items>) -> 
     let vert = commands.spawn(vert()).id();
     let image = commands.spawn(store_item(item_images, item.clone())).id();
     commands.entity(vert).push_children(&[image]);
-    let parts = item.get_parts();
+    let parts = item.info().parts;
     if !parts.is_empty(){    
         let hori = commands.spawn(hori()).id();
         commands.entity(vert).push_children(&[hori]);
@@ -218,7 +218,7 @@ fn try_buy_item(
         let discounted_price = event.item.calculate_discount(&inventory) as f32;
         if *gold > discounted_price {
             // remove components
-            for item in event.item.get_parts(){
+            for item in event.item.info().parts{
                 let Some(index) = inventory.iter().position(|old| *old == Some(item.clone())) else {continue};
                 inventory.0[index] = None;
             }
@@ -267,7 +267,7 @@ fn try_sell_item(
         if event.direction != TransactionType::Sell { continue }
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else {continue};
         let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1.0);
-        let refund = event.item.get_price() as f32;
+        let refund = event.item.totals().price as f32;
         if let Some(index) = inventory.iter().position(|old| *old == Some(event.item.clone())){
             inventory.0[index] = None;
             let sell_price = (refund * 0.67).floor();

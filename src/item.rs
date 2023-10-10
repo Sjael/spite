@@ -35,7 +35,7 @@ pub struct ItemInfo{
 #[derive(Default, Clone)]
 pub struct ItemTotal{
     pub price: u32,
-    pub parts: Vec<Item>,
+    pub flat_parts: Vec<Item>,
     pub ancestors: Vec<Item>,
 }
 
@@ -59,7 +59,7 @@ lazy_static! {
                 SoulReaver, 
                 ItemInfo{
                     price: 700,
-                    parts: vec![HiddenDagger, Polynomicon],
+                    parts: vec![BookOfSouls, Polynomicon, HiddenDagger],
                     stats: HashMap::from([
                         (MagicalPower, 60),
                         (MagicalPenetration, 15),
@@ -110,12 +110,12 @@ lazy_static! {
             (
                 Polynomicon, 
                 ItemInfo{
-                    price: 1150,
+                    price: 750,
                     stats: HashMap::from([
                         (MagicalPower, 80),
                         (CooldownReduction, 20),
                     ]),
-                    parts: vec![BookOfSouls, BookOfSouls],
+                    parts: vec![BookOfSouls],
                 }
             ),
         ])
@@ -140,13 +140,6 @@ lazy_static! {
 
 impl Item{
 
-    pub fn get_categories(&self) -> Vec<Stat>{
-        ITEM_DB.get(self).cloned().unwrap_or_default().stats
-            .keys()
-            .map(|i| *i)
-            .collect::<Vec<_>>()
-    }
-
     pub fn get_image(&self, images: &Res<Items>) -> UiImage {
         use Item::*;
         let image = match self{
@@ -163,18 +156,8 @@ impl Item{
         image.into()
     }
 
-    pub fn calculate_price(&self) -> u32 {
-        let info = ITEM_DB.get(self).cloned().unwrap_or_default();
-        let mut price = info.price;
-        for part in info.parts {
-            price += part.calculate_price();
-        }
-        price
-    }
-
     pub fn calculate_discount(&self, inventory: &Inventory) -> u32 {
-        
-        let mut all_parts = self.get_all_parts();
+        let mut all_parts = self.totals().flat_parts;
         let checked = inventory.0.iter().cloned()
             .filter_map(|x| x)
             .collect::<Vec<_>>();
@@ -185,49 +168,41 @@ impl Item{
             } else {
                 continue
             };
-            subtract += component.get_price();
+            subtract += component.totals().price;
             all_parts.remove(index);
-            for part in component.get_parts(){
+            for part in component.info().parts{
                 if let Some(part_index) = all_parts.iter().position(|x| x == &part){
                     all_parts.remove(part_index);
                 }
             }
         }
-        self.get_price() - subtract
+        self.totals().price - subtract
     }
 
     fn calculate_totals(&self) -> ItemTotal {
         let info = ITEM_DB.get(self).cloned().unwrap_or_default();
         let mut price = info.price;
-        let mut parts = info.parts.clone();
+        let mut flat_parts = info.parts.clone();
         for part in info.parts {
             let mut sub_total = part.calculate_totals();
             price += sub_total.price;
-            parts.append(&mut sub_total.parts);
+            flat_parts.append(&mut sub_total.flat_parts);
         }
         ItemTotal{
             price,
-            parts,
+            flat_parts,
             ancestors: Vec::new(),
         }
     }
 
-    pub fn get_price(&self) -> u32 {
-        ITEM_TOTALS.get(self).cloned().unwrap_or_default().price
+   
+    pub fn totals(&self) -> ItemTotal{
+        ITEM_TOTALS.get(self).cloned().unwrap_or_default()
     }
-    pub fn get_all_parts(&self) -> Vec<Item> {
-        ITEM_TOTALS.get(self).cloned().unwrap_or_default().parts
+    pub fn info(&self) -> ItemInfo{
+        ITEM_DB.get(self).cloned().unwrap_or_default()
     }
-    pub fn get_ancestors(&self) -> Vec<Item> {
-        ITEM_TOTALS.get(self).cloned().unwrap_or_default().ancestors
-    }
-
-    pub fn get_parts(&self) -> Vec<Item> {
-        ITEM_DB.get(self).cloned().unwrap_or_default().parts
-    }
-    pub fn get_subprice(&self) -> u32 {
-        ITEM_DB.get(self).cloned().unwrap_or_default().price
-    }
+  
 
     
 }

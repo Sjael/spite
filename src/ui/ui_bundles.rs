@@ -1684,7 +1684,7 @@ pub fn hori() -> impl Bundle {(
 )}
 
 pub fn store_item_wrap(item: Item) -> impl Bundle{
-    let list = item.get_categories();
+    let list = item.info().stats.keys().cloned().collect::<Vec<_>>();
     (
     NodeBundle {
         style: Style {
@@ -1716,6 +1716,9 @@ pub fn store_item(item_images: &Res<Items>, item: Item) -> impl Bundle {
         //focus_policy: FocusPolicy::Block,
         ..default()
     },
+    Interaction::default(),
+    item,
+    StoreItem,
     // commentd cus i dont want dragging rn
     //Draggable::Unbound,
     //DragHandle,
