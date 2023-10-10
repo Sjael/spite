@@ -150,7 +150,7 @@ pub fn update_discounts(
 
 fn discount_style(item: Item, inv: &Inventory, text: &mut Text) {
     let price = item.total_price();
-    let discount = item.calculate_discount(&inv.clone());
+    let discount = item.discounted_price(&inv.clone());
     text.sections[0].value = discount.to_string();
     if price > discount {
         text.sections[0].style.color = Color::GREEN
@@ -247,8 +247,8 @@ fn try_buy_item(
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else {
             continue;
         };
-        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1.0);
-        let discounted_price = event.item.calculate_discount(&inventory) as f32;
+        let gold = attributes.entry(Stat::Gold.as_tag()).or_default();
+        let discounted_price = event.item.discounted_price(&inventory) as f32;
         if *gold > discounted_price {
             // remove components
             for item in event.item.common_parts(inventory.items()) {

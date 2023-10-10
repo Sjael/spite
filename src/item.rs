@@ -191,8 +191,12 @@ impl Item {
         common
     }
 
-    pub fn calculate_discount(&self, inventory: &Inventory) -> u32 {
-        let discount: u32 = self.common_parts(inventory.items()).iter().map(|component| component.total_price()).sum();
+    pub fn discounted_price(&self, inventory: &Inventory) -> u32 {
+        let discount: u32 = self
+            .common_parts(inventory.items())
+            .iter()
+            .map(|component| component.total_price())
+            .sum();
         self.total_price() - discount
     }
 
@@ -213,10 +217,16 @@ impl Item {
     }
 
     pub fn total(&self) -> ItemTotal {
-        ITEM_TOTALS.get(self).cloned().unwrap_or_default()
+        ITEM_TOTALS
+            .get(self)
+            .cloned()
+            .expect(&format!("Item total doesn't exist for {:?}", self))
     }
     pub fn info(&self) -> ItemInfo {
-        ITEM_DB.get(self).cloned().unwrap_or_default()
+        ITEM_DB
+            .get(self)
+            .cloned()
+            .expect(&format!("Item info doesn't exist for {:?}", self))
     }
 
     pub fn parts(&self) -> Vec<Item> {

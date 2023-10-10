@@ -84,7 +84,8 @@ impl Display for Stat {
 
 impl Stat {
     pub fn as_tag(self) -> AttributeTag {
-        AttributeTag::from(self)
+        //AttributeTag::from(self)
+        self.into()
     }
 }
 
