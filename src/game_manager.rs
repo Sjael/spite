@@ -542,7 +542,7 @@ fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
 fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: Res<Time>) {
     let gold_per_second = 3.0;
     for mut attributes in attribute_query.iter_mut() {
-        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(2700.0);
+        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(999992700.0);
         *gold += gold_per_second * time.delta_seconds();
     }
 }

@@ -251,7 +251,7 @@ fn try_buy_item(
         let discounted_price = event.item.calculate_discount(&inventory) as f32;
         if *gold > discounted_price {
             // remove components
-            for item in event.item.info().parts {
+            for item in event.item.common_parts(inventory.items()) {
                 let Some(index) = inventory.iter().position(|old| *old == Some(item.clone()))
                 else {
                     continue;

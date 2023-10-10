@@ -37,7 +37,7 @@ pub struct ItemTotal {
     /// Total cost of this item, including parts.
     pub total_price: u32,
     /// Flattened parts related to this item.
-    pub flat_parts: Vec<Item>,
+    pub flat_parts: Vec<(u8, Item)>,
     pub ancestors: Vec<Item>,
 }
 
@@ -49,8 +49,8 @@ lazy_static! {
             (
                 Arondight,
                 ItemInfo{
-                    price: 900,
-                    parts: vec![HiddenDagger, DruidStone, Polynomicon],
+                    price: 100,
+                    parts: vec![SoulReaver],
                     stats: HashMap::from([
                         (PhysicalPower, 60),
                         (CooldownReduction, 15),
@@ -60,11 +60,11 @@ lazy_static! {
             (
                 SoulReaver,
                 ItemInfo{
-                    price: 700,
-                    parts: vec![BookOfSouls, Polynomicon, HiddenDagger],
+                    price: 100,
+                    parts: vec![Polynomicon, Polynomicon],
                     stats: HashMap::from([
-                        (MagicalPower, 60),
-                        (MagicalPenetration, 15),
+                        (PhysicalPower, 60),
+                        (CooldownReduction, 15),
                     ]),
                 }
             ),
@@ -92,7 +92,7 @@ lazy_static! {
             (
                 BookOfSouls,
                 ItemInfo{
-                    price: 450,
+                    price: 100,
                     stats: HashMap::from([
                         (MagicalPower, 30),
                     ]),
@@ -112,12 +112,12 @@ lazy_static! {
             (
                 Polynomicon,
                 ItemInfo{
-                    price: 750,
+                    price: 100,
                     stats: HashMap::from([
                         (MagicalPower, 80),
                         (CooldownReduction, 20),
                     ]),
-                    parts: vec![BookOfSouls],
+                    parts: vec![BookOfSouls, BookOfSouls],
                 }
             ),
         ])
@@ -157,29 +157,49 @@ impl Item {
         image.into()
     }
 
-    pub fn calculate_discount(&self, inventory: &Inventory) -> u32 {
+    /// List of common parts between this item's set of flat parts and a list of items.
+    pub fn common_parts(&self, items: impl Iterator<Item = Item>) -> Vec<Item> {
         let mut all_parts = self.flat_parts();
-        let mut discount = 0;
-        for component in inventory.items() {
-            let Some(index) = all_parts.iter().position(|x| x == &component)
-            else {
+        all_parts.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+        let bong = items.collect::<Vec<_>>();
+        let bing = bong.iter().rev().cloned().collect::<Vec<_>>();
+        let mut items = bing;
+
+        let mut common = Vec::new();
+
+        while all_parts.len() > 0 {
+            let (_, component) = all_parts.remove(0);
+
+            if let Some(item_index) = items.iter().position(|x| x == &component) {
+                items.remove(item_index);
+            } else {
+                // Don't remove subparts
                 continue;
             };
-            discount += component.total_price();
-            all_parts.swap_remove(index);
-            for part in component.parts() {
-                if let Some(part_index) = all_parts.iter().position(|x| x == &part) {
+
+            common.push(component);
+
+            // If we have the item then remove all subparts
+            for (_, part) in component.flat_parts() {
+                if let Some(part_index) = all_parts.iter().position(|(_, x)| x == &part) {
                     all_parts.remove(part_index);
                 }
             }
         }
+
+        common
+    }
+
+    pub fn calculate_discount(&self, inventory: &Inventory) -> u32 {
+        let discount: u32 = self.common_parts(inventory.items()).iter().map(|component| component.total_price()).sum();
         self.total_price() - discount
     }
 
     fn calculate_total(&self) -> ItemTotal {
         let info = self.info();
         let mut total_price = info.price;
-        let mut flat_parts = info.parts.clone();
+        let mut flat_parts = info.parts.iter().map(|i| (0u8, *i)).collect::<Vec<_>>();
         for part in info.parts {
             let mut part_total = part.calculate_total();
             total_price += part_total.total_price;
@@ -202,16 +222,16 @@ impl Item {
     pub fn parts(&self) -> Vec<Item> {
         self.info().parts
     }
-    pub fn flat_parts(&self) -> Vec<Item> {
+    pub fn flat_parts(&self) -> Vec<(u8, Item)> {
         self.total().flat_parts
     }
-    pub fn total_price(&self) -> u32 { 
+    pub fn total_price(&self) -> u32 {
         self.total().total_price
     }
-    pub fn price(&self) -> u32 { 
+    pub fn price(&self) -> u32 {
         self.info().price
     }
-    pub fn ancestors(&self) -> Vec<Item> { 
+    pub fn ancestors(&self) -> Vec<Item> {
         self.total().ancestors
     }
 }
