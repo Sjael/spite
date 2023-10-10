@@ -23,7 +23,9 @@ pub enum Item {
 
 #[derive(Default, Clone)]
 pub struct ItemInfo {
+    /// Cost of this item, excluding parts.
     pub price: u32,
+    /// Direct parts to this item.
     pub parts: Vec<Item>,
     pub stats: HashMap<Stat, u32>,
     // pub passives: Vec<ItemPassive>,
@@ -32,7 +34,9 @@ pub struct ItemInfo {
 // stuff that isn't per 'stage' of an item, downstream of hierarchy
 #[derive(Default, Clone)]
 pub struct ItemTotal {
-    pub price: u32,
+    /// Total cost of this item, including parts.
+    pub total_price: u32,
+    /// Flattened parts related to this item.
     pub flat_parts: Vec<Item>,
     pub ancestors: Vec<Item>,
 }
@@ -123,11 +127,11 @@ lazy_static! {
         let mut map = HashMap::new();
         for (item, info) in ITEM_DB.clone().into_iter(){
             if !map.contains_key(&item){
-                map.insert(item.clone(), item.calculate_totals());
+                map.insert(item.clone(), item.calculate_total());
             }
 
             for part in info.parts{
-                let part_info: &mut ItemTotal = map.entry(part.clone()).or_insert(part.calculate_totals());
+                let part_info: &mut ItemTotal = map.entry(part.clone()).or_insert(part.calculate_total());
                 if part_info.ancestors.contains(&item){ continue };
                 part_info.ancestors.push(item.clone());
             }
@@ -154,51 +158,60 @@ impl Item {
     }
 
     pub fn calculate_discount(&self, inventory: &Inventory) -> u32 {
-        let mut all_parts = self.totals().flat_parts;
-        let checked = inventory
-            .0
-            .iter()
-            .cloned()
-            .filter_map(|x| x)
-            .collect::<Vec<_>>();
-        let mut subtract = 0;
-        for component in checked {
-            let index = if let Some(index) = all_parts.iter().position(|x| x == &component) {
-                index
-            } else {
+        let mut all_parts = self.flat_parts();
+        let mut discount = 0;
+        for component in inventory.items() {
+            let Some(index) = all_parts.iter().position(|x| x == &component)
+            else {
                 continue;
             };
-            subtract += component.totals().price;
-            all_parts.remove(index);
-            for part in component.info().parts {
+            discount += component.total_price();
+            all_parts.swap_remove(index);
+            for part in component.parts() {
                 if let Some(part_index) = all_parts.iter().position(|x| x == &part) {
                     all_parts.remove(part_index);
                 }
             }
         }
-        self.totals().price - subtract
+        self.total_price() - discount
     }
 
-    fn calculate_totals(&self) -> ItemTotal {
-        let info = ITEM_DB.get(self).cloned().unwrap_or_default();
-        let mut price = info.price;
+    fn calculate_total(&self) -> ItemTotal {
+        let info = self.info();
+        let mut total_price = info.price;
         let mut flat_parts = info.parts.clone();
         for part in info.parts {
-            let mut sub_total = part.calculate_totals();
-            price += sub_total.price;
-            flat_parts.append(&mut sub_total.flat_parts);
+            let mut part_total = part.calculate_total();
+            total_price += part_total.total_price;
+            flat_parts.append(&mut part_total.flat_parts);
         }
         ItemTotal {
-            price,
+            total_price,
             flat_parts,
             ancestors: Vec::new(),
         }
     }
 
-    pub fn totals(&self) -> ItemTotal {
+    pub fn total(&self) -> ItemTotal {
         ITEM_TOTALS.get(self).cloned().unwrap_or_default()
     }
     pub fn info(&self) -> ItemInfo {
         ITEM_DB.get(self).cloned().unwrap_or_default()
+    }
+
+    pub fn parts(&self) -> Vec<Item> {
+        self.info().parts
+    }
+    pub fn flat_parts(&self) -> Vec<Item> {
+        self.total().flat_parts
+    }
+    pub fn total_price(&self) -> u32 { 
+        self.total().total_price
+    }
+    pub fn price(&self) -> u32 { 
+        self.info().price
+    }
+    pub fn ancestors(&self) -> Vec<Item> { 
+        self.total().ancestors
     }
 }

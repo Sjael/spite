@@ -34,6 +34,12 @@ pub struct ItemInspected(pub Option<Item>);
 #[reflect]
 pub struct Inventory(pub [Option<Item>; 6]);
 
+impl Inventory {
+    pub fn items(&self) -> impl Iterator<Item = Item> + '_ {
+        self.iter().cloned().filter_map(|x| x)
+    }
+}
+
 pub struct InventoryPlugin;
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
@@ -143,7 +149,7 @@ pub fn update_discounts(
 }
 
 fn discount_style(item: Item, inv: &Inventory, text: &mut Text) {
-    let price = item.totals().price;
+    let price = item.total_price();
     let discount = item.calculate_discount(&inv.clone());
     text.sections[0].value = discount.to_string();
     if price > discount {
@@ -195,14 +201,14 @@ pub fn inspect_item(
             }
         }
         commands.entity(parents_entity).with_children(|parent| {
-            let ancestors = item.totals().ancestors;
+            let ancestors = item.ancestors();
             for ancestor in ancestors {
                 parent.spawn(store_item(&items, ancestor));
             }
         });
 
         if let Ok(mut price_text) = text_set.p0().get_single_mut() {
-            price_text.sections[0].value = item.totals().price.to_string();
+            price_text.sections[0].value = item.total_price().to_string();
         }
         if let Ok(mut discount) = text_set.p1().get_single_mut() {
             discount.0 = item.clone();
@@ -304,7 +310,7 @@ fn try_sell_item(
             continue;
         };
         let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1.0);
-        let refund = event.item.totals().price as f32;
+        let refund = event.item.total_price() as f32;
         if let Some(index) = inventory
             .iter()
             .position(|old| *old == Some(event.item.clone()))
