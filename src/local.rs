@@ -14,20 +14,23 @@ use bevy_fly_camera::{camera_movement_system, mouse_motion_system};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
     ability::{
-        Ability, TickBehavior, TargetFilter, FilteredTargets, TagInfo, Tags,
-        TargetSelection, TargetsInArea, TargetsHittable, Ticks, PausesWhenEmpty, FiringInterval, bundles::Caster,
+        bundles::Caster, Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags,
+        TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
     },
+    actor::{
+        buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
+        crowd_control::{CCInfo, CCMap, CCType},
+        stats::*,
+        view::Spectatable,
+        HasHealthBar, IncomingDamageLog, Tower,
+    },
+    area::non_damaging::ObjectiveHealthOwner,
     assets::*,
     game_manager::{
-        CharacterState, Fountain, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL,
-        TERRAIN_GROUPING, InGameSet,
+        CharacterState, Fountain, InGameSet, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2,
+        TEAM_NEUTRAL, TERRAIN_GROUPING,
     },
-    actor::{IncomingDamageLog, view::Spectatable, HasHealthBar, Tower,
-        stats::*,
-        buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
-        crowd_control::{CCMap, CCInfo, CCType},    
-    },
-    GameState, area::non_damaging::ObjectiveHealthOwner,  
+    GameState,
 };
 use winit::window::Icon;
 
@@ -38,10 +41,12 @@ fn main() {
     app.add_systems(OnEnter(GameState::InGame), setup_map);
     app.add_systems(Startup, set_window_icon);
     app.add_systems(Startup, setup_camera);
-    app.add_systems(Update, (
-        camera_movement_system, 
-        mouse_motion_system,
-    ).in_set(InGameSet::Update).run_if(in_state(CharacterState::Dead)));
+    app.add_systems(
+        Update,
+        (camera_movement_system, mouse_motion_system)
+            .in_set(InGameSet::Update)
+            .run_if(in_state(CharacterState::Dead)),
+    );
     app.run();
 }
 
@@ -73,7 +78,6 @@ pub fn setup_map(
         Name::new("Plane"),
     ));
 
-
     let tower = commands
         .spawn((
             SpatialBundle::from_transform(Transform {
@@ -97,14 +101,18 @@ pub fn setup_map(
             {
                 let mut attributes = Attributes::default();
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;
-                *attributes.entry(Stat::MagicalProtection.into()).or_default() = 60.0;
-                *attributes.entry(Stat::PhysicalProtection.into()).or_default() = 60.0;
+                *attributes
+                    .entry(Stat::MagicalProtection.into())
+                    .or_default() = 60.0;
+                *attributes
+                    .entry(Stat::PhysicalProtection.into())
+                    .or_default() = 60.0;
                 attributes
             },
             Tower,
             Name::new("Tower"),
             Spectatable,
-            ObjectiveHealthOwner{
+            ObjectiveHealthOwner {
                 not_looking_range: 13.0,
                 looking_range: 20.0,
             },
@@ -116,7 +124,8 @@ pub fn setup_map(
             SpatialBundle::default(),
             TEAM_NEUTRAL,
             Name::new("Range Collider"),
-        )).insert((
+        ))
+        .insert((
             Collider::cylinder(1.0, 7.),
             ActiveEvents::COLLISION_EVENTS,
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
@@ -169,11 +178,7 @@ pub fn setup_map(
             Spectatable,
             Name::new("Target Dummy"),
         ))
-        .insert((
-            Attributes::default(),
-    ));
-
-        
+        .insert((Attributes::default(),));
 
     // Scanning Damage zone
     commands.spawn((
@@ -197,10 +202,10 @@ pub fn setup_map(
         Tags {
             list: vec![
                 TagInfo::Damage(12.0),
-                TagInfo::CC(CCInfo{
+                TagInfo::CC(CCInfo {
                     cctype: CCType::Stun,
                     duration: 3.0,
-                })
+                }),
             ],
         },
         Name::new("DamageFountain"),
@@ -232,10 +237,10 @@ pub fn setup_map(
                     duration: 10.0,
                     ..default()
                 }),
-                TagInfo::CC(CCInfo{
+                TagInfo::CC(CCInfo {
                     cctype: CCType::Silence,
                     duration: 7.0,
-                })
+                }),
             ],
         },
         FiringInterval(1000),
@@ -385,8 +390,12 @@ fn set_window_icon(
     windows: NonSend<WinitWindows>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
 ) {
-    let Ok(primary_entity) = primary_window.get_single() else {return};
-    let Some(primary) = windows.get_window(primary_entity) else {return};
+    let Ok(primary_entity) = primary_window.get_single() else {
+        return;
+    };
+    let Some(primary) = windows.get_window(primary_entity) else {
+        return;
+    };
     let icon_buf = Cursor::new(include_bytes!("../assets/icons/fireball.png"));
     if let Ok(image) = image::load(icon_buf, image::ImageFormat::Png) {
         let image = image.into_rgba8();

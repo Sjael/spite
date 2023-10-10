@@ -1,19 +1,29 @@
+use std::{collections::HashMap, time::Duration};
 
-
-use std::{time::Duration, collections::HashMap};
-
+use crate::{
+    actor::{
+        buff::BuffInfo,
+        crowd_control::{CCInfo, CCType},
+        stats::Stat,
+    },
+    assets::Icons,
+};
 use bevy::prelude::*;
-use leafwing_input_manager::Actionlike;
 use derive_more::Display;
-use crate::{actor::{crowd_control::{CCInfo, CCType}, buff::BuffInfo, stats::Stat}, assets::Icons};
+use leafwing_input_manager::Actionlike;
 
-use self::{bundles::{FrostboltInfo, FireballInfo, DefaultAbilityInfo, BombInfo}, shape::AbilityShape};
+use self::{
+    bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
+    shape::AbilityShape,
+};
 
 pub mod bundles;
-pub mod shape;
 pub mod rank;
+pub mod shape;
 
-#[derive(Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,)]
+#[derive(
+    Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,
+)]
 #[reflect(Component)]
 pub enum Ability {
     Frostbolt,
@@ -31,11 +41,11 @@ impl Ability {
             Ability::Frostbolt => 3.5,
             Ability::Fireball => 4.,
             Ability::BasicAttack => 2.,
-            _ => 3.
+            _ => 3.,
         }
     }
 
-    pub fn get_windup(&self) -> f32{
+    pub fn get_windup(&self) -> f32 {
         match self {
             Ability::Frostbolt => 0.2,
             Ability::Fireball => 0.8,
@@ -43,16 +53,16 @@ impl Ability {
         }
     }
 
-    pub fn on_reticle(&self) -> bool{
-        match self{
+    pub fn on_reticle(&self) -> bool {
+        match self {
             Ability::Fireball => true,
             Ability::Bomb => true,
             _ => false,
         }
     }
 
-    pub fn get_image(&self, icons: &Res<Icons>) -> Handle<Image>{
-        match self{
+    pub fn get_image(&self, icons: &Res<Icons>) -> Handle<Image> {
+        match self {
             Ability::Frostbolt => icons.frostbolt.clone(),
             Ability::Fireball => icons.fireball.clone(),
             Ability::Dash => icons.dash.clone(),
@@ -61,17 +71,19 @@ impl Ability {
         }
     }
 
-    pub fn get_bundle(&self, commands: &mut Commands, transform: &Transform) -> Entity{
-        match self{
+    pub fn get_bundle(&self, commands: &mut Commands, transform: &Transform) -> Entity {
+        match self {
             Ability::Frostbolt => commands.spawn(FrostboltInfo::fire_bundle(transform)).id(),
             Ability::Fireball => commands.spawn(FireballInfo::fire_bundle(transform)).id(),
             Ability::Bomb => commands.spawn(BombInfo::fire_bundle(transform)).id(),
-            _ => commands.spawn(DefaultAbilityInfo::fire_bundle(transform)).id(),
+            _ => commands
+                .spawn(DefaultAbilityInfo::fire_bundle(transform))
+                .id(),
         }
     }
 
-    pub fn get_targetter(&self, commands: &mut Commands)-> Entity{
-        match self{
+    pub fn get_targetter(&self, commands: &mut Commands) -> Entity {
+        match self {
             Ability::Frostbolt => commands.spawn(FrostboltInfo::hover_bundle()).id(),
             Ability::Fireball => commands.spawn(FireballInfo::hover_bundle()).id(),
             Ability::Bomb => commands.spawn(BombInfo::hover_bundle()).id(),
@@ -79,7 +91,7 @@ impl Ability {
         }
     }
 
-    pub fn get_tooltip(&self) -> AbilityTooltip{
+    pub fn get_tooltip(&self) -> AbilityTooltip {
         match self {
             Ability::Frostbolt => AbilityTooltip {
                 title: "Frostbolt".to_string(),
@@ -100,59 +112,55 @@ impl Ability {
     }
 
     pub fn damage_type(&self) -> DamageType {
-        match self{
+        match self {
             Ability::Frostbolt => DamageType::Magical,
             Ability::Fireball => DamageType::Magical,
             Ability::Bomb => DamageType::Physical,
             _ => DamageType::True,
         }
     }
-    
-    pub fn get_scaling(&self) -> u32{
-        match self{
+
+    pub fn get_scaling(&self) -> u32 {
+        match self {
             Ability::Frostbolt => 30,
             _ => 40,
         }
     }
 }
 
-
-pub struct AbilityBlueprint{
+pub struct AbilityBlueprint {
     pub base_ability: Ability,
     pub name: String,
     pub stages: HashMap<Trigger, AbilityStage>,
     pub cooldown: Cooldown,
 }
 
-pub struct AbilityStage{
+pub struct AbilityStage {
     pub effects: HashMap<AbilityComp, RankNumbers>,
     pub shape: AbilityShape,
     pub path: Path,
 }
 
 #[derive(PartialEq, PartialOrd)]
-pub enum Trigger{
+pub enum Trigger {
     Cast(TransformOrigin),
     Collision, // Merlin Frostbolt explosion // change to be the bitmask of walls/allies/enemies
-    Detonate, // Isis Spirit ball, Thor 1
+    Detonate,  // Isis Spirit ball, Thor 1
     TimeDelay(f32),
 }
 
 #[derive(PartialEq, PartialOrd)]
-pub enum TransformOrigin{
+pub enum TransformOrigin {
     Player,
     Reticle,
 }
 
-pub enum Path{
+pub enum Path {
     Static,
-    Straight{
-        lifetime: f32,
-        speed: f32,
-    }
+    Straight { lifetime: f32, speed: f32 },
 }
 
-pub enum AbilityComp{
+pub enum AbilityComp {
     Scaling(Stat),
     BaseDamage,
     Cooldown,
@@ -160,53 +168,52 @@ pub enum AbilityComp{
     CC(CCType),
 }
 
-pub struct RankNumbers{
+pub struct RankNumbers {
     pub base: u32,
     pub per_rank: u32,
 }
 
-pub struct Scaling{
+pub struct Scaling {
     pub base: u32,
     pub per_rank: u32,
     pub stat: Stat,
 }
-pub struct BaseDamage{
+pub struct BaseDamage {
     pub base: u32,
     pub per_rank: u32,
 }
-pub struct Cooldown{
+pub struct Cooldown {
     pub base: u32,
     pub per_rank: u32,
 }
 
-trait AbilityFactory{
+trait AbilityFactory {
     fn build(ability: Ability) -> u32;
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct AbilityBuilder{
+pub struct AbilityBuilder {
     base_ability: Ability,
     scaling: Option<u32>,
 }
 
-impl AbilityBuilder{
-    pub fn new(ability: Ability) -> AbilityBuilder{
-        Self{
+impl AbilityBuilder {
+    pub fn new(ability: Ability) -> AbilityBuilder {
+        Self {
             base_ability: ability,
             scaling: None,
         }
     }
-    pub fn with_scaling(&mut self, scaling: u32)-> &mut Self{
+    pub fn with_scaling(&mut self, scaling: u32) -> &mut Self {
         self.scaling = Some(scaling);
         self
     }
-    pub fn build(&mut self, commands: &mut Commands) -> Entity{
+    pub fn build(&mut self, commands: &mut Commands) -> Entity {
         dbg!(self);
         let ability = FireballInfo::fire_bundle(&Transform::default());
         commands.spawn(()).id()
     }
 }
-
 
 #[derive(Component, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]
@@ -215,7 +222,6 @@ pub struct AbilityTooltip {
     pub image: String,
     pub description: String,
 }
-
 
 // Maybe we should have a "general" lifetime too even if the thing isn't being casted...?
 #[derive(Component, Debug, Clone, Default, Reflect)]
@@ -237,7 +243,7 @@ pub struct TargetFilter {
     pub number_of_targets: u8,
 }
 
-#[derive(Default, Debug, Clone , Reflect)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub enum TargetSelection {
     #[default]
     Closest,
@@ -272,7 +278,10 @@ impl MaxTargetsHit {
 
 impl Default for MaxTargetsHit {
     fn default() -> Self {
-        Self { max: 255, current: 0 }
+        Self {
+            max: 255,
+            current: 0,
+        }
     }
 }
 
@@ -283,22 +292,22 @@ pub struct UniqueTargetsHit {
 
 #[derive(Component, Reflect, Debug, Clone)]
 #[reflect(Component)]
-pub enum TickBehavior{
+pub enum TickBehavior {
     Static(Timer),
     Individual(IndividualTargetTimers),
 }
 
-impl Default for TickBehavior{
+impl Default for TickBehavior {
     fn default() -> Self {
         Self::Static(Timer::default())
     }
 }
 
-impl TickBehavior{
-    pub fn static_timer() -> Self{
-        Self::Static(Timer::new(Duration::from_secs(1), TimerMode::Repeating))    
+impl TickBehavior {
+    pub fn static_timer() -> Self {
+        Self::Static(Timer::new(Duration::from_secs(1), TimerMode::Repeating))
     }
-    pub fn individual() -> Self{
+    pub fn individual() -> Self {
         Self::Individual(IndividualTargetTimers::default())
     }
 }
@@ -307,15 +316,15 @@ impl TickBehavior{
 pub struct StaticTimer(pub Timer);
 
 // map that holds what things have been hit by an ability instance
-#[derive(Default, Debug, Clone , Reflect)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub struct IndividualTargetTimers {
     pub map: HashMap<Entity, Timer>,
 }
 
-#[derive(Component, Debug, Clone, Default, Reflect )]
+#[derive(Component, Debug, Clone, Default, Reflect)]
 pub struct PausesWhenEmpty;
 
-#[derive(Component, Debug, Clone, Default, Reflect )]
+#[derive(Component, Debug, Clone, Default, Reflect)]
 pub enum Ticks {
     #[default]
     Once,
@@ -323,9 +332,8 @@ pub enum Ticks {
     Unlimited,
 }
 
-#[derive(Component, Debug, Clone, Default, Reflect )]
+#[derive(Component, Debug, Clone, Default, Reflect)]
 pub struct FiringInterval(pub u32);
-
 
 #[derive(Component, Default, Clone, Debug)]
 pub struct Tags {
@@ -341,18 +349,17 @@ pub enum TagInfo {
     Homing(Ability), // All Abilities are Areas, but not all Areas are Abilities, Areas are parent of Abilities
 }
 
-
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DamageType{
+pub enum DamageType {
     Physical,
     Magical,
     True,
-    Hybrid
+    Hybrid,
 }
 
-impl DamageType{
-    pub fn get_color(&self) -> Color{
-        match self{
+impl DamageType {
+    pub fn get_color(&self) -> Color {
+        match self {
             DamageType::Physical => Color::rgb(0.863, 0.4, 0.353),
             DamageType::True => Color::WHITE,
             DamageType::Magical => Color::rgb(0.569, 0.665, 0.943),

@@ -1,11 +1,12 @@
 use bevy::{
     math::Vec3,
-    render::{mesh::{Indices, Mesh}, render_resource::PrimitiveTopology},
+    render::{
+        mesh::{Indices, Mesh},
+        render_resource::PrimitiveTopology,
+    },
 };
 
 use bevy_rapier3d::prelude::*;
-
-
 
 pub struct Arc {
     positions: Vec<[f32; 3]>,
@@ -14,7 +15,7 @@ pub struct Arc {
 
 impl Arc {
     pub fn flat(radius: f32, angle: f32) -> Self {
-        let mut positions = vec![[0.,0.,0.]]; // center of arc point
+        let mut positions = vec![[0., 0., 0.]]; // center of arc point
         let mut indices = Vec::new();
         const ROTATION_OFFSET: f32 = 90.0; // just an engine thing
         const DEGREES_PER_VERTEX: u32 = 15;
@@ -22,13 +23,13 @@ impl Arc {
         let segments = (angle / DEGREES_PER_VERTEX as f32).ceil().abs() as u32;
         let a_circle = angle == 360.0;
         let mut additional_point = 0;
-        if !a_circle{
+        if !a_circle {
             additional_point += 1; // need another point if not a circle
         }
 
         let points_on_arc = segments + additional_point;
 
-        for point_index in 0..points_on_arc{
+        for point_index in 0..points_on_arc {
             if point_index > 0 {
                 // always pushing 0 for center of arc point, makes a fan of tris
                 indices.push([0, point_index + 1, point_index]);
@@ -37,12 +38,12 @@ impl Arc {
             let starting_angle = -angle / 2.0 - ROTATION_OFFSET;
             let angle_of_point = starting_angle + (angle * point_index as f32 / segments as f32);
             positions.push([
-                angle_of_point.to_radians().cos() * radius, 
-                0.0, 
-                angle_of_point.to_radians().sin() * radius
+                angle_of_point.to_radians().cos() * radius,
+                0.0,
+                angle_of_point.to_radians().sin() * radius,
             ]);
         }
-        if a_circle{            
+        if a_circle {
             indices.push([0, 1, points_on_arc]);
         }
 
@@ -68,8 +69,7 @@ impl Arc {
         extruded.indices.extend(
             flat.indices
                 .iter()
-                .map(|tri| tri.map(|index| index + flat.positions.len() as u32))
-                //.map(|tri| [tri[0], tri[1], tri[2]]),
+                .map(|tri| tri.map(|index| index + flat.positions.len() as u32)), //.map(|tri| [tri[0], tri[1], tri[2]]),
         );
 
         let total_points = flat.positions.len() as u32;
@@ -77,21 +77,31 @@ impl Arc {
         // draw sides along arc
         for current_point in 1..total_points {
             let mut next_point = current_point + 1;
-            if current_point == total_points - 1{
+            if current_point == total_points - 1 {
                 if is_circle {
                     // IF last point and circle, then loop next point to the 1st index
                     next_point = 1;
-                } else{
+                } else {
                     // ELSE draw sides from center and skip
                     extruded.indices.push([0, total_points + 1, 1]);
                     extruded.indices.push([0, total_points, total_points + 1]);
-                    extruded.indices.push([0, total_points - 1, total_points * 2 - 1]);
-                    extruded.indices.push([0, total_points * 2 - 1, total_points]);
+                    extruded
+                        .indices
+                        .push([0, total_points - 1, total_points * 2 - 1]);
+                    extruded
+                        .indices
+                        .push([0, total_points * 2 - 1, total_points]);
                     continue;
                 }
             }
-            extruded.indices.push([current_point, current_point + total_points, next_point]);
-            extruded.indices.push([next_point, current_point + total_points, next_point + total_points]);
+            extruded
+                .indices
+                .push([current_point, current_point + total_points, next_point]);
+            extruded.indices.push([
+                next_point,
+                current_point + total_points,
+                next_point + total_points,
+            ]);
         }
 
         extruded
@@ -100,30 +110,37 @@ impl Arc {
     pub fn mesh(&self) -> Mesh {
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
-        let largest = self.positions.iter()
-            .map(|position| {
-                position[1]
-            }).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
+        let largest = self
+            .positions
+            .iter()
+            .map(|position| position[1])
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
             .unwrap_or(0.0);
 
-        let smallest = self.positions.iter()
-            .map(|position| {
-                position[1]
-            }).min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
+        let smallest = self
+            .positions
+            .iter()
+            .map(|position| position[1])
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
             .unwrap_or(0.0);
 
         let center_height = largest - smallest;
         let normals;
-        if center_height < 0.1{
+        if center_height < 0.1 {
             normals = std::iter::repeat([0.0, 1.0, 0.0])
                 .take(self.positions.len())
                 .collect::<Vec<_>>();
-        }else{
-            normals = self.positions.iter()
-                .map(|position|{
-                    let pos: Vec3 = Vec3::new(position[0], position[1]-center_height/2.0, position[2]).normalize();
+        } else {
+            normals = self
+                .positions
+                .iter()
+                .map(|position| {
+                    let pos: Vec3 =
+                        Vec3::new(position[0], position[1] - center_height / 2.0, position[2])
+                            .normalize();
                     [pos.x, pos.y, pos.z]
-                }).collect::<Vec<_>>();
+                })
+                .collect::<Vec<_>>();
         }
 
         mesh.insert_attribute(
@@ -141,7 +158,6 @@ impl Arc {
                 .collect::<Vec<_>>(),
         )));
 
-        
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
 
         let uvs = std::iter::repeat([0.0, 0.0])

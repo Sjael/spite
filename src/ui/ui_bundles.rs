@@ -1,15 +1,20 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, ui::FocusPolicy};
-use bevy_tweening::{Animator,  lens::{ UiPositionLens, UiBackgroundColorLens, TextColorLens}, EaseFunction, Tween, Delay};
+use bevy_tweening::{
+    lens::{TextColorLens, UiBackgroundColorLens, UiPositionLens},
+    Animator, Delay, EaseFunction, Tween,
+};
 
-use crate::{ability::{AbilityTooltip, Ability}, assets::{Icons, Items, Fonts, Images}, item::Item, actor::{crowd_control::CCType, stats::Stat}};
+use crate::{
+    ability::{Ability, AbilityTooltip},
+    actor::{crowd_control::CCType, stats::Stat},
+    assets::{Fonts, Icons, Images, Items},
+    item::Item,
+};
 
+use super::{inventory::Inventory, styles::*};
 use rand::Rng;
-use super::{styles::*, inventory::Inventory};
-
-
-
 
 //
 // Player UI Components
@@ -18,17 +23,14 @@ use super::{styles::*, inventory::Inventory};
 
 #[derive(Component, Debug)]
 pub struct Tooltip(pub Option<Entity>);
-impl Default for Tooltip{
+impl Default for Tooltip {
     fn default() -> Self {
         Tooltip(None)
     }
 }
 
-
 #[derive(Component)]
 pub struct Hoverable;
-
-
 
 #[derive(Component, Debug)]
 pub struct EditableUI;
@@ -40,73 +42,79 @@ pub struct EditingUILabel;
 #[derive(Component, Debug)]
 pub struct UiForEditingUi;
 
-pub fn editing_ui_handle() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            position_type: PositionType::Absolute,
+pub fn editing_ui_handle() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            background_color: Color::rgba(0.1, 0.2, 0.8, 0.5).into(),
+            focus_policy: FocusPolicy::Block,
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.2, 0.8, 0.5).into(),
-        focus_policy: FocusPolicy::Block,
-        ..default()
-    },
-    DragHandle,
-    Interaction::default(),
-    EditingUIHandle,
-)}
+        DragHandle,
+        Interaction::default(),
+        EditingUIHandle,
+    )
+}
 
-pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle{
+pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
     (
-    TextBundle {
-        style: Style {
-            margin: UiRect::all(Val::Px(15.)),
-            ..default()
-        },
-        text: Text::from_section(
-            text,
-            TextStyle {
-                font: fonts.exo_bold.clone(),
-                font_size: 16.0,
-                color: Color::WHITE,
+        TextBundle {
+            style: Style {
+                margin: UiRect::all(Val::Px(15.)),
+                ..default()
             },
-        ),
-        ..default()
-    },
-    EditingUILabel,
-)}
-
-pub fn editable_ui_wrapper() -> impl Bundle{(
-    NodeBundle{
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            position_type: PositionType::Absolute,
+            text: Text::from_section(
+                text,
+                TextStyle {
+                    font: fonts.exo_bold.clone(),
+                    font_size: 16.0,
+                    color: Color::WHITE,
+                },
+            ),
             ..default()
         },
-        ..default()
-    },
-    EditableUI,
-    Name::new("Editable wrapper"),
-)}
+        EditingUILabel,
+    )
+}
 
-pub fn editing_ui() -> impl Bundle{(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            position_type: PositionType::Absolute,
-            right: Val::Px(30.),
-            bottom: Val::Px(30.),
+pub fn editable_ui_wrapper() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                position_type: PositionType::Absolute,
+                ..default()
+            },
             ..default()
         },
-        z_index: ZIndex::Global(9),
-        ..default()
-    },
-    UiForEditingUi,
-)}
+        EditableUI,
+        Name::new("Editable wrapper"),
+    )
+}
 
+pub fn editing_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                position_type: PositionType::Absolute,
+                right: Val::Px(30.),
+                bottom: Val::Px(30.),
+                ..default()
+            },
+            z_index: ZIndex::Global(9),
+            ..default()
+        },
+        UiForEditingUi,
+    )
+}
 
 #[derive(Component, Debug)]
 pub struct HealthBarText;
@@ -130,153 +138,168 @@ pub struct RespawnHolder;
 #[derive(Component, Debug)]
 pub struct RespawnText;
 
-pub fn respawn_holder() -> impl Bundle{(
-    NodeBundle{
-        style: Style {
-            width: Val::Px(200.),
-            height: Val::Px(150.),
-            position_type: PositionType::Absolute,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            left: Val::Percent(20.),
-            bottom: Val::Percent(10.),
+pub fn respawn_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(200.),
+                height: Val::Px(150.),
+                position_type: PositionType::Absolute,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                left: Val::Percent(20.),
+                bottom: Val::Percent(10.),
+                ..default()
+            },
+            visibility: Visibility::Hidden,
             ..default()
         },
-        visibility: Visibility::Hidden,
-        ..default()
-    },
-    RespawnHolder,
-    Name::new("Respawn Text"),
-)}
+        RespawnHolder,
+        Name::new("Respawn Text"),
+    )
+}
 
-pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle{(
-    TextBundle {
-        text: Text::from_sections([
-            TextSection {
-                value: "Respawning in\n".to_string(),
-                style: TextStyle {
-                    font: fonts.exo_light.clone(),
-                    font_size: 18.0,
-                    color: Color::YELLOW,
+pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle {
+    (
+        TextBundle {
+            text: Text::from_sections([
+                TextSection {
+                    value: "Respawning in\n".to_string(),
+                    style: TextStyle {
+                        font: fonts.exo_light.clone(),
+                        font_size: 18.0,
+                        color: Color::YELLOW,
+                    },
                 },
-            },
-            TextSection {
-                value: "0".to_string(),
-                style: TextStyle {
-                    font: fonts.exo_bold.clone(),
-                    font_size: 36.0,
-                    color: Color::WHITE,
+                TextSection {
+                    value: "0".to_string(),
+                    style: TextStyle {
+                        font: fonts.exo_bold.clone(),
+                        font_size: 36.0,
+                        color: Color::WHITE,
+                    },
                 },
-            },
-        ]).with_alignment(TextAlignment::Center),
-        ..default()
-    },
-    RespawnText,
-)}
+            ])
+            .with_alignment(TextAlignment::Center),
+            ..default()
+        },
+        RespawnText,
+    )
+}
 
-pub fn minimap_holder() -> impl Bundle{(
-    NodeBundle{
-        style: Style {
-            width: Val::Px(300.),
-            height: Val::Px(300.),
-            position_type: PositionType::Absolute,
-            margin: UiRect {
+pub fn minimap_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(300.),
+                height: Val::Px(300.),
+                position_type: PositionType::Absolute,
+                margin: UiRect {
+                    right: Val::Percent(20.),
+                    ..UiRect::all(Val::Auto)
+                },
                 right: Val::Percent(20.),
-                ..UiRect::all(Val::Auto)
+                top: Val::Px(0.),
+                left: Val::Px(0.),
+                bottom: Val::Px(0.),
+                ..default()
             },
-            right: Val::Percent(20.),
-            top: Val::Px(0.),
-            left: Val::Px(0.),
-            bottom: Val::Px(0.),
             ..default()
         },
-        ..default()
-    },
-    Name::new("Minimap"),
-)}
+        Name::new("Minimap"),
+    )
+}
 
 #[derive(Component)]
 pub struct Minimap;
 
-pub fn minimap(images: &Res<Images>) -> impl Bundle {(
-    ImageBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+pub fn minimap(images: &Res<Images>) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                ..default()
+            },
+            image: images.minimap.clone().into(),
             ..default()
         },
-        image: images.minimap.clone().into(),
-        ..default()
-    },
-    Interaction::None,
-    Minimap,
-    Name::new("Minimap Image"),
-)}
+        Interaction::None,
+        Minimap,
+        Name::new("Minimap Image"),
+    )
+}
 
 #[derive(Component)]
 pub struct MinimapPlayerIcon;
-pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle{(    
-    ImageBundle {
-        style: Style {
-            max_width: Val::Px(16.),
-            max_height: Val::Px(16.),
-            position_type: PositionType::Absolute,
-            margin: UiRect::all(Val::Auto),
-            top: Val::Px(0.),
-            bottom: Val::Px(0.),
-            left: Val::Px(0.),
-            right: Val::Px(0.),
+pub fn minimap_arrow(images: &Res<Images>) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                max_width: Val::Px(16.),
+                max_height: Val::Px(16.),
+                position_type: PositionType::Absolute,
+                margin: UiRect::all(Val::Auto),
+                top: Val::Px(0.),
+                bottom: Val::Px(0.),
+                left: Val::Px(0.),
+                right: Val::Px(0.),
+                ..default()
+            },
+            image: images.circle.clone().into(),
             ..default()
         },
-        image: images.circle.clone().into(),
-        ..default()
-    },
-    MinimapPlayerIcon,
-    Name::new("Arrow"),
-)}
+        MinimapPlayerIcon,
+        Name::new("Arrow"),
+    )
+}
 
-pub fn killfeed_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(150.),
-            height: Val::Percent(45.),
-            position_type: PositionType::Absolute,
-            margin: UiRect {
-                right: Val::Px(30.),
-                ..UiRect::all(Val::Auto)
+pub fn killfeed_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(150.),
+                height: Val::Percent(45.),
+                position_type: PositionType::Absolute,
+                margin: UiRect {
+                    right: Val::Px(30.),
+                    ..UiRect::all(Val::Auto)
+                },
+                ..default()
             },
             ..default()
         },
-        ..default()
-    },
-    Name::new("Killfeed"),
-)}
+        Name::new("Killfeed"),
+    )
+}
 
 #[derive(Component)]
 pub struct Killfeed;
 
-pub fn killfeed() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            flex_direction: FlexDirection::Column,
+pub fn killfeed() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Killfeed,
-    Name::new("Killfeed list"),
-)}
+        Killfeed,
+        Name::new("Killfeed list"),
+    )
+}
 
 #[derive(Component)]
 pub struct KillNotification;
-pub fn kill_notification() -> impl Bundle{
+pub fn kill_notification() -> impl Bundle {
     let killer_on_team = false;
-    let mut selected_color : Color;
+    let mut selected_color: Color;
     if killer_on_team {
         selected_color = ALLY_COLOR.clone();
-    } else{
+    } else {
         selected_color = ENEMY_COLOR.clone();
     }
     let killfeed_offset = 200.;
@@ -285,12 +308,12 @@ pub fn kill_notification() -> impl Bundle{
         EaseFunction::QuadraticIn,
         Duration::from_millis(500),
         UiPositionLens {
-            start: UiRect{
-                right:Val::Px(killfeed_offset),
+            start: UiRect {
+                right: Val::Px(killfeed_offset),
                 ..default()
             },
-            end: UiRect{
-                right:Val::Px(0.),
+            end: UiRect {
+                right: Val::Px(0.),
                 ..default()
             },
         },
@@ -310,43 +333,42 @@ pub fn kill_notification() -> impl Bundle{
             start: *selected_color.set_a(0.9),
             end: *selected_color.set_a(0.0),
         },
-    ).with_completed_event(
-        TweenEvents::KillNotifEnded as u64,
-    );
+    )
+    .with_completed_event(TweenEvents::KillNotifEnded as u64);
 
     (
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Px(64.),
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Px(64.),
+                ..default()
+            },
+            background_color: Color::rgba(0.2, 0.2, 1.0, 0.1).into(),
             ..default()
         },
-        background_color: Color::rgba(0.2, 0.2, 1.0, 0.1).into(),
-        ..default()
-    },
-    KillNotification,
-    Name::new("Kill Notification"),
-    Animator::new(tween_pos),
-    Animator::new(tween_opac_in
-        .then(Delay::new(
-            Duration::from_secs(delay_seconds),
-        ))
-        .then(tween_opac_out)
-    ),
-)}
+        KillNotification,
+        Name::new("Kill Notification"),
+        Animator::new(tween_pos),
+        Animator::new(
+            tween_opac_in
+                .then(Delay::new(Duration::from_secs(delay_seconds)))
+                .then(tween_opac_out),
+        ),
+    )
+}
 
 #[derive(Clone, Copy)]
-pub enum TweenEvents{
+pub enum TweenEvents {
     KillNotifEnded = 0,
     FloatingDamageEnded = 1,
 }
 
-impl TryFrom<u64> for TweenEvents{
+impl TryFrom<u64> for TweenEvents {
     type Error = String;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         use TweenEvents::*;
-        match value{
+        match value {
             0 => Ok(KillNotifEnded),
             1 => Ok(FloatingDamageEnded),
             _ => Err("invalid TweenEvents index".to_string()),
@@ -355,35 +377,37 @@ impl TryFrom<u64> for TweenEvents{
 }
 
 #[derive(Component)]
-pub struct FollowIn3d{
+pub struct FollowIn3d {
     pub leader: Entity,
     pub last_seen: Option<Transform>,
 }
 
-pub fn follow_wrapper(entity: Entity) -> impl Bundle{(
-    Name::new("Floating Text"),
-    NodeBundle {
-        style: Style {
-            position_type: PositionType::Absolute,
-            width: Val::Px(100.),
-            height: Val::Px(30.),
-            margin: UiRect{
-                left:Val::Px(-50.0),
+pub fn follow_wrapper(entity: Entity) -> impl Bundle {
+    (
+        Name::new("Floating Text"),
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                width: Val::Px(100.),
+                height: Val::Px(30.),
+                margin: UiRect {
+                    left: Val::Px(-50.0),
+                    ..default()
+                },
+                justify_content: JustifyContent::Center,
                 ..default()
             },
-            justify_content: JustifyContent::Center,
+            z_index: ZIndex::Global(-1),
             ..default()
         },
-        z_index: ZIndex::Global(-1),
-        ..default()
-    },
-    FollowIn3d{
-        leader: entity,
-        last_seen: None,
-    }
-)}
+        FollowIn3d {
+            leader: entity,
+            last_seen: None,
+        },
+    )
+}
 
-pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>, color: Color) -> impl Bundle{
+pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>, color: Color) -> impl Bundle {
     let mut rng = rand::thread_rng();
     let top_offset = 40.;
     let start_horizontal = rng.gen_range(-30..30);
@@ -395,14 +419,14 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>, color: Color) -> im
         EaseFunction::QuadraticIn,
         Duration::from_millis(500),
         UiPositionLens {
-            start: UiRect{
-                top:Val::Px(top_offset),
-                left:Val::Px(start_horizontal as f32),
+            start: UiRect {
+                top: Val::Px(top_offset),
+                left: Val::Px(start_horizontal as f32),
                 ..default()
             },
-            end: UiRect{
-                top:Val::Px(0.),
-                left:Val::Px(end_horizontal as f32),
+            end: UiRect {
+                top: Val::Px(0.),
+                left: Val::Px(end_horizontal as f32),
                 ..default()
             },
         },
@@ -424,152 +448,167 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>, color: Color) -> im
             end: *text_color.clone().set_a(0.0),
             section: 0,
         },
-    ).with_completed_event(TweenEvents::FloatingDamageEnded as u64);
+    )
+    .with_completed_event(TweenEvents::FloatingDamageEnded as u64);
     (
-    TextBundle {
-        text: Text::from_section(
-            damage.to_string(),
-            TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 25.,
-                color: text_color,
-            },
+        TextBundle {
+            text: Text::from_section(
+                damage.to_string(),
+                TextStyle {
+                    font: fonts.exo_semibold.clone(),
+                    font_size: 25.,
+                    color: text_color,
+                },
+            ),
+            ..default()
+        },
+        Animator::new(tween_pos),
+        Animator::new(
+            tween_opac_in
+                .then(Delay::new(Duration::from_secs(delay_seconds)))
+                .then(tween_opac_out),
         ),
-        ..default()
-    },
-    Animator::new(tween_pos),
-    Animator::new(tween_opac_in
-        .then(Delay::new(
-            Duration::from_secs(delay_seconds),
-        ))
-        .then(tween_opac_out)
-    ),
-)}
+    )
+}
 
+pub fn floating_health_bar() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(120.),
+                height: Val::Px(30.),
+                position_type: PositionType::Absolute,
+                padding: UiRect::all(Val::Px(3.0)),
+                ..default()
+            },
+            ..default()
+        },
+        Name::new("Health bar"),
+    )
+}
 
-pub fn floating_health_bar() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(120.),
-            height: Val::Px(30.),
-            position_type: PositionType::Absolute,
-            padding: UiRect::all(Val::Px(3.0)),
+pub fn bottom_left_ui_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(220.),
+                height: Val::Px(140.),
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(40.),
+                left: Val::Px(40.),
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Name::new("Health bar"),
-)}
+        Name::new("Stats / Build / KDA"),
+    )
+}
 
-pub fn bottom_left_ui_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(220.),
-            height: Val::Px(140.),
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(40.),
-            left: Val::Px(40.),
+pub fn bottom_left_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Name::new("Stats / Build / KDA"),
-)}
-
-pub fn bottom_left_ui() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+        Name::new("Bottom Left Ui"),
+    )
+}
+pub fn stats_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(60.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Name::new("Bottom Left Ui"),
-)}
-pub fn stats_ui() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(60.),
-            height: Val::Percent(100.),
-            flex_direction:FlexDirection::Column,
-            justify_content: JustifyContent::Center,
+        Name::new("Stats"),
+    )
+}
+pub fn build_and_kda() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Name::new("Stats"),
-)}
-pub fn build_and_kda() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            flex_direction:FlexDirection::Column,
-            ..default()
-        },
-        ..default()
-    },
-    Name::new("Build and KDA"),
-)}
+        Name::new("Build and KDA"),
+    )
+}
 #[derive(Component)]
 pub struct BuildUI;
-pub fn build_ui() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(80.),
-            display: Display::Grid,
-            grid_template_columns: RepeatedGridTrack::auto(3),
-            grid_template_rows: RepeatedGridTrack::auto(2),
-            column_gap: Val::Px(8.),
-            row_gap: Val::Px(8.),
-            padding: UiRect::all(Val::Px(12.0)),
+pub fn build_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(80.),
+                display: Display::Grid,
+                grid_template_columns: RepeatedGridTrack::auto(3),
+                grid_template_rows: RepeatedGridTrack::auto(2),
+                column_gap: Val::Px(8.),
+                row_gap: Val::Px(8.),
+                padding: UiRect::all(Val::Px(12.0)),
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    BuildUI,
-    Name::new("BuildUI"),
-)}
+        BuildUI,
+        Name::new("BuildUI"),
+    )
+}
 
-pub fn build_slot(number: u32) -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            height: Val::Px(48.),
-            aspect_ratio: Some(1.0),
-            padding: UiRect::all(Val::Px(1.0)),
+pub fn build_slot(number: u32) -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                height: Val::Px(48.),
+                aspect_ratio: Some(1.0),
+                padding: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            background_color: Color::rgba(0., 0., 0., 0.1).into(),
             ..default()
         },
-        background_color: Color::rgba(0., 0., 0., 0.1).into(),
-        ..default()
-    },
-    Interaction::None,
-    Name::new("Build slot"),
-    DropSlot,
-    BuildSlotNumber(number),
-)}
+        Interaction::None,
+        Name::new("Build slot"),
+        DropSlot,
+        BuildSlotNumber(number),
+    )
+}
 
 #[derive(Component)]
 pub struct BuildSlotNumber(pub u32);
 
-
 #[derive(Component)]
 pub struct DropSlot;
 
-pub fn kda_ui() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Px(20.),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
+pub fn kda_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Px(20.),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Name::new("KDA"),
-)}
+        Name::new("KDA"),
+    )
+}
 
 #[derive(Component)]
 pub struct KDAText;
@@ -579,142 +618,155 @@ pub struct PersonalKDA;
 #[derive(Component)]
 pub struct TeammateThumbs;
 
-pub fn team_thumbs_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(200.),
-            height: Val::Px(80.),
-            position_type: PositionType::Absolute,
-            top: Val::Px(40.),
-            left: Val::Px(40.),
-            ..default()
-        },
-        ..default()
-    },
-    Name::new("Team thumbs"),
-)}
-
-pub fn team_thumbs() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            ..default()
-        },
-        ..default()
-    },
-    TeammateThumbs,
-    Name::new("Team thumbs UI"),
-)}
-
-
-pub fn header_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(35.),
-            height: Val::Px(80.),
-            position_type: PositionType::Absolute,
-            margin: UiRect {
-                left: Val::Auto,
-                right: Val::Auto,
+pub fn team_thumbs_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(200.),
+                height: Val::Px(80.),
+                position_type: PositionType::Absolute,
+                top: Val::Px(40.),
+                left: Val::Px(40.),
                 ..default()
             },
             ..default()
         },
-        ..default()
-    },
-    Name::new("Header"),
-)}
+        Name::new("Team thumbs"),
+    )
+}
+
+pub fn team_thumbs() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                ..default()
+            },
+            ..default()
+        },
+        TeammateThumbs,
+        Name::new("Team thumbs UI"),
+    )
+}
+
+pub fn header_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(35.),
+                height: Val::Px(80.),
+                position_type: PositionType::Absolute,
+                margin: UiRect {
+                    left: Val::Auto,
+                    right: Val::Auto,
+                    ..default()
+                },
+                ..default()
+            },
+            ..default()
+        },
+        Name::new("Header"),
+    )
+}
 
 #[derive(Component)]
 pub struct HeaderUI;
 
-pub fn header() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(35.),
-            height: Val::Px(80.),
-            position_type: PositionType::Absolute,
-            justify_content:JustifyContent::Center,
-            margin: UiRect {
-                left: Val::Auto,
-                right: Val::Auto,
+pub fn header() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(35.),
+                height: Val::Px(80.),
+                position_type: PositionType::Absolute,
+                justify_content: JustifyContent::Center,
+                margin: UiRect {
+                    left: Val::Auto,
+                    right: Val::Auto,
+                    ..default()
+                },
                 ..default()
             },
             ..default()
         },
-        ..default()
-    },
-    HeaderUI,
-    Name::new("Header UI"),
-)}
+        HeaderUI,
+        Name::new("Header UI"),
+    )
+}
 
-pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {(
-    TextBundle {
-        style: Style {
-            margin: UiRect {
-                top: Val::Px(30.),
+pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {
+    (
+        TextBundle {
+            style: Style {
+                margin: UiRect {
+                    top: Val::Px(30.),
+                    ..default()
+                },
                 ..default()
             },
+            text: Text::from_section(
+                "14:30",
+                TextStyle {
+                    font: fonts.exo_bold.clone(),
+                    font_size: 16.0,
+                    color: Color::WHITE,
+                },
+            ),
             ..default()
         },
-        text: Text::from_section(
-            "14:30",
-            TextStyle {
-                font: fonts.exo_bold.clone(),
-                font_size: 16.0,
-                color: Color::WHITE,
-            },
-        ),
-        ..default()
-    },
-    InGameClock,
-)}
+        InGameClock,
+    )
+}
 
 #[derive(Component)]
 pub struct RootUI;
 
-pub fn root_ui() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            margin: UiRect {
-                left: Val::Auto,
-                right: Val::Auto,
+pub fn root_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                margin: UiRect {
+                    left: Val::Auto,
+                    right: Val::Auto,
+                    ..default()
+                },
                 ..default()
             },
             ..default()
         },
-        ..default()
-    },
-    RootUI,
-    ZTracker::default(),
-    Name::new("UI"),
-)}
+        RootUI,
+        ZTracker::default(),
+        Name::new("UI"),
+    )
+}
 
-pub fn character_ui() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            margin: UiRect {
-                left: Val::Auto,
-                right: Val::Auto,
+pub fn character_ui() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                margin: UiRect {
+                    left: Val::Auto,
+                    right: Val::Auto,
+                    ..default()
+                },
                 ..default()
             },
             ..default()
         },
-        ..default()
-    },
-    PlayerUI,
-    Name::new("Character UI"),
-)}
+        PlayerUI,
+        Name::new("Character UI"),
+    )
+}
 
 #[derive(Component)]
 pub struct PlayerUI;
-pub fn player_bottom_container() -> impl Bundle {(
-    NodeBundle {
+pub fn player_bottom_container() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Px(320.),
             position_type: PositionType::Absolute,
@@ -725,15 +777,15 @@ pub fn player_bottom_container() -> impl Bundle {(
                 ..default()
             },
             flex_direction: FlexDirection::Column,
-            align_items:AlignItems::Center,
+            align_items: AlignItems::Center,
             ..default()
         },
         ..default()
-    },
-)}
+    },)
+}
 
-pub fn effect_bar() -> impl Bundle {(
-    NodeBundle {
+pub fn effect_bar() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(100.),
             height: Val::Auto,
@@ -746,72 +798,78 @@ pub fn effect_bar() -> impl Bundle {(
             ..default()
         },
         ..default()
-    }
-)}
+    })
+}
 
 #[derive(Component)]
 pub struct BuffBar;
-pub fn buff_bar() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(50.),
-            height: Val::Percent(100.),
-            flex_wrap: FlexWrap::WrapReverse, 
+pub fn buff_bar() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(50.),
+                height: Val::Percent(100.),
+                flex_wrap: FlexWrap::WrapReverse,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    BuffBar,
-)}
+        BuffBar,
+    )
+}
 
 #[derive(Component)]
 pub struct DebuffBar;
-pub fn debuff_bar() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(50.),
-            height: Val::Percent(100.),
-            flex_wrap: FlexWrap::WrapReverse, 
+pub fn debuff_bar() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(50.),
+                height: Val::Percent(100.),
+                flex_wrap: FlexWrap::WrapReverse,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    DebuffBar,
-)}
+        DebuffBar,
+    )
+}
 
 #[derive(Component)]
-pub struct BuffId{
+pub struct BuffId {
     pub id: String,
 }
 
-pub fn buff_holder(time: f32, id: String) -> impl Bundle{(
-    NodeBundle {
-        style: Style {
-            margin: UiRect {
-                right: Val::Px(7.),
-                top: Val::Px(10.),
+pub fn buff_holder(time: f32, id: String) -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                margin: UiRect {
+                    right: Val::Px(7.),
+                    top: Val::Px(10.),
+                    ..default()
+                },
+                flex_direction: FlexDirection::Column,
                 ..default()
             },
-            flex_direction: FlexDirection::Column,
             ..default()
         },
-        ..default()
-    },
-    BuffId { id },
-    DespawnTimer(
-        Timer::new(Duration::from_millis((time * 1000.0)as u64), TimerMode::Once)
-    ),
-)}
+        BuffId { id },
+        DespawnTimer(Timer::new(
+            Duration::from_millis((time * 1000.0) as u64),
+            TimerMode::Once,
+        )),
+    )
+}
 
-pub fn buff_border(is_buff: bool) -> impl Bundle{
+pub fn buff_border(is_buff: bool) -> impl Bundle {
     let color: Color;
-    if is_buff{
+    if is_buff {
         color = ALLY_COLOR;
-    }else {
+    } else {
         color = ENEMY_COLOR;
     }
-    (
-    NodeBundle {
+    (NodeBundle {
         style: Style {
             width: Val::Px(28.),
             height: Val::Px(28.),
@@ -819,93 +877,97 @@ pub fn buff_border(is_buff: bool) -> impl Bundle{
         },
         background_color: color.into(),
         ..default()
-    },
-)}
+    },)
+}
 
-pub fn buff_image(ability: Ability, icons: &Res<Icons>,) -> impl Bundle{(
-    ImageBundle {
-        style: Style {
-            width: Val::Percent(90.),
-            height: Val::Percent(90.),
-            margin: UiRect::all(Val::Auto),
+pub fn buff_image(ability: Ability, icons: &Res<Icons>) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Percent(90.),
+                height: Val::Percent(90.),
+                margin: UiRect::all(Val::Auto),
+                ..default()
+            },
+            image: match ability {
+                Ability::Frostbolt => icons.frostbolt.clone().into(),
+                Ability::Fireball => icons.fireball.clone().into(),
+                Ability::Dash => icons.dash.clone().into(),
+                _ => icons.basic_attack.clone().into(),
+            },
+            background_color: Color::rgba(1.0, 1.0, 1.0, 0.95).into(),
             ..default()
         },
-        image: match ability{
-            Ability::Frostbolt => icons.frostbolt.clone().into(),
-            Ability::Fireball => icons.fireball.clone().into(),
-            Ability::Dash => icons.dash.clone().into(),
-            _ => icons.basic_attack.clone().into(),
-        },
-        background_color: Color::rgba(1.0, 1.0, 1.0, 0.95).into(),
-        ..default()
-    },
-    Interaction::None,
-    Name::new("Buff Image"),
-)}
+        Interaction::None,
+        Name::new("Buff Image"),
+    )
+}
 
 #[derive(Component)]
 pub struct BuffDurationText;
 
-
-pub fn buff_timer(fonts: &Res<Fonts>, is_buff: bool) -> impl Bundle{
+pub fn buff_timer(fonts: &Res<Fonts>, is_buff: bool) -> impl Bundle {
     let color: Color;
-    if is_buff{
+    if is_buff {
         color = ALLY_COLOR;
-    }else {
+    } else {
         color = ENEMY_COLOR;
     }
     (
-    TextBundle {
-        style: Style {
-            margin: UiRect{
-                bottom: Val::Px(5.0),
-                ..UiRect::all(Val::Auto)
+        TextBundle {
+            style: Style {
+                margin: UiRect {
+                    bottom: Val::Px(5.0),
+                    ..UiRect::all(Val::Auto)
+                },
+                ..default()
             },
+            text: Text::from_section(
+                "8",
+                TextStyle {
+                    font: fonts.exo_semibold.clone(),
+                    font_size: 16.0,
+                    color,
+                },
+            ),
             ..default()
         },
-        text: Text::from_section(
-            "8",
-            TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 16.0,
-                color,
-            },
-        ),
-        ..default()
-    },
-    BuffDurationText,
-    Name::new("Buff Duration"),
-)}
+        BuffDurationText,
+        Name::new("Buff Duration"),
+    )
+}
 
 #[derive(Component)]
 pub struct BuffStackNumber;
 
-pub fn buff_stacks(fonts: &Res<Fonts>) -> impl Bundle{(
-    TextBundle {
-        style: Style {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(5.0),
-            right: Val::Px(5.0),
+pub fn buff_stacks(fonts: &Res<Fonts>) -> impl Bundle {
+    (
+        TextBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(5.0),
+                right: Val::Px(5.0),
+                ..default()
+            },
+            text: Text::from_section(
+                "2",
+                TextStyle {
+                    font: fonts.exo_semibold.clone(),
+                    font_size: 14.0,
+                    color: Color::WHITE,
+                },
+            ),
+            visibility: Visibility::Hidden,
             ..default()
         },
-        text: Text::from_section(
-            "2",
-            TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 14.0,
-                color: Color::WHITE,
-            },
-        ),
-        visibility: Visibility::Hidden,
-        ..default()
-    },
-    BuffStackNumber,
-    Name::new("Buff stack number"),
-)}
+        BuffStackNumber,
+        Name::new("Buff stack number"),
+    )
+}
 
-pub fn player_bars_wrapper() -> impl Bundle{(
-    NodeBundle{
-        style: Style{            
+pub fn player_bars_wrapper() -> impl Bundle {
+    (NodeBundle {
+        style: Style {
             width: Val::Percent(100.),
             flex_direction: FlexDirection::Column,
             margin: UiRect {
@@ -918,130 +980,137 @@ pub fn player_bars_wrapper() -> impl Bundle{(
             ..default()
         },
         ..default()
-    }
-)}
-
-
-
-
+    })
+}
 
 #[derive(Component, Debug)]
 pub struct AbilityHolder;
 
-pub fn ability_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Row,
-            justify_content: JustifyContent::FlexStart,
-            margin: UiRect {
-                bottom: Val::Px(30.),
+pub fn ability_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::FlexStart,
+                margin: UiRect {
+                    bottom: Val::Px(30.),
+                    ..default()
+                },
+                column_gap: Val::Px(6.),
                 ..default()
             },
-            column_gap: Val::Px(6.),
             ..default()
         },
-        ..default()
-    },
-    AbilityHolder,
-    Name::new("Ability Holder"),
-)}
+        AbilityHolder,
+        Name::new("Ability Holder"),
+    )
+}
 
-pub fn ability_image(handle: Handle<Image>) -> impl Bundle {(
-    ImageBundle {
-        style: Style {
-            width: Val::Px(40.),
-            height: Val::Px(40.),
-            ..default()
-        },
-        image: handle.into(),
-        ..default()
-    },
-    Interaction::None,
-    Name::new("Ability Image"),
-)}
-
-
-pub fn custom_image(handle: Handle<Image>, size: u32) -> impl Bundle {(
-    ImageBundle {
-        style: Style {
-            width: Val::Px(size as f32),
-            height: Val::Px(size as f32),
-            ..default()
-        },
-        image: handle.into(),
-        ..default()
-    },
-    Interaction::None,
-    Name::new("Ability Image"),
-)}
-
-pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {(
-    TextBundle {
-        style: Style {
-            margin: UiRect::all(Val::Auto),
-            position_type: PositionType::Absolute,
-            top:Val::Px(-2.0),
-            ..default()
-        },
-        text: Text::from_section(
-            "",
-            TextStyle {
-                font: fonts.exo_bold.clone(),
-                font_size: 24.0,
-                color: Color::WHITE,
+pub fn ability_image(handle: Handle<Image>) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Px(40.),
+                height: Val::Px(40.),
+                ..default()
             },
-        ),
-        ..default()
-    },
-    CooldownIconText,
-    Name::new("Cooldown Text"),
-)}
-
-pub fn cast_bar_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::SpaceBetween,
-            position_type: PositionType::Absolute,
-            width: Val::Px(200.),
-            height: Val::Px(44.),
-            margin: UiRect::all(Val::Auto),
-            bottom: Val::Px(-30.0),
+            image: handle.into(),
             ..default()
         },
-        visibility: Visibility::Hidden,
-        ..default()
-    },
-    CastBar,
-    Name::new("Castbar Holder"),
-)}
+        Interaction::None,
+        Name::new("Ability Image"),
+    )
+}
+
+pub fn custom_image(handle: Handle<Image>, size: u32) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Px(size as f32),
+                height: Val::Px(size as f32),
+                ..default()
+            },
+            image: handle.into(),
+            ..default()
+        },
+        Interaction::None,
+        Name::new("Ability Image"),
+    )
+}
+
+pub fn cd_text(fonts: &Res<Fonts>) -> impl Bundle {
+    (
+        TextBundle {
+            style: Style {
+                margin: UiRect::all(Val::Auto),
+                position_type: PositionType::Absolute,
+                top: Val::Px(-2.0),
+                ..default()
+            },
+            text: Text::from_section(
+                "",
+                TextStyle {
+                    font: fonts.exo_bold.clone(),
+                    font_size: 24.0,
+                    color: Color::WHITE,
+                },
+            ),
+            ..default()
+        },
+        CooldownIconText,
+        Name::new("Cooldown Text"),
+    )
+}
+
+pub fn cast_bar_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceBetween,
+                position_type: PositionType::Absolute,
+                width: Val::Px(200.),
+                height: Val::Px(44.),
+                margin: UiRect::all(Val::Auto),
+                bottom: Val::Px(-30.0),
+                ..default()
+            },
+            visibility: Visibility::Hidden,
+            ..default()
+        },
+        CastBar,
+        Name::new("Castbar Holder"),
+    )
+}
 #[derive(Component)]
 pub struct CastBar;
 
 #[derive(Component)]
 pub struct CastBarFill;
 
-pub fn cc_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::SpaceBetween,
-            position_type: PositionType::Absolute,
-            width: Val::Px(100.),
-            height: Val::Px(40.),
-            margin: UiRect::all(Val::Auto),
-            bottom: Val::Px(100.0),
+pub fn cc_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceBetween,
+                position_type: PositionType::Absolute,
+                width: Val::Px(100.),
+                height: Val::Px(40.),
+                margin: UiRect::all(Val::Auto),
+                bottom: Val::Px(100.0),
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    CCSelf,
-    Name::new("CC Holder"),
-)}
-pub fn cc_holder_top() -> impl Bundle {(
-    NodeBundle {
+        CCSelf,
+        Name::new("CC Holder"),
+    )
+}
+pub fn cc_holder_top() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
@@ -1050,8 +1119,8 @@ pub fn cc_holder_top() -> impl Bundle {(
             ..default()
         },
         ..default()
-    },
-)}
+    },)
+}
 #[derive(Component)]
 pub struct CCSelf;
 #[derive(Component)]
@@ -1059,110 +1128,122 @@ pub struct CCSelfLabel;
 
 #[derive(Component)]
 pub struct CCIconSelf;
-pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle{(
-    ImageBundle {
-        style: Style {
-            width: Val::Px(22.),
-            height: Val::Px(22.),
+pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Px(22.),
+                height: Val::Px(22.),
+                ..default()
+            },
+            image: cctype.get_icon(icons).into(),
             ..default()
         },
-        image: cctype.get_icon(icons).into(),
-        ..default()
-    },
-    Name::new("CC Icon"),
-)}
-
+        Name::new("CC Icon"),
+    )
+}
 
 #[derive(Component)]
 pub struct CCBarSelfFill;
 
-pub fn tooltip() -> impl Bundle{(
-    NodeBundle{
-        style:Style {
-            position_type: PositionType::Absolute,
-            min_width: Val::Px(150.),
-            min_height: Val::Px(100.), // only cus adding to an empty makes it weird 1 frame
+pub fn tooltip() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                min_width: Val::Px(150.),
+                min_height: Val::Px(100.), // only cus adding to an empty makes it weird 1 frame
+                ..default()
+            },
+            background_color: Color::NONE.into(),
+            z_index: ZIndex::Global(10),
             ..default()
         },
-        background_color: Color::NONE.into(),
-        z_index: ZIndex::Global(10),
-        ..default()
-    },
-    Tooltip::default(),
-    Name::new("Tooltip"),
-)}
+        Tooltip::default(),
+        Name::new("Tooltip"),
+    )
+}
 
 pub fn spawn_ability_tooltip(
-    commands: &mut Commands, 
+    commands: &mut Commands,
     icons: &Res<Icons>,
     fonts: &Res<Fonts>,
     info: &AbilityTooltip,
-) -> Entity{
-    commands.spawn(tooltip_bg()).with_children(|parent| {
-        parent.spawn(tooltip_desc(&fonts, info.description.clone()));
-        parent.spawn(tooltip_title(&fonts, info.title.clone()));
-        parent.spawn(tooltip_image(&icons, info.title.clone()));
-    }).id() 
+) -> Entity {
+    commands
+        .spawn(tooltip_bg())
+        .with_children(|parent| {
+            parent.spawn(tooltip_desc(&fonts, info.description.clone()));
+            parent.spawn(tooltip_title(&fonts, info.title.clone()));
+            parent.spawn(tooltip_image(&icons, info.title.clone()));
+        })
+        .id()
 }
 
-pub fn tooltip_bg() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::ColumnReverse,
-            justify_content: JustifyContent::FlexEnd,
-            align_items: AlignItems::Baseline,
-            margin: UiRect {
-                bottom: Val::Px(10.),
+pub fn tooltip_bg() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                justify_content: JustifyContent::FlexEnd,
+                align_items: AlignItems::Baseline,
+                margin: UiRect {
+                    bottom: Val::Px(10.),
+                    ..default()
+                },
+                padding: UiRect::all(Val::Px(20.)),
                 ..default()
             },
-            padding: UiRect::all(Val::Px(20.)),
+            background_color: Color::rgba(0., 0., 0., 1.0).into(),
             ..default()
         },
-        background_color: Color::rgba(0., 0., 0., 1.0).into(),
-        ..default()
-    },
-    Name::new("Background Tooltip"),
-)}
+        Name::new("Background Tooltip"),
+    )
+}
 
-pub fn tooltip_title(fonts: &Res<Fonts>, text: String) -> impl Bundle {(
-    TextBundle {
-        text: Text::from_section(
-            text,
-            TextStyle {
-                font: fonts.exo_light.clone(),
-                font_size: 30.0,
-                color: Color::WHITE,
-            },
-        ),
-        ..default()
-    },
-    TooltipContents::Title,
-)}
+pub fn tooltip_title(fonts: &Res<Fonts>, text: String) -> impl Bundle {
+    (
+        TextBundle {
+            text: Text::from_section(
+                text,
+                TextStyle {
+                    font: fonts.exo_light.clone(),
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                },
+            ),
+            ..default()
+        },
+        TooltipContents::Title,
+    )
+}
 
-pub fn tooltip_desc(fonts: &Res<Fonts>, text: String) -> impl Bundle {(
-    TextBundle {
-        style: Style {
-            margin: UiRect {
-                top: Val::Px(15.),
-                left: Val::Px(0.),
+pub fn tooltip_desc(fonts: &Res<Fonts>, text: String) -> impl Bundle {
+    (
+        TextBundle {
+            style: Style {
+                margin: UiRect {
+                    top: Val::Px(15.),
+                    left: Val::Px(0.),
+                    ..default()
+                },
+                max_width: Val::Px(320.),
+                max_height: Val::Auto,
                 ..default()
             },
-            max_width: Val::Px(320.),
-            max_height: Val::Auto,
+            text: Text::from_section(
+                text,
+                TextStyle {
+                    font: fonts.exo_light.clone(),
+                    font_size: 16.0,
+                    color: Color::WHITE,
+                },
+            ),
             ..default()
         },
-        text: Text::from_section(
-            text,
-            TextStyle {
-                font: fonts.exo_light.clone(),
-                font_size: 16.0,
-                color: Color::WHITE,
-            },
-        ),
-        ..default()
-    },
-    TooltipContents::Description,
-)}
+        TooltipContents::Description,
+    )
+}
 
 #[derive(Component, Debug)]
 pub enum TooltipContents {
@@ -1171,104 +1252,110 @@ pub enum TooltipContents {
     Image,
 }
 
-pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {(
-    ImageBundle {
-        style: Style {
-            width: Val::Px(64.),
-            height: Val::Px(64.),
-            position_type: PositionType::Absolute,
-            left: Val::Px(-74.),
-            top: Val::Px(0.),
+pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Px(64.),
+                height: Val::Px(64.),
+                position_type: PositionType::Absolute,
+                left: Val::Px(-74.),
+                top: Val::Px(0.),
+                ..default()
+            },
+            image: match path.to_lowercase().as_str() {
+                "frostbolt" => icons.frostbolt.clone().into(),
+                "driving strike" => icons.dash.clone().into(),
+                "fireball" => icons.fireball.clone().into(),
+                _ => icons.basic_attack.clone().into(),
+            },
             ..default()
         },
-        image: match path.to_lowercase().as_str(){
-            "frostbolt" => icons.frostbolt.clone().into(),
-            "driving strike" => icons.dash.clone().into(),
-            "fireball" => icons.fireball.clone().into(),
-            _ => icons.basic_attack.clone().into(),
-        },
-        ..default()
-    },
-    TooltipContents::Image,
-)}
-
-
+        TooltipContents::Image,
+    )
+}
 
 #[derive(Component, Debug)]
 pub struct InGameMenuUi;
-pub fn ingame_menu() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(20.),
-            height: Val::Percent(50.),
-            position_type: PositionType::Absolute,
-            flex_direction: FlexDirection::Column,
-            margin: UiRect::all(Val::Auto),
+pub fn ingame_menu() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(20.),
+                height: Val::Percent(50.),
+                position_type: PositionType::Absolute,
+                flex_direction: FlexDirection::Column,
+                margin: UiRect::all(Val::Auto),
+                ..default()
+            },
+            background_color: Color::rgba(0.2, 0.2, 0.2, 0.4).into(),
+            z_index: ZIndex::Global(11),
+            visibility: Visibility::Hidden,
             ..default()
         },
-        background_color: Color::rgba(0.2, 0.2, 0.2, 0.4).into(),
-        z_index: ZIndex::Global(11),
-        visibility: Visibility::Hidden,
-        ..default()
-    },
-    InGameMenuUi,
-    Name::new("InGame Menu"),
-)}
+        InGameMenuUi,
+        Name::new("InGame Menu"),
+    )
+}
 
-pub fn ingame_menu_button() -> impl Bundle {(
-    ButtonBundle {
-        style: Style {
-            // horizontally center child text
-            justify_content: JustifyContent::Center,
-            // vertically center child text
-            align_items: AlignItems::Center,
-            flex_grow: 1.0,
+pub fn ingame_menu_button() -> impl Bundle {
+    (
+        ButtonBundle {
+            style: Style {
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                flex_grow: 1.0,
+                ..default()
+            },
+            background_color: Color::rgb(0.15, 0.15, 0.15).into(),
             ..default()
         },
-        background_color: Color::rgb(0.15, 0.15, 0.15).into(),
-        ..default()
-    },
-    HoverButton,    
-)}
+        HoverButton,
+    )
+}
 
-pub fn ingame_menu_button_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {(
-    TextBundle::from_section(
+pub fn ingame_menu_button_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {
+    (TextBundle::from_section(
         text.to_owned(),
         TextStyle {
             font: fonts.exo_regular.clone(),
             font_size: 24.0,
             color: Color::rgb(0.9, 0.9, 0.9),
         },
-    )
-)}
+    ))
+}
 
 #[derive(Component)]
 pub struct DamageLog;
 #[derive(Component)]
 pub struct TabPanel;
 
-pub fn tab_panel() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(70.),
-            height: Val::Percent(70.),
-            position_type: PositionType::Absolute,
-            margin: UiRect::all(Val::Auto),
+pub fn tab_panel() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(70.),
+                height: Val::Percent(70.),
+                position_type: PositionType::Absolute,
+                margin: UiRect::all(Val::Auto),
+                ..default()
+            },
+            visibility: Visibility::Hidden,
+            // z_index: ZIndex::Global(3)
             ..default()
         },
-        visibility: Visibility::Hidden,
-        // z_index: ZIndex::Global(3)
-        ..default()
-    },
-    TabPanel,
-    Name::new("TabPanel"),
-)}
+        TabPanel,
+        Name::new("TabPanel"),
+    )
+}
 
 #[derive(Component)]
 pub struct TabMenuWrapper(pub TabMenuType);
 
 #[derive(Component, Default, Eq, PartialEq)]
-pub enum TabMenuType{
+pub enum TabMenuType {
     Scoreboard,
     DamageLog,
     DeathRecap,
@@ -1276,143 +1363,158 @@ pub enum TabMenuType{
     #[default]
     None,
 }
-pub fn damage_log() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            position_type: PositionType::Absolute,
+pub fn damage_log() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                position_type: PositionType::Absolute,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    TabMenuType::DamageLog,
-    DamageLog,
-)}
+        TabMenuType::DamageLog,
+        DamageLog,
+    )
+}
 
 #[derive(Component)]
 pub struct OutgoingLogUi;
 #[derive(Component)]
 pub struct IncomingLogUi;
 
-pub fn log_outgoing() -> impl Bundle {(    
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(50.),
-            height: Val::Percent(100.),
-            flex_direction: FlexDirection::ColumnReverse,
-            justify_content: JustifyContent::FlexEnd,
-            padding: UiRect::all(Val::Px(20.0)),
-            ..default()
-        },
-        background_color: Color::rgba(0.14, 0.14, 0.3, 0.99).into(),
-        ..default()
-    },
-    OutgoingLogUi,
-)}
-pub fn log_incoming() -> impl Bundle {(    
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(50.),
-            height: Val::Percent(100.),
-            flex_direction: FlexDirection::ColumnReverse,
-            justify_content: JustifyContent::FlexEnd,
-            padding: UiRect::all(Val::Px(20.0)),
-            column_gap: Val::Px(20.0),
-            ..default()
-        },
-        background_color: Color::rgba(0.3, 0.14, 0.1, 0.99).into(),
-        ..default()
-    },
-    IncomingLogUi,
-)}
-
-pub fn despawn_wrapper(delay: u32) -> impl Bundle {(
-    NodeBundle {
-        ..default()
-    },
-    Name::new("Despawen"),
-    DespawnTimer(
-        Timer::new(Duration::from_secs(delay.into()), TimerMode::Once)
-    )
-)}
-
-pub fn column_wrapper() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            column_gap: Val::Px(10.0),
-            ..default()
-        },
-        ..default()
-    },
-    Name::new("Damage column"),
-)}
-
-pub fn damage_entry() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            margin : UiRect{
-                top: Val::Px(12.),
+pub fn log_outgoing() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(50.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::ColumnReverse,
+                justify_content: JustifyContent::FlexEnd,
+                padding: UiRect::all(Val::Px(20.0)),
                 ..default()
             },
-            align_content: AlignContent::Center,
-            align_self:AlignSelf::Start,
-            justify_content: JustifyContent::Center,
-            column_gap: Val::Px(10.0),
+            background_color: Color::rgba(0.14, 0.14, 0.3, 0.99).into(),
             ..default()
         },
-        ..default()
-    },
-    Name::new("Damage Entry"),
-)}
+        OutgoingLogUi,
+    )
+}
+pub fn log_incoming() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(50.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::ColumnReverse,
+                justify_content: JustifyContent::FlexEnd,
+                padding: UiRect::all(Val::Px(20.0)),
+                column_gap: Val::Px(20.0),
+                ..default()
+            },
+            background_color: Color::rgba(0.3, 0.14, 0.1, 0.99).into(),
+            ..default()
+        },
+        IncomingLogUi,
+    )
+}
 
-pub fn thin_image(image: Handle<Image>) -> impl Bundle{(
-    ImageBundle {
-        style: Style {
-            width: Val::Px(55.),
-            height: Val::Px(22.),
-            align_self:AlignSelf::Center,
+pub fn despawn_wrapper(delay: u32) -> impl Bundle {
+    (
+        NodeBundle { ..default() },
+        Name::new("Despawen"),
+        DespawnTimer(Timer::new(
+            Duration::from_secs(delay.into()),
+            TimerMode::Once,
+        )),
+    )
+}
+
+pub fn column_wrapper() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                column_gap: Val::Px(10.0),
+                ..default()
+            },
             ..default()
         },
-        image: image.into(),
-        ..default()
-    },
-    Name::new("CC Icon"),
-)}
+        Name::new("Damage column"),
+    )
+}
+
+pub fn damage_entry() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                margin: UiRect {
+                    top: Val::Px(12.),
+                    ..default()
+                },
+                align_content: AlignContent::Center,
+                align_self: AlignSelf::Start,
+                justify_content: JustifyContent::Center,
+                column_gap: Val::Px(10.0),
+                ..default()
+            },
+            ..default()
+        },
+        Name::new("Damage Entry"),
+    )
+}
+
+pub fn thin_image(image: Handle<Image>) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Px(55.),
+                height: Val::Px(22.),
+                align_self: AlignSelf::Center,
+                ..default()
+            },
+            image: image.into(),
+            ..default()
+        },
+        Name::new("CC Icon"),
+    )
+}
 
 #[derive(Component, Debug)]
 pub struct DespawnTimer(pub Timer);
 
 #[derive(Component, Debug)]
 pub struct ScoreboardUI;
-pub fn scoreboard() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            position_type: PositionType::Absolute,
-            display: Display::Grid,
-            grid_template_columns: vec![GridTrack::min_content(), GridTrack::flex(1.0)],
-            /*
-            grid_auto_flow: GridAutoFlow::ColumnDense,
-            grid_template_rows: vec![
-                GridTrack::fr(1.0),
-            ],
-            grid_auto_rows: vec![GridTrack::flex(1.0), GridTrack::flex(1.0)],
-             */
-            padding: UiRect::all(Val::Px(15.)),
+pub fn scoreboard() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                position_type: PositionType::Absolute,
+                display: Display::Grid,
+                grid_template_columns: vec![GridTrack::min_content(), GridTrack::flex(1.0)],
+                /*
+                grid_auto_flow: GridAutoFlow::ColumnDense,
+                grid_template_rows: vec![
+                    GridTrack::fr(1.0),
+                ],
+                grid_auto_rows: vec![GridTrack::flex(1.0), GridTrack::flex(1.0)],
+                 */
+                padding: UiRect::all(Val::Px(15.)),
+                ..default()
+            },
+            background_color: Color::rgba(0.14, 0.14, 0.2, 0.99).into(),
             ..default()
         },
-        background_color: Color::rgba(0.14, 0.14, 0.2, 0.99).into(),
-        ..default()
-    },
-    TabMenuType::Scoreboard,
-    ScoreboardUI,
-)}
+        TabMenuType::Scoreboard,
+        ScoreboardUI,
+    )
+}
 
-pub fn scoreboard_entry(color: Color) -> impl Bundle {(
-    NodeBundle {
+pub fn scoreboard_entry(color: Color) -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(100.),
             height: Val::Percent(100.),
@@ -1422,68 +1524,73 @@ pub fn scoreboard_entry(color: Color) -> impl Bundle {(
         },
         background_color: color.into(),
         ..default()
-    },
-)}
+    },)
+}
 
-
-pub fn abilities_panel() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(300.),
-            height: Val::Px(200.),
-            position_type: PositionType::Absolute,
+pub fn abilities_panel() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(300.),
+                height: Val::Px(200.),
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            background_color: Color::rgba(0.8, 0.8, 0.5, 0.4).into(),
             ..default()
         },
-        background_color: Color::rgba(0.8, 0.8, 0.5, 0.4).into(),
-        ..default()
-    },
-    TabMenuType::Abilities,
-)}
-pub fn death_recap() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Px(300.),
-            height: Val::Px(200.),
-            position_type: PositionType::Absolute,
+        TabMenuType::Abilities,
+    )
+}
+pub fn death_recap() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(300.),
+                height: Val::Px(200.),
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            background_color: Color::rgba(0.1, 0.3, 0.9, 0.4).into(),
             ..default()
         },
-        background_color: Color::rgba(0.1, 0.3, 0.9, 0.4).into(),
-        ..default()
-    },
-    TabMenuType::DeathRecap,
-)}
+        TabMenuType::DeathRecap,
+    )
+}
 
 #[derive(Component, Debug)]
 pub struct StoreMain;
 
-pub fn store() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            position_type: PositionType::Absolute,
-            flex_direction: FlexDirection::Row,
-            min_width: Val::Px(600.),
-            width: Val::Percent(45.),
-            height: Val::Percent(75.),
-            padding: UiRect{
-                top: Val::Px(20.),
+pub fn store() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                flex_direction: FlexDirection::Row,
+                min_width: Val::Px(600.),
+                width: Val::Percent(45.),
+                height: Val::Percent(75.),
+                padding: UiRect {
+                    top: Val::Px(20.),
+                    ..default()
+                },
+                left: Val::Px(210.0),
+                top: Val::Percent(10.0),
                 ..default()
             },
-            left: Val::Px(210.0),
-            top: Val::Percent(10.0),
+            background_color: Color::rgba(0.15, 0.15, 0.18, 1.0).into(),
+            visibility: Visibility::Hidden,
+            z_index: ZIndex::Global(3),
             ..default()
         },
-        background_color: Color::rgba(0.15, 0.15, 0.18, 1.0).into(),
-        visibility: Visibility::Hidden,
-        z_index: ZIndex::Global(3),
-        ..default()
-    },
-    Draggable::BoundByParent(20),
-    StoreMain,
-    Name::new("Store"),
-)}
+        Draggable::BoundByParent(20),
+        StoreMain,
+        Name::new("Store"),
+    )
+}
 
 #[derive(Component, Debug, PartialEq)]
-pub enum Draggable{
+pub enum Draggable {
     Unbound,
     BoundByParent(i32), // so you can go outside if you want
 }
@@ -1491,53 +1598,56 @@ pub enum Draggable{
 #[derive(Component, Debug)]
 pub struct DragHandle;
 
-
 #[derive(Component, Debug, Default)]
 pub struct ZTracker(pub u32);
 
-pub fn drag_bar() -> impl Bundle{(
-    NodeBundle {
-        style: Style {
-            position_type: PositionType::Absolute,
-            align_items: AlignItems::Baseline,
-            width: Val::Percent(100.),
-            height: Val::Px(20.),
-            left: Val::Px(0.0),
-            right: Val::Px(0.0),
-            top: Val::Px(0.0),
+pub fn drag_bar() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                align_items: AlignItems::Baseline,
+                width: Val::Percent(100.),
+                height: Val::Px(20.),
+                left: Val::Px(0.0),
+                right: Val::Px(0.0),
+                top: Val::Px(0.0),
+                ..default()
+            },
+            z_index: ZIndex::Global(2),
+            background_color: Color::rgba(0.6, 0.7, 0.4, 0.2).into(),
+            transform: Transform {
+                translation: Vec3::new(0., 0., 1.),
+                ..default()
+            },
+            focus_policy: FocusPolicy::Block,
             ..default()
         },
-        z_index: ZIndex::Global(2),
-        background_color: Color::rgba(0.6, 0.7, 0.4, 0.2).into(),
-        transform: Transform {
-            translation: Vec3::new(0., 0., 1.),
-            ..default()
-        },
-        focus_policy: FocusPolicy::Block,
-        ..default()
-    },
-    DragHandle,
-    Interaction::default(),
-    Name::new("DragBar")
-)}
+        DragHandle,
+        Interaction::default(),
+        Name::new("DragBar"),
+    )
+}
 
-pub fn gold_holder() -> impl Bundle{(
-    NodeBundle {
-        style: Style {
-            position_type: PositionType::Absolute,
-            width: Val::Percent(100.),  
-            top: Val::Px(0.0),     
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
+pub fn gold_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.),
+                top: Val::Px(0.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Name::new("GoldInhand"),
-)}
+        Name::new("GoldInhand"),
+    )
+}
 
-pub fn list_categories() -> impl Bundle {(
-    NodeBundle {
+pub fn list_categories() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(15.),
             height: Val::Percent(100.),
@@ -1548,61 +1658,63 @@ pub fn list_categories() -> impl Bundle {(
         },
         background_color: Color::rgba(1., 0.1, 0.2, 0.02).into(),
         ..default()
-    }
-)}
+    })
+}
 
-pub fn category(stat: Stat) -> impl Bundle {(
-    ButtonBundle {
-        background_color: Color::rgb(0.15, 0.15, 0.15).into(),
-        style: Style{
-            padding: UiRect::all(Val::Px(5.0)),
+pub fn category(stat: Stat) -> impl Bundle {
+    (
+        ButtonBundle {
+            background_color: Color::rgb(0.15, 0.15, 0.15).into(),
+            style: Style {
+                padding: UiRect::all(Val::Px(5.0)),
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    Category(stat),
-)}
+        Category(stat),
+    )
+}
 #[derive(Component, Debug)]
 pub struct Category(pub Stat);
 
-
 pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
-    (
-    TextBundle::from_section(
+    (TextBundle::from_section(
         text.to_owned(),
         TextStyle {
             font: fonts.exo_semibold.clone(),
             font_size: 15.0,
             color: Color::rgb(0.9, 0.9, 0.9),
         },
-    )
-)}
+    ))
+}
 
-pub fn list_items() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(55.),
-            height: Val::Percent(100.),
-            row_gap: Val::Px(5.),
-            column_gap: Val::Px(5.),
-            padding: UiRect::all(Val::Px(5.)),
-            align_content: AlignContent::Start,
-            justify_content: JustifyContent::Start,
-            flex_wrap: FlexWrap::Wrap,
+pub fn list_items() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(55.),
+                height: Val::Percent(100.),
+                row_gap: Val::Px(5.),
+                column_gap: Val::Px(5.),
+                padding: UiRect::all(Val::Px(5.)),
+                align_content: AlignContent::Start,
+                justify_content: JustifyContent::Start,
+                flex_wrap: FlexWrap::Wrap,
+                ..default()
+            },
+            background_color: Color::rgba(1., 0.5, 0.2, 0.02).into(),
             ..default()
         },
-        background_color: Color::rgba(1., 0.5, 0.2, 0.02).into(),
-        ..default()
-    },
-    Name::new("Store List"),
-    StoreList,
-)}
+        Name::new("Store List"),
+        StoreList,
+    )
+}
 #[derive(Component, Debug)]
 pub struct StoreList;
 
-pub fn inspector() -> impl Bundle {(
-    NodeBundle {
+pub fn inspector() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(30.),
             height: Val::Percent(100.),
@@ -1611,118 +1723,128 @@ pub fn inspector() -> impl Bundle {(
         },
         //background_color: Color::rgba(1., 0.1, 0.6, 0.3).into(),
         ..default()
-    }
-)}
-pub fn item_parents() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Px(50.),
-            flex_direction: FlexDirection::Row,
-            padding: UiRect::all(Val::Px(5.)),
-            column_gap: Val::Px(5.),
+    })
+}
+pub fn item_parents() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Px(50.),
+                flex_direction: FlexDirection::Row,
+                padding: UiRect::all(Val::Px(5.)),
+                column_gap: Val::Px(5.),
+                ..default()
+            },
+            //background_color: Color::rgba(0.0, 0.1, 0.6, 0.1).into(),
             ..default()
         },
-        //background_color: Color::rgba(0.0, 0.1, 0.6, 0.1).into(),
-        ..default()
-    },
-    ItemParents,
-)}
+        ItemParents,
+    )
+}
 #[derive(Component, Debug)]
 pub struct ItemParents;
-pub fn item_tree() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            padding:UiRect::all(Val::Px(8.0)),
+pub fn item_tree() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(8.0)),
+                ..default()
+            },
+            background_color: Color::rgba(0., 0.01, 0.05, 0.5).into(),
             ..default()
-        },        
-        background_color: Color::rgba(0., 0.01, 0.05, 0.5).into(),
-        ..default()
-    },
-    ItemTree,
-)}
-pub fn grow_wrap() -> impl Bundle {(
-    NodeBundle {
+        },
+        ItemTree,
+    )
+}
+pub fn grow_wrap() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Column,
             flex_grow: 1.0,
             ..default()
         },
         ..default()
-    },
-)}
+    },)
+}
 #[derive(Component, Debug)]
 pub struct ItemTree;
 
-pub fn vert() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            width: Val::Percent(100.),
-            row_gap: Val::Px(8.0),
+pub fn vert() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                width: Val::Percent(100.),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            //background_color: Color::rgba(0.0, 1.0, 0.6, 0.3).into(),
             ..default()
         },
-        //background_color: Color::rgba(0.0, 1.0, 0.6, 0.3).into(),
-        ..default()
-    },
-    Name::new("vert"),
-)}
-pub fn hori() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Row,
-            column_gap: Val::Px(8.0),
-            width: Val::Percent(100.),
+        Name::new("vert"),
+    )
+}
+pub fn hori() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(8.0),
+                width: Val::Percent(100.),
+                ..default()
+            },
+            //background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
             ..default()
         },
-        //background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
-        ..default()
-    },
-    Name::new("hori"),
-)}
+        Name::new("hori"),
+    )
+}
 
-pub fn store_item_wrap(item: Item) -> impl Bundle{
+pub fn store_item_wrap(item: Item) -> impl Bundle {
     let list = item.info().stats.keys().cloned().collect::<Vec<_>>();
     (
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            // align_items: AlignItems::Center,
-            row_gap: Val::Px(5.0),
-            padding: UiRect::all(Val::Px(5.)),
-            // margin: UiRect::all(Val::Auto),
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                // align_items: AlignItems::Center,
+                row_gap: Val::Px(5.0),
+                padding: UiRect::all(Val::Px(5.)),
+                // margin: UiRect::all(Val::Auto),
+                ..default()
+            },
+            background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
             ..default()
         },
-        background_color: Color::rgba(0.0, 0.0, 0.0, 0.3).into(),
-        ..default()
-    },
-    ItemAttributes(list),
-    Interaction::default(),
-    item,
-    StoreItem,
-)}
+        ItemAttributes(list),
+        Interaction::default(),
+        item,
+        StoreItem,
+    )
+}
 
 pub fn store_item(item_images: &Res<Items>, item: Item) -> impl Bundle {
     (
-    ImageBundle {
-        style: Style {
-            width: Val::Px(36.),
-            height: Val::Px(36.),
+        ImageBundle {
+            style: Style {
+                width: Val::Px(36.),
+                height: Val::Px(36.),
+                ..default()
+            },
+            image: item.get_image(item_images),
+            //focus_policy: FocusPolicy::Block,
             ..default()
         },
-        image: item.get_image(item_images),
-        //focus_policy: FocusPolicy::Block,
-        ..default()
-    },
-    Interaction::default(),
-    item,
-    StoreItem,
-    // commentd cus i dont want dragging rn
-    //Draggable::Unbound,
-    //DragHandle,
-)}
+        Interaction::default(),
+        item,
+        StoreItem,
+        // commentd cus i dont want dragging rn
+        //Draggable::Unbound,
+        //DragHandle,
+    )
+}
 
 #[derive(Component, Debug)]
 pub struct StoreItem;
@@ -1731,95 +1853,101 @@ pub struct ItemAttributes(pub Vec<Stat>);
 
 #[derive(Component, Debug)]
 pub struct ItemDetails;
-pub fn item_details() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(8.0),
-            padding: UiRect::all(Val::Px(8.0)),
+pub fn item_details() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
+                padding: UiRect::all(Val::Px(8.0)),
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    },
-    ItemDetails
-)}
+        ItemDetails,
+    )
+}
 
-pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {(
-    ImageBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {
+    (
+        ImageBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                ..default()
+            },
+            image: item.get_image(item_images),
             ..default()
         },
-        image: item.get_image(item_images),
-        ..default()
-    },
-    Draggable::Unbound,
-    DragHandle,
-    Interaction::default(),
-)}
+        Draggable::Unbound,
+        DragHandle,
+        Interaction::default(),
+    )
+}
 
 #[derive(Component, Debug)]
 pub struct HoverButton;
 
-pub fn button() -> impl Bundle {(
-    ButtonBundle {
-        style: Style {
-            max_width: Val::Px(120.),
-            max_height: Val::Px(50.),
-            flex_grow: 1.0,
-            // horizontally center child text
-            justify_content: JustifyContent::Center,
-            // vertically center child text
-            align_items: AlignItems::Center,
-            margin: UiRect{
-                bottom: Val::Px(10.),
+pub fn button() -> impl Bundle {
+    (
+        ButtonBundle {
+            style: Style {
+                max_width: Val::Px(120.),
+                max_height: Val::Px(50.),
+                flex_grow: 1.0,
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                margin: UiRect {
+                    bottom: Val::Px(10.),
+                    ..default()
+                },
+                padding: UiRect::all(Val::Px(10.)),
                 ..default()
             },
-            padding: UiRect::all(Val::Px(10.)),
+            background_color: Color::rgb(0.15, 0.15, 0.15).into(),
             ..default()
         },
-        background_color: Color::rgb(0.15, 0.15, 0.15).into(),
-        ..default()
-    },
-    HoverButton,    
-)}
+        HoverButton,
+    )
+}
 
 pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
-    (
-    TextBundle::from_section(
+    (TextBundle::from_section(
         text.to_owned(),
         TextStyle {
             font: fonts.exo_regular.clone(),
             font_size: 36.0,
             color: Color::rgb(0.9, 0.9, 1.0),
         },
-    )
-)}
+    ))
+}
 
-pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {(
-    TextBundle {
-        text: Text::from_section(
-            "200",
-            TextStyle {
-                font: fonts.exo_light.clone(),
-                font_size: 30.0,
-                color: Color::YELLOW,
-            },
-        ),
-        z_index: ZIndex::Global(4),
-        ..default()
-    },
-    GoldInhand,
-)}
+pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {
+    (
+        TextBundle {
+            text: Text::from_section(
+                "200",
+                TextStyle {
+                    font: fonts.exo_light.clone(),
+                    font_size: 30.0,
+                    color: Color::YELLOW,
+                },
+            ),
+            z_index: ZIndex::Global(4),
+            ..default()
+        },
+        GoldInhand,
+    )
+}
 
 pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
-    (       
-    TextBundle {
+    (TextBundle {
         style: Style {
-            align_self:AlignSelf::Center,
+            align_self: AlignSelf::Center,
             ..default()
         },
         text: Text::from_section(
@@ -1831,15 +1959,19 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
             },
         ),
         ..default()
-    },
-)}
+    },)
+}
 
-pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color: Color) -> impl Bundle {
+pub fn color_text(
+    text: impl Into<String>,
+    size: u32,
+    fonts: &Res<Fonts>,
+    color: Color,
+) -> impl Bundle {
     let text = text.into();
-    (       
-    TextBundle {
+    (TextBundle {
         style: Style {
-            align_self:AlignSelf::Center,
+            align_self: AlignSelf::Center,
             ..default()
         },
         text: Text::from_section(
@@ -1851,8 +1983,8 @@ pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color:
             },
         ),
         ..default()
-    },
-)}
+    },)
+}
 
 #[derive(Component, Debug)]
 pub struct GoldInhand;
@@ -1872,24 +2004,26 @@ pub struct HealthBarHolder(pub Entity);
 pub struct ObjectiveName;
 #[derive(Component)]
 pub struct ObjectiveHealth;
-pub fn objective_health_bar_holder() -> impl Bundle {(
-    NodeBundle {
-        style: Style {
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::SpaceBetween,
-            position_type: PositionType::Absolute,
-            width: Val::Px(150.),
-            height: Val::Px(50.),
-            margin: UiRect::all(Val::Auto),
-            bottom: Val::Percent(30.0),
+pub fn objective_health_bar_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
+                position_type: PositionType::Absolute,
+                width: Val::Px(150.),
+                height: Val::Px(50.),
+                margin: UiRect::all(Val::Auto),
+                bottom: Val::Percent(30.0),
+                ..default()
+            },
+            visibility: Visibility::Hidden,
             ..default()
         },
-        visibility: Visibility::Hidden, 
-        ..default()
-    },
-    ObjectiveHealth,
-    Name::new("Objective Health Holder"),
-)}
+        ObjectiveHealth,
+        Name::new("Objective Health Holder"),
+    )
+}
 
 #[derive(Component)]
 pub struct ObjectiveHealthFill;
@@ -1897,8 +2031,8 @@ pub struct ObjectiveHealthFill;
 #[derive(Component)]
 pub struct HealthBar;
 
-pub fn bar_fill(color: Color) -> impl Bundle {(
-    NodeBundle {
+pub fn bar_fill(color: Color) -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(60.),
             height: Val::Percent(100.),
@@ -1906,12 +2040,11 @@ pub fn bar_fill(color: Color) -> impl Bundle {(
         },
         background_color: color.into(),
         ..default()
-    },
-)}
+    },)
+}
 
-
-pub fn bar_background(height: f32) -> impl Bundle {(
-    NodeBundle {
+pub fn bar_background(height: f32) -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(100.),
             height: Val::Px(height),
@@ -1919,12 +2052,11 @@ pub fn bar_background(height: f32) -> impl Bundle {(
         },
         background_color: Color::rgba(0.05, 0.05, 0.1, 0.9).into(),
         ..default()
-    }
-)}
+    })
+}
 
-
-pub fn bar_text_wrapper() -> impl Bundle{(    
-    NodeBundle {
+pub fn bar_text_wrapper() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             width: Val::Percent(100.),
             height: Val::Percent(100.),
@@ -1934,13 +2066,13 @@ pub fn bar_text_wrapper() -> impl Bundle{(
             ..default()
         },
         ..default()
-    },
-)}
+    },)
+}
 
-pub fn custom_text(fonts: &Res<Fonts>, size: f32, offset: f32) -> impl Bundle {(
-    TextBundle {
+pub fn custom_text(fonts: &Res<Fonts>, size: f32, offset: f32) -> impl Bundle {
+    (TextBundle {
         style: Style {
-            margin:UiRect::top(Val::Px(offset)),
+            margin: UiRect::top(Val::Px(offset)),
             ..default()
         },
         text: Text::from_section(
@@ -1952,18 +2084,18 @@ pub fn custom_text(fonts: &Res<Fonts>, size: f32, offset: f32) -> impl Bundle {(
             },
         ),
         ..default()
-    },
-)}
+    },)
+}
 
-pub fn template() -> impl Bundle {(
-    NodeBundle {
+pub fn template() -> impl Bundle {
+    (NodeBundle {
         style: Style {
             height: Val::Px(200.),
-            width:Val::Px(300.),
+            width: Val::Px(300.),
             position_type: PositionType::Absolute,
             ..default()
         },
         background_color: Color::rgba(1., 0.1, 0.2, 0.4).into(),
         ..default()
-    }
-)}
+    })
+}

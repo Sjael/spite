@@ -1,18 +1,17 @@
-use std::{time::Duration, collections::{BTreeMap}};
+use std::{collections::BTreeMap, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::{area::CCEvent, GameState, assets::Icons, game_manager::InGameSet};
-
+use crate::{area::CCEvent, assets::Icons, game_manager::InGameSet, GameState};
 
 #[derive(Debug, Clone, Reflect, Copy)]
-pub struct CCInfo{
+pub struct CCInfo {
     pub cctype: CCType,
     pub duration: f32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Reflect, Hash, PartialOrd, Ord)]
-pub enum CCType{
+pub enum CCType {
     Stun,
     Root,
     Fear,
@@ -22,8 +21,8 @@ pub enum CCType{
     //Slow, change to buff since affects a stat, proper CC's are for absolutes
 }
 
-impl CCType{
-    pub fn get_icon(self, icons: &Res<Icons>) -> Handle<Image>{
+impl CCType {
+    pub fn get_icon(self, icons: &Res<Icons>) -> Handle<Image> {
         use CCType::*;
         match self {
             Stun => icons.frostbolt.clone().into(),
@@ -52,34 +51,32 @@ impl std::fmt::Display for CCType {
 }
 
 pub struct CCPlugin;
-impl Plugin for CCPlugin{
+impl Plugin for CCPlugin {
     fn build(&self, app: &mut App) {
-
-        app.add_systems(PreUpdate, (
-            tick_ccs,
-            apply_ccs,
-        ).chain().in_set(InGameSet::Pre));
+        app.add_systems(
+            PreUpdate,
+            (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre),
+        );
     }
 }
 
-pub fn apply_ccs(
-    mut targets_query: Query<&mut CCMap>,
-    mut cc_events: EventReader<CCEvent>,
-){
-    for event in cc_events.iter(){
-        let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else { continue };
+pub fn apply_ccs(mut targets_query: Query<&mut CCMap>, mut cc_events: EventReader<CCEvent>) {
+    for event in cc_events.iter() {
+        let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else {
+            continue;
+        };
         ccs.map.insert(
             event.ccinfo.cctype,
-            Timer::new(Duration::from_millis((event.ccinfo.duration * 1000.0) as u64), TimerMode::Once), 
+            Timer::new(
+                Duration::from_millis((event.ccinfo.duration * 1000.0) as u64),
+                TimerMode::Once,
+            ),
         );
         sort_ccs(&mut ccs);
     }
 }
 
-pub fn tick_ccs(
-    time: Res<Time>,
-    mut query: Query<&mut CCMap>,
-) {
+pub fn tick_ccs(time: Res<Time>, mut query: Query<&mut CCMap>) {
     for mut ccs in &mut query {
         ccs.map.retain(|_, timer| {
             timer.tick(time.delta());
@@ -89,7 +86,7 @@ pub fn tick_ccs(
     }
 }
 
-pub fn sort_ccs(cc_map: &mut CCMap){
+pub fn sort_ccs(cc_map: &mut CCMap) {
     let mut sorted = Vec::from_iter(cc_map.map.clone());
     sorted.sort_by(|a, b| a.0.cmp(&b.0));
     let new_map = sorted.into_iter().collect::<BTreeMap<CCType, Timer>>();

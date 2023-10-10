@@ -1,6 +1,9 @@
 use bevy::{
     math::Vec3,
-    render::{mesh::{Indices, Mesh}, render_resource::PrimitiveTopology},
+    render::{
+        mesh::{Indices, Mesh},
+        render_resource::PrimitiveTopology,
+    },
 };
 use bevy_rapier3d::prelude::*;
 
@@ -19,10 +22,7 @@ impl Rectangle {
         ];
 
         // normals pointing up
-        let indices = vec![
-            [0, 2, 1],
-            [0, 3, 2],
-        ];
+        let indices = vec![[0, 2, 1], [0, 3, 2]];
         Self { positions, indices }
     }
 
@@ -36,13 +36,15 @@ impl Rectangle {
         };
 
         extruded.positions.extend(
-            flat.positions.iter()
-                .map(|position| [position[0], position[1] + ABILITY_HEIGHT , position[2]]),
+            flat.positions
+                .iter()
+                .map(|position| [position[0], position[1] + ABILITY_HEIGHT, position[2]]),
         );
 
         // make top tris
         extruded.indices.extend(
-            flat.indices.iter()
+            flat.indices
+                .iter()
                 .map(|tri| [tri[0] + 4, tri[1] + 4, tri[2] + 4]),
         );
 
@@ -54,13 +56,12 @@ impl Rectangle {
         extruded
     }
 
-
     pub fn mesh(&self) -> Mesh {
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
         let normals = std::iter::repeat([0.0, 1.0, 0.0])
             .take(self.positions.len())
             .collect::<Vec<_>>();
-        
+
         let uvs = std::iter::repeat([0.0, 0.0])
             .take(self.positions.len())
             .collect::<Vec<_>>();

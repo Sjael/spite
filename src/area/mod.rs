@@ -1,26 +1,27 @@
+use bevy::prelude::*;
+use bevy_rapier3d::prelude::Sensor;
+use bevy_rapier3d::prelude::*;
+use rand::Rng;
 use std::{
     cmp::Ordering,
     time::{Duration, Instant},
 };
-use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::prelude::Sensor;
-use rand::Rng;
 
 use crate::{
+    ability::{
+        bundles::Caster, Ability, AbilityTooltip, CastingLifetime, DamageType, FilteredTargets,
+        FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
+        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks, UniqueTargetsHit,
+    },
     actor::{
         buff::{BuffInfo, BuffTargets},
         crowd_control::CCInfo,
     },
-    game_manager::{Team, FireHomingEvent},
-    ability::{bundles::Caster, AbilityTooltip, Ability, FiringInterval, TickBehavior, TargetsInArea, PausesWhenEmpty, 
-        Ticks, TargetsHittable, Tags, MaxTargetsHit, UniqueTargetsHit, TargetFilter, FilteredTargets, TargetSelection, 
-        CastingLifetime, TagInfo, DamageType},
+    game_manager::{FireHomingEvent, Team},
 };
 use homing::track_homing;
 
 use self::non_damaging::*;
-
 
 #[derive(Event, Clone)]
 pub struct HealthChangeEvent {
@@ -58,26 +59,29 @@ impl Plugin for AreaPlugin {
         app.add_event::<BuffEvent>();
         app.add_event::<CCEvent>();
 
-        app.add_systems(PreUpdate, (
-            apply_interval, 
-            catch_collisions, 
-        ));
-        app.add_systems(Update, (
-            tick_lifetime, 
-            tick_hit_timers, 
-            track_homing, 
-            add_health_bar_detect_colliders,
-            focus_objective_health,
-        ));
-        app.add_systems(Update, (
-            filter_targets,
-            area_queue_targets,
-            area_apply_tags,
-            despawn_after_max_hits,
-        ).chain());
+        app.add_systems(PreUpdate, (apply_interval, catch_collisions));
+        app.add_systems(
+            Update,
+            (
+                tick_lifetime,
+                tick_hit_timers,
+                track_homing,
+                add_health_bar_detect_colliders,
+                focus_objective_health,
+            ),
+        );
+        app.add_systems(
+            Update,
+            (
+                filter_targets,
+                area_queue_targets,
+                area_apply_tags,
+                despawn_after_max_hits,
+            )
+                .chain(),
+        );
     }
 }
-
 
 fn despawn_after_max_hits(mut commands: Commands, max_hits_query: Query<(Entity, &MaxTargetsHit)>) {
     for (entity, max_targets_hit) in max_hits_query.iter() {
@@ -108,23 +112,38 @@ fn area_apply_tags(
     mut cc_events: EventWriter<CCEvent>,
     mut cast_homing_events: EventWriter<FireHomingEvent>,
 ) {
-    for (sensor_entity, sensor_team, targets_hittable, tags, damage_type, 
-        caster, parent, interval, mut max_targets_hit,
-        mut tick_behavior, mut unique_targets_hit, ability) in &mut sensor_query
-    {        
+    for (
+        sensor_entity,
+        sensor_team,
+        targets_hittable,
+        tags,
+        damage_type,
+        caster,
+        parent,
+        interval,
+        mut max_targets_hit,
+        mut tick_behavior,
+        mut unique_targets_hit,
+        ability,
+    ) in &mut sensor_query
+    {
         let mut targets_that_got_hit: Vec<Entity> = Vec::new();
         let ability = ability.unwrap_or(&Ability::BasicAttack);
         let damage_type = damage_type.unwrap_or(&DamageType::True);
         for target_entity in targets_hittable.list.iter() {
-            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else { continue };
-            let caster = if let Some(caster) = caster{
+            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else {
+                continue;
+            };
+            let caster = if let Some(caster) = caster {
                 caster.0
             } else {
                 sensor_entity
             };
             let on_same_team = sensor_team.0 == target_team.0;
-            if let Some(ref unique_targets_hit) = unique_targets_hit{
-                if unique_targets_hit.already_hit.contains(target_entity){ continue }
+            if let Some(ref unique_targets_hit) = unique_targets_hit {
+                if unique_targets_hit.already_hit.contains(target_entity) {
+                    continue;
+                }
             }
 
             let mut hit_a_target = false;
@@ -180,7 +199,7 @@ fn area_apply_tags(
                         }
                     }
                     TagInfo::CC(ref ccinfo) => {
-                        if !on_same_team{
+                        if !on_same_team {
                             hit_a_target = true;
                             cc_events.send(CCEvent {
                                 target_entity: *target_entity,
@@ -203,40 +222,42 @@ fn area_apply_tags(
                 if let Some(ref mut max_hits) = max_targets_hit {
                     max_hits.current += 1;
                     if max_hits.current >= max_hits.max {
-                        return
+                        return;
                     }
                 }
             }
         }
-        if let Some(mut tick_behavior) = tick_behavior{
-            if let Some(interval) = interval{
-                if let TickBehavior::Individual(ref mut individual_timers) = *tick_behavior{
-                    for got_hit in targets_that_got_hit.iter(){
+        if let Some(mut tick_behavior) = tick_behavior {
+            if let Some(interval) = interval {
+                if let TickBehavior::Individual(ref mut individual_timers) = *tick_behavior {
+                    for got_hit in targets_that_got_hit.iter() {
                         individual_timers.map.insert(
                             *got_hit,
-                            Timer::new(
-                                Duration::from_millis(interval.0 as u64),
-                                TimerMode::Once,
-                            ),
+                            Timer::new(Duration::from_millis(interval.0 as u64), TimerMode::Once),
                         );
-                    }                        
+                    }
                 }
             }
         }
-        for got_hit in targets_that_got_hit.iter(){
-            if let Some(ref mut unique_targets_hit) = unique_targets_hit{
+        for got_hit in targets_that_got_hit.iter() {
+            if let Some(ref mut unique_targets_hit) = unique_targets_hit {
                 unique_targets_hit.already_hit.push(*got_hit);
-            }        
+            }
         }
     }
 }
 
-
 fn area_queue_targets(
-    mut sensor_query: Query<(&TargetsInArea, &mut TargetsHittable, Option<&TickBehavior>, Option<&FilteredTargets>)>,
+    mut sensor_query: Query<(
+        &TargetsInArea,
+        &mut TargetsHittable,
+        Option<&TickBehavior>,
+        Option<&FilteredTargets>,
+    )>,
 ) {
-    for (targets_in_area, mut targets_hittable,  
-        tick_behavior, filtered_targets) in sensor_query.iter_mut() {
+    for (targets_in_area, mut targets_hittable, tick_behavior, filtered_targets) in
+        sensor_query.iter_mut()
+    {
         targets_hittable.list = Vec::new();
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
@@ -246,21 +267,22 @@ fn area_queue_targets(
                     }
                     if let Some(filtered_targets) = filtered_targets {
                         targets_hittable.list = filtered_targets.list.clone();
-                    } else{
+                    } else {
                         targets_hittable.list = targets_in_area.list.clone();
                     }
                 }
                 TickBehavior::Individual(ref individual_timers) => {
                     for target_entity in targets_in_area.list.iter() {
                         if let Some(filtered_targets) = filtered_targets {
-                            if !filtered_targets.list.contains(target_entity){
-                                continue
+                            if !filtered_targets.list.contains(target_entity) {
+                                continue;
                             }
                         }
-                        let hasnt_been_hit_or_interval_over = match individual_timers.map.get(&target_entity) {
-                            Some(timer) => timer.finished(),
-                            None => true,
-                        };
+                        let hasnt_been_hit_or_interval_over =
+                            match individual_timers.map.get(&target_entity) {
+                                Some(timer) => timer.finished(),
+                                None => true,
+                            };
                         if hasnt_been_hit_or_interval_over {
                             targets_hittable.list.push(*target_entity);
                         }
@@ -274,12 +296,19 @@ fn area_queue_targets(
 }
 
 fn filter_targets(
-    mut sensor_query: Query<(&TargetFilter, &GlobalTransform, &TargetsInArea, &mut FilteredTargets, Entity)>,
+    mut sensor_query: Query<(
+        &TargetFilter,
+        &GlobalTransform,
+        &TargetsInArea,
+        &mut FilteredTargets,
+        Entity,
+    )>,
     changed_sensors: Query<Entity, Changed<TargetsInArea>>,
     target_query: Query<&GlobalTransform>, // add threat stat later
 ) {
-    for (target_filter, sensor_transform,
-    targets_in_area, mut filtered_targets, sensor_entity) in sensor_query.iter_mut() {
+    for (target_filter, sensor_transform, targets_in_area, mut filtered_targets, sensor_entity) in
+        sensor_query.iter_mut()
+    {
         if targets_in_area.list.is_empty() {
             filtered_targets.list = Vec::new();
             continue;
@@ -291,7 +320,9 @@ fn filter_targets(
 
                 let mut closest_targets: Vec<(f32, Entity)> = Vec::new();
                 for target_entity in targets_in_area.list.iter() {
-                    let Ok(target_transform) = target_query.get(*target_entity) else {continue};
+                    let Ok(target_transform) = target_query.get(*target_entity) else {
+                        continue;
+                    };
                     let relative_translation =
                         target_transform.translation() - sensor_transform.translation();
                     closest_targets.push((relative_translation.length(), *target_entity));
@@ -306,7 +337,9 @@ fn filter_targets(
             }
             TargetSelection::Random => {
                 // only make random selection when the targets change, instead of every frame
-                let Ok(_) = changed_sensors.get(sensor_entity) else { continue };
+                let Ok(_) = changed_sensors.get(sensor_entity) else {
+                    continue;
+                };
                 // can hit the same target twice lol, should remove from array and gen again but idc
                 let mut rng = rand::thread_rng();
                 for _ in 0..target_filter.number_of_targets {
@@ -344,19 +377,19 @@ Tower
     Tags
     Ticks statically
     PausesWhenEmpty (ready to fire on enter) (doesnt reset unless it fires)
-    TargetsHittable 
+    TargetsHittable
     FilterTargets::Closest (1)
 
  */
 
 #[derive(PartialEq, Eq)]
-pub enum AreaOverlapType{
+pub enum AreaOverlapType {
     Entered,
     Exited,
 }
 
 #[derive(Event)]
-pub struct AreaOverlapEvent{
+pub struct AreaOverlapEvent {
     pub sensor: Entity,
     pub target: Entity,
     pub overlap: AreaOverlapType,
@@ -404,9 +437,9 @@ fn catch_collisions(
         if colliding {
             targets_in_area.list.push(target_entity);
             area_events.send(AreaOverlapEvent {
-                sensor: area_entity, 
-                target: target_entity, 
-                overlap: AreaOverlapType::Entered 
+                sensor: area_entity,
+                target: target_entity,
+                overlap: AreaOverlapType::Entered,
             });
         } else {
             if let Some(index) = targets_in_area
@@ -416,9 +449,9 @@ fn catch_collisions(
             {
                 targets_in_area.list.remove(index);
                 area_events.send(AreaOverlapEvent {
-                    sensor: area_entity, 
-                    target: target_entity, 
-                    overlap: AreaOverlapType::Exited
+                    sensor: area_entity,
+                    target: target_entity,
+                    overlap: AreaOverlapType::Exited,
                 });
             }
         }
@@ -440,25 +473,29 @@ fn tick_lifetime(
 }
 
 fn apply_interval(
-    mut area_timers: Query<(&FiringInterval, &mut TickBehavior), Added<TickBehavior>>
-){
-    for (interval, mut tick_behavior) in &mut area_timers{
-        match *tick_behavior{
+    mut area_timers: Query<(&FiringInterval, &mut TickBehavior), Added<TickBehavior>>,
+) {
+    for (interval, mut tick_behavior) in &mut area_timers {
+        match *tick_behavior {
             TickBehavior::Static(ref mut static_timer) => {
                 static_timer.set_duration(Duration::from_millis(interval.0 as u64));
             }
-            _ => ()
+            _ => (),
         }
     }
 }
 
 fn tick_hit_timers(
-    time: Res<Time>, 
-    mut area_timers: Query<(&mut Ticks, &FiringInterval, &TargetsInArea, &mut TickBehavior, Option<&PausesWhenEmpty>)>
+    time: Res<Time>,
+    mut area_timers: Query<(
+        &mut Ticks,
+        &FiringInterval,
+        &TargetsInArea,
+        &mut TickBehavior,
+        Option<&PausesWhenEmpty>,
+    )>,
 ) {
-    for (mut ticks, interval,  targets_in_area, 
-    mut tick_behavior, pauses) in &mut area_timers {
-        
+    for (mut ticks, interval, targets_in_area, mut tick_behavior, pauses) in &mut area_timers {
         match *tick_behavior {
             TickBehavior::Individual(ref mut individual_timers) => {
                 // tick per-target timer and retain it
@@ -469,9 +506,9 @@ fn tick_hit_timers(
             }
             TickBehavior::Static(ref mut static_timer) => {
                 // tick whole ability timer unless empty and pauses (towers)
-                if pauses.is_some() && targets_in_area.list.is_empty(){ 
+                if pauses.is_some() && targets_in_area.list.is_empty() {
                     static_timer.set_mode(TimerMode::Once);
-                } else{
+                } else {
                     static_timer.set_mode(TimerMode::Repeating);
                 }
                 static_timer.tick(time.delta());
@@ -484,7 +521,7 @@ fn tick_hit_timers(
                             static_timer.pause();
                         }
                     }
-                    _ => (), 
+                    _ => (),
                 }
             }
         }

@@ -7,17 +7,26 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    ability::{Ability, bundles::Caster, TickBehavior, 
-        MaxTargetsHit, TargetsInArea, TargetsHittable,},
+    ability::{
+        bundles::Caster, Ability, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
+    },
+    actor::{
+        cast_ability,
+        player::{Player, PlayerEntity},
+        stats::{Attributes, Stat},
+        view::Reticle,
+        AbilityRanks, IncomingDamageLog, InitSpawnEvent, RespawnEvent,
+    },
     area::homing::Homing,
-    actor::{cast_ability, IncomingDamageLog, player::{Player, PlayerEntity}, InitSpawnEvent, view::Reticle, stats::{Attributes, Stat}, AbilityRanks, RespawnEvent,},
-    
-    ui::{ui_bundles::{PlayerUI, RespawnHolder, RespawnText}, inventory::Inventory},
+    ui::{
+        inventory::Inventory,
+        ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
+    },
     GameState,
 };
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum InGameSet{
+pub enum InGameSet {
     Pre,
     Update,
     Post,
@@ -30,47 +39,56 @@ impl Plugin for GameManagerPlugin {
         app.insert_resource(PlayerEntity(None));
         app.insert_resource(TeamRoster::default());
         app.insert_resource(Scoreboard::default());
-        
-        
+
         app.register_type::<Bounty>();
         app.add_state::<CharacterState>();
 
         app.add_event::<DeathEvent>();
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
- 
-        app.configure_set(Update, InGameSet::Update.run_if(in_state(GameState::InGame)));
-        app.configure_set(PreUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)));
-        app.configure_set(PostUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)));
+
+        app.configure_set(
+            Update,
+            InGameSet::Update.run_if(in_state(GameState::InGame)),
+        );
+        app.configure_set(
+            PreUpdate,
+            InGameSet::Pre.run_if(in_state(GameState::InGame)),
+        );
+        app.configure_set(
+            PostUpdate,
+            InGameSet::Pre.run_if(in_state(GameState::InGame)),
+        );
 
         app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
-        app.add_systems(Update, (
-            spool_gold,
-            increment_bounty,
-            handle_respawning,
-            show_respawn_ui,
-            tick_respawn_ui,
-            place_ability.after(cast_ability),
-            place_homing_ability,
-        ).in_set(InGameSet::Update));
+        app.add_systems(
+            Update,
+            (
+                spool_gold,
+                increment_bounty,
+                handle_respawning,
+                show_respawn_ui,
+                tick_respawn_ui,
+                place_ability.after(cast_ability),
+                place_homing_ability,
+            )
+                .in_set(InGameSet::Update),
+        );
         app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }
 
 #[derive(Resource)]
-pub struct TeamRoster{
-    pub teams: HashMap<Team, Vec<Player>>
+pub struct TeamRoster {
+    pub teams: HashMap<Team, Vec<Player>>,
 }
-impl Default for TeamRoster{
+impl Default for TeamRoster {
     fn default() -> Self {
         let team1 = vec![Player::new(1507), Player::new(404)];
         let team2 = vec![Player::new(420), Player::new(1)];
 
-        let inner = HashMap::from([
-            (TEAM_1, team1),
-            (TEAM_2, team2),
-        ]);
-        Self{teams: inner}
+        let inner = HashMap::from([(TEAM_1, team1), (TEAM_2, team2)]);
+        Self { teams: inner }
     }
 }
 
@@ -98,26 +116,23 @@ pub struct GameModeDetails {
     pub spawn_points: HashMap<ActorType, Transform>,
 }
 
-pub struct Respawn{
+pub struct Respawn {
     actortype: ActorType,
     timer: Timer,
 }
 
 // how long things take to respawn
-pub struct RespawnTimeDefaults{
+pub struct RespawnTimeDefaults {
     camps: HashMap<ActorType, u32>,
     player_base: f32,
     player_scale_level: f32,
     player_scale_minutes: f32,
 }
 
-impl Default for RespawnTimeDefaults{
+impl Default for RespawnTimeDefaults {
     fn default() -> Self {
-        let camps = HashMap::from([
-            (ActorType::RedBuff, 240),
-            (ActorType::BlueBuff, 120),
-        ]);
-        Self{
+        let camps = HashMap::from([(ActorType::RedBuff, 240), (ActorType::BlueBuff, 120)]);
+        Self {
             camps,
             player_base: 3.0,
             player_scale_level: 2.0,
@@ -126,16 +141,16 @@ impl Default for RespawnTimeDefaults{
     }
 }
 
-pub enum Spawnpoint{
+pub enum Spawnpoint {
     RedBuff,
     BlueBuff,
     Chaos,
     Order,
 }
 
-impl Spawnpoint{
+impl Spawnpoint {
     fn transform(&self) -> Transform {
-        match self{
+        match self {
             Spawnpoint::RedBuff => Transform {
                 translation: Vec3::new(0.0, 0.5, -6.0),
                 ..default()
@@ -193,7 +208,7 @@ impl Default for Bounty {
 pub struct Scoreboard(pub HashMap<Player, PlayerInfo>);
 
 #[derive(Default)]
-pub struct PlayerInfo{
+pub struct PlayerInfo {
     pub kda: KDA,
     pub inv: Inventory,
     stats: Attributes,
@@ -204,7 +219,7 @@ pub struct PlayerInfo{
     // class: GameClass,
 }
 
-pub enum GameClass{
+pub enum GameClass {
     Rogue,
     Warrior,
     Mage,
@@ -213,14 +228,14 @@ pub enum GameClass{
 }
 
 #[derive(Default)]
-pub struct KDA{    
+pub struct KDA {
     pub kills: u32,
     pub deaths: u32,
     pub assists: u32,
 }
 
 #[derive(Default)]
-pub struct LoggedNumbers{
+pub struct LoggedNumbers {
     pub gold_acquired: u32,
     pub damage_dealt: u32,
     pub damage_taken: u32,
@@ -232,11 +247,15 @@ fn place_homing_ability(
     mut commands: Commands,
     mut cast_events: EventReader<FireHomingEvent>,
     caster: Query<(&GlobalTransform, &Team)>,
-){
+) {
     for event in cast_events.iter() {
-        let Ok((caster_transform, team)) = caster.get(event.caster) else {return};
+        let Ok((caster_transform, team)) = caster.get(event.caster) else {
+            return;
+        };
 
-        let spawned = event.ability.get_bundle(&mut commands, &caster_transform.compute_transform());
+        let spawned = event
+            .ability
+            .get_bundle(&mut commands, &caster_transform.compute_transform());
 
         // Apply general components
         commands.entity(spawned).insert((
@@ -245,7 +264,7 @@ fn place_homing_ability(
             Homing(event.target),
             Caster(event.caster),
         ));
-        
+
         // if has a shape
         commands.entity(spawned).insert((
             ActiveEvents::COLLISION_EVENTS,
@@ -255,10 +274,8 @@ fn place_homing_ability(
             MaxTargetsHit::new(1),
             TickBehavior::individual(),
         ));
-
     }
 }
-
 
 fn place_ability(
     mut commands: Commands,
@@ -267,17 +284,25 @@ fn place_ability(
     reticle: Query<&GlobalTransform, With<Reticle>>,
     procmaps: Query<&ProcMap>,
 ) {
-    let Ok(reticle_transform) = reticle.get_single() else {return};
+    let Ok(reticle_transform) = reticle.get_single() else {
+        return;
+    };
     for event in cast_events.iter() {
-        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else {return};
+        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else {
+            return;
+        };
 
         // Get ability-specific components
-        let spawned ;
-        
-        if event.ability.on_reticle(){
-            spawned = event.ability.get_bundle(&mut commands, &reticle_transform.compute_transform());
+        let spawned;
+
+        if event.ability.on_reticle() {
+            spawned = event
+                .ability
+                .get_bundle(&mut commands, &reticle_transform.compute_transform());
         } else {
-            spawned = event.ability.get_bundle(&mut commands, &caster_transform.compute_transform());
+            spawned = event
+                .ability
+                .get_bundle(&mut commands, &caster_transform.compute_transform());
         }
 
         // Apply general components
@@ -285,16 +310,16 @@ fn place_ability(
             //Name::new("ability #tick number"),
             team.clone(),
             Caster(event.caster),
-        ));        
+        ));
 
         let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
         let scaling = rank.current as u32 * event.ability.get_scaling();
 
         // Apply special proc components
-        if let Ok(procmap) = procmaps.get(event.caster){
+        if let Ok(procmap) = procmaps.get(event.caster) {
             if let Some(behaviors) = procmap.0.get(&event.ability) {
-                for behavior in behaviors{
-                    match behavior{
+                for behavior in behaviors {
+                    match behavior {
                         AbilityBehavior::Homing => (),
                         AbilityBehavior::OnHit => (),
                     }
@@ -320,10 +345,10 @@ fn handle_respawning(
         respawn.timer.tick(time.delta());
         if respawn.timer.finished() {
             respawn_events.send(RespawnEvent {
-                entity: redeemed.clone(), 
+                entity: redeemed.clone(),
                 actor: respawn.actortype.clone(),
             });
-            if respawn.actortype == ActorType::Player(*local_player){
+            if respawn.actortype == ActorType::Player(*local_player) {
                 character_state_next.set(CharacterState::Alive);
             }
         }
@@ -337,7 +362,9 @@ fn show_respawn_ui(
     mut spawn_events: EventReader<RespawnEvent>,
     local_player: Res<Player>,
 ) {
-    let Ok(mut vis) = death_timer.get_single_mut() else { return };
+    let Ok(mut vis) = death_timer.get_single_mut() else {
+        return;
+    };
     for event in spawn_events.iter() {
         if event.actor == ActorType::Player(*local_player) {
             *vis = Visibility::Hidden;
@@ -355,10 +382,15 @@ fn tick_respawn_ui(
     gamemodedetails: ResMut<GameModeDetails>,
     local_entity: Res<PlayerEntity>,
 ) {
-    let Ok(mut respawn_text) = death_timer.get_single_mut() else { return };
+    let Ok(mut respawn_text) = death_timer.get_single_mut() else {
+        return;
+    };
     let Some(local) = local_entity.0 else { return };
-    let Some(respawn) = gamemodedetails.respawns.get(&local) else { return};
-    let new_text = (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
+    let Some(respawn) = gamemodedetails.respawns.get(&local) else {
+        return;
+    };
+    let new_text =
+        (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
     respawn_text.sections[1].value = new_text.to_string();
 }
 
@@ -369,32 +401,39 @@ pub struct DeathEvent {
     pub killers: Vec<Entity>,
 }
 
-pub struct ActorInfo{
+pub struct ActorInfo {
     pub entity: Entity,
     pub actor: ActorType,
 }
 
 #[derive(Component, Clone, Hash, PartialEq, Eq)]
-pub enum ActorType{
+pub enum ActorType {
     BlueBuff,
     RedBuff,
     Player(Player),
 }
 
 fn check_deaths(
-    the_damned: Query<(Entity, &IncomingDamageLog, &ActorType, &Attributes), Changed<IncomingDamageLog>>,
+    the_damned: Query<
+        (Entity, &IncomingDamageLog, &ActorType, &Attributes),
+        Changed<IncomingDamageLog>,
+    >,
     the_guilty: Query<&ActorType>,
     mut death_events: EventWriter<DeathEvent>,
 ) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
     for (guy, damagelog, actortype, attributes) in the_damned.iter() {
         let hp = attributes.get(&Stat::Health.as_tag()).unwrap_or(&1.0);
-        if *hp > 0.0 { continue }
-        
+        if *hp > 0.0 {
+            continue;
+        }
+
         let mut killers = Vec::new();
         for instance in damagelog.list.iter().rev() {
-            if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT){
-                break
+            if Instant::now().duration_since(instance.when)
+                > Duration::from_secs(TIME_FOR_KILL_CREDIT)
+            {
+                break;
             }
             //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
             killers.push(instance.attacker);
@@ -411,51 +450,64 @@ fn check_deaths(
 fn despawn_dead(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
-    mut the_damned: Query<(&mut Transform, &mut Visibility, &mut CharacterState, Option<&Bounty>), With<ActorType>>,
+    mut the_damned: Query<
+        (
+            &mut Transform,
+            &mut Visibility,
+            &mut CharacterState,
+            Option<&Bounty>,
+        ),
+        With<ActorType>,
+    >,
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
     mut character_state_next: ResMut<NextState<CharacterState>>,
     local_player: Res<Player>,
     mut scoreboard: ResMut<Scoreboard>,
-){
-    for event in death_events.iter(){
+) {
+    for event in death_events.iter() {
         let mut is_dead_player = false;
-        match event.actor{
+        match event.actor {
             ActorType::Player(player) => {
-                if player == *local_player{
+                if player == *local_player {
                     character_state_next.set(CharacterState::Dead);
-                    let Ok(ui) = ui.get_single() else {continue};
+                    let Ok(ui) = ui.get_single() else { continue };
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }
                 let dead_guy = scoreboard.0.entry(player).or_default();
                 dead_guy.kda.deaths += 1;
                 is_dead_player = true;
-            },
+            }
             _ => (),
         }
         let respawn_timer = 8; // change to calculate based on level and game time, or static for jg camps
-        
-        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity) else {return};
-        
+
+        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity)
+        else {
+            return;
+        };
 
         for (index, awardee) in event.killers.iter().enumerate() {
-            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else { continue };            
+            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else {
+                continue;
+            };
 
             if let Some(bounty) = bounty {
-                
                 let gold = attributes.entry(Stat::Gold.into()).or_default();
                 *gold += bounty.gold;
                 let xp = attributes.entry(Stat::Xp.into()).or_default();
                 *xp += bounty.xp;
             }
 
-            if !is_dead_player{ continue }
-            if let ActorType::Player(killer) = awardee_actor{
+            if !is_dead_player {
+                continue;
+            }
+            if let ActorType::Player(killer) = awardee_actor {
                 let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
-                if index == 0{
+                if index == 0 {
                     killer_scoreboard.kda.kills += 1;
-                }else {
+                } else {
                     killer_scoreboard.kda.assists += 1;
                 }
             }
@@ -471,10 +523,10 @@ fn despawn_dead(
         *vis = Visibility::Hidden;
         gamemodedetails.respawns.insert(
             event.entity.clone(),
-            Respawn{
-                actortype: event.actor.clone(),                                     
-                timer: Timer::new(Duration::from_secs(respawn_timer), TimerMode::Once)
-            }, 
+            Respawn {
+                actortype: event.actor.clone(),
+                timer: Timer::new(Duration::from_secs(respawn_timer), TimerMode::Once),
+            },
         );
     }
 }
@@ -487,10 +539,7 @@ fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
     }
 }
 
-fn spool_gold(
-    mut attribute_query: Query<&mut Attributes, With<Player>>,
-    time: Res<Time>,
-){
+fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: Res<Time>) {
     let gold_per_second = 3.0;
     for mut attributes in attribute_query.iter_mut() {
         let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(2700.0);
@@ -511,7 +560,7 @@ pub struct FireHomingEvent {
     pub target: Entity,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect )]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Component, Reflect)]
 pub struct Team(pub TeamMask);
 // Team masks
 bitflags::bitflags! {
@@ -578,12 +627,10 @@ pub const CAMERA_GROUPING: CollisionGroups = CollisionGroups::new(
     Group::from_bits_truncate(Groups::CAMERA_FILTER.bits()),
 );
 
-
 #[derive(Component)]
 pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);
 
-pub enum AbilityBehavior{
+pub enum AbilityBehavior {
     Homing,
     OnHit,
-    
 }

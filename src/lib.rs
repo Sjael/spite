@@ -1,4 +1,3 @@
-
 use bevy::asset::ChangeWatcher;
 use bevy::prelude::*;
 use bevy_editor_pls::prelude::*;
@@ -6,13 +5,13 @@ use bevy_rapier3d::prelude::*;
 use std::time::Duration;
 
 use ability::shape::load_ability_shape;
+use actor::view::ViewPlugin;
+use actor::CharacterPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
-use actor::CharacterPlugin;
-use actor::view::ViewPlugin;
 use ui::UiPlugin;
 
 pub fn app_plugins_both(app: &mut App) {
@@ -42,29 +41,28 @@ pub fn app_plugins_both(app: &mut App) {
         .add_state::<GameState>();
 
     app.add_plugins((
-            EditorPlugin::default(),
-            RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin {
-                enabled: true,
-                style: Default::default(),
-                //mode: DebugRenderMode::COLLIDER_SHAPES,
-                ..default()
-            },
-            TweeningPlugin,
-        ));
+        EditorPlugin::default(),
+        RapierPhysicsPlugin::<NoUserData>::default(),
+        RapierDebugRenderPlugin {
+            enabled: true,
+            style: Default::default(),
+            //mode: DebugRenderMode::COLLIDER_SHAPES,
+            ..default()
+        },
+        TweeningPlugin,
+    ));
 
     app.add_plugins((
-            GameAssetPlugin,
-            GameManagerPlugin,
-            ViewPlugin,
-            UiPlugin,
-            CharacterPlugin,
-            AreaPlugin,
-            InputPlugin,
-        ))
-        .add_systems(PostUpdate, load_ability_shape)// after systems that spawn ability_shape components
-        .add_systems(Update, tick_game); 
-        
+        GameAssetPlugin,
+        GameManagerPlugin,
+        ViewPlugin,
+        UiPlugin,
+        CharacterPlugin,
+        AreaPlugin,
+        InputPlugin,
+    ))
+    .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
+    .add_systems(Update, tick_game);
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -97,10 +95,10 @@ pub fn on_gametick(game_timer: Res<GameTimer>) -> bool {
     game_timer.just_finished()
 }
 
-pub mod area;
 pub mod ability;
-pub mod assets;
 pub mod actor;
+pub mod area;
+pub mod assets;
 pub mod game_manager;
 pub mod input;
 pub mod item;

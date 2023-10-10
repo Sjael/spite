@@ -1,7 +1,5 @@
-
-
-use std::collections::HashMap;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 use derive_more::Display;
 
@@ -24,7 +22,7 @@ pub enum Item {
 }
 
 #[derive(Default, Clone)]
-pub struct ItemInfo{
+pub struct ItemInfo {
     pub price: u32,
     pub parts: Vec<Item>,
     pub stats: HashMap<Stat, u32>,
@@ -33,7 +31,7 @@ pub struct ItemInfo{
 
 // stuff that isn't per 'stage' of an item, downstream of hierarchy
 #[derive(Default, Clone)]
-pub struct ItemTotal{
+pub struct ItemTotal {
     pub price: u32,
     pub flat_parts: Vec<Item>,
     pub ancestors: Vec<Item>,
@@ -45,7 +43,7 @@ lazy_static! {
         use Item::*;
         HashMap::from([
             (
-                Arondight, 
+                Arondight,
                 ItemInfo{
                     price: 900,
                     parts: vec![HiddenDagger, DruidStone, Polynomicon],
@@ -56,7 +54,7 @@ lazy_static! {
                 }
             ),
             (
-                SoulReaver, 
+                SoulReaver,
                 ItemInfo{
                     price: 700,
                     parts: vec![BookOfSouls, Polynomicon, HiddenDagger],
@@ -67,7 +65,7 @@ lazy_static! {
                 }
             ),
             (
-                Deathbringer, 
+                Deathbringer,
                 ItemInfo{
                     price: 900,
                     parts: vec![HiddenDagger, HiddenDagger],
@@ -78,7 +76,7 @@ lazy_static! {
                 }
             ),
             (
-                HiddenDagger, 
+                HiddenDagger,
                 ItemInfo{
                     price: 500,
                     stats: HashMap::from([
@@ -88,7 +86,7 @@ lazy_static! {
                 }
             ),
             (
-                BookOfSouls, 
+                BookOfSouls,
                 ItemInfo{
                     price: 450,
                     stats: HashMap::from([
@@ -98,7 +96,7 @@ lazy_static! {
                 }
             ),
             (
-                DruidStone, 
+                DruidStone,
                 ItemInfo{
                     price: 300,
                     stats: HashMap::from([
@@ -108,7 +106,7 @@ lazy_static! {
                 }
             ),
             (
-                Polynomicon, 
+                Polynomicon,
                 ItemInfo{
                     price: 750,
                     stats: HashMap::from([
@@ -127,7 +125,7 @@ lazy_static! {
             if !map.contains_key(&item){
                 map.insert(item.clone(), item.calculate_totals());
             }
-            
+
             for part in info.parts{
                 let part_info: &mut ItemTotal = map.entry(part.clone()).or_insert(part.calculate_totals());
                 if part_info.ancestors.contains(&item){ continue };
@@ -138,11 +136,10 @@ lazy_static! {
     };
 }
 
-impl Item{
-
+impl Item {
     pub fn get_image(&self, images: &Res<Items>) -> UiImage {
         use Item::*;
-        let image = match self{
+        let image = match self {
             Arondight => images.arondight.clone(),
             SoulReaver => images.soul_reaver.clone(),
             HiddenDagger => images.hidden_dagger.clone(),
@@ -158,20 +155,23 @@ impl Item{
 
     pub fn calculate_discount(&self, inventory: &Inventory) -> u32 {
         let mut all_parts = self.totals().flat_parts;
-        let checked = inventory.0.iter().cloned()
+        let checked = inventory
+            .0
+            .iter()
+            .cloned()
             .filter_map(|x| x)
             .collect::<Vec<_>>();
         let mut subtract = 0;
-        for component in checked{
-            let index = if let Some(index) = all_parts.iter().position(|x| x == &component){
+        for component in checked {
+            let index = if let Some(index) = all_parts.iter().position(|x| x == &component) {
                 index
             } else {
-                continue
+                continue;
             };
             subtract += component.totals().price;
             all_parts.remove(index);
-            for part in component.info().parts{
-                if let Some(part_index) = all_parts.iter().position(|x| x == &part){
+            for part in component.info().parts {
+                if let Some(part_index) = all_parts.iter().position(|x| x == &part) {
                     all_parts.remove(part_index);
                 }
             }
@@ -188,21 +188,17 @@ impl Item{
             price += sub_total.price;
             flat_parts.append(&mut sub_total.flat_parts);
         }
-        ItemTotal{
+        ItemTotal {
             price,
             flat_parts,
             ancestors: Vec::new(),
         }
     }
 
-   
-    pub fn totals(&self) -> ItemTotal{
+    pub fn totals(&self) -> ItemTotal {
         ITEM_TOTALS.get(self).cloned().unwrap_or_default()
     }
-    pub fn info(&self) -> ItemInfo{
+    pub fn info(&self) -> ItemInfo {
         ITEM_DB.get(self).cloned().unwrap_or_default()
     }
-  
-
-    
 }

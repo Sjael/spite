@@ -1,12 +1,12 @@
-use bevy::{prelude::*, utils::HashMap};
-use strum_macros::EnumIter;
-use strum::IntoEnumIterator;
 use crate::ability::{Ability, DamageType};
+use bevy::{prelude::*, utils::HashMap};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 //use fixed::types::I40F24;
 use crate::area::HealthChangeEvent;
 //use crate::buff::BuffMap;
-use crate::GameState;
 use crate::game_manager::InGameSet;
+use crate::GameState;
 use std::fmt::Display;
 use std::time::Instant;
 
@@ -36,10 +36,10 @@ pub enum Stat {
     CooldownReduction,
 }
 
-impl Stat{
-    fn get_base(self) -> f32{
+impl Stat {
+    fn get_base(self) -> f32 {
         use Stat::*;
-        match self{
+        match self {
             Level => 1.0,
             Speed => 5.0,
             HealthMax => 465.0,
@@ -58,7 +58,7 @@ impl Stat{
 
 impl Display for Stat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let string = match self{
+        let string = match self {
             Stat::Xp => "Experience",
             Stat::Speed => "Movement Speed",
             Stat::HealthRegen => "Health Regen",
@@ -82,21 +82,19 @@ impl Display for Stat {
     }
 }
 
-impl Stat{
-    pub fn as_tag(self) -> AttributeTag{
+impl Stat {
+    pub fn as_tag(self) -> AttributeTag {
         AttributeTag::from(self)
     }
 }
 
-
-
-impl From<Stat> for AttributeTag{
-    fn from(src: Stat) -> AttributeTag{
+impl From<Stat> for AttributeTag {
+    fn from(src: Stat) -> AttributeTag {
         AttributeTag::Stat(src)
     }
 }
 
-#[derive(Reflect, Debug, Default, Clone , PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Reflect, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Modifier {
     #[default]
     Add,
@@ -111,9 +109,9 @@ pub enum Modifier {
 
 impl Modifier {
     pub fn into_tag(self, stat: Stat) -> AttributeTag {
-        AttributeTag::Modifier{
+        AttributeTag::Modifier {
             modifier: self,
-            target: Box::new(stat.into())
+            target: Box::new(stat.into()),
         }
     }
 }
@@ -128,18 +126,23 @@ impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HealthMitigatedEvent>();
         app.register_type::<Vec<String>>();
-        app.add_systems(Update, (
-            calculate_attributes,
-            regen_health,
-            regen_resource,
-            calculate_health_change,
-            apply_health_change,
-        ).chain().in_set(InGameSet::Update));
+        app.add_systems(
+            Update,
+            (
+                calculate_attributes,
+                regen_health,
+                regen_resource,
+                calculate_health_change,
+                apply_health_change,
+            )
+                .chain()
+                .in_set(InGameSet::Update),
+        );
     }
 }
 
 #[derive(Event, Clone)]
-pub struct HealthMitigatedEvent{
+pub struct HealthMitigatedEvent {
     pub change: i32,
     pub mitigated: u32,
     pub ability: Ability,
@@ -156,8 +159,10 @@ pub fn calculate_health_change(
     attribute_query: Query<&Attributes>,
 ) {
     for event in health_events.iter() {
-        let Ok(defender_stats) = attribute_query.get(event.defender) else {continue};
-        let attacker_stats = if let Ok(attacker_stats) = attribute_query.get(event.attacker){
+        let Ok(defender_stats) = attribute_query.get(event.defender) else {
+            continue;
+        };
+        let attacker_stats = if let Ok(attacker_stats) = attribute_query.get(event.attacker) {
             attacker_stats.clone()
         } else {
             Attributes::default() // can prob optimize this later
@@ -165,24 +170,32 @@ pub fn calculate_health_change(
 
         let (prots, pen) = if event.damage_type == DamageType::Physical {
             (
-                *defender_stats.get(&Stat::PhysicalProtection.as_tag()).unwrap_or(&100.0),
-                *attacker_stats.get(&Stat::PhysicalPenetration.as_tag()).unwrap_or(&0.0)
+                *defender_stats
+                    .get(&Stat::PhysicalProtection.as_tag())
+                    .unwrap_or(&100.0),
+                *attacker_stats
+                    .get(&Stat::PhysicalPenetration.as_tag())
+                    .unwrap_or(&0.0),
             )
-
         } else if event.damage_type == DamageType::Magical {
             (
-                *defender_stats.get(&Stat::MagicalProtection.as_tag()).unwrap_or(&100.0),
-                *attacker_stats.get(&Stat::MagicalPenetration.as_tag()).unwrap_or(&0.0)
+                *defender_stats
+                    .get(&Stat::MagicalProtection.as_tag())
+                    .unwrap_or(&100.0),
+                *attacker_stats
+                    .get(&Stat::MagicalPenetration.as_tag())
+                    .unwrap_or(&0.0),
             )
         } else {
-            (0.0 , 0.0)
+            (0.0, 0.0)
         };
         let percent_pen = 10.0;
         let prots_penned = prots * percent_pen / 100.0 + pen;
-        let post_mitigation_damage = (event.amount * 100.0 / (100.0 + prots - prots_penned)).ceil() as i32; 
+        let post_mitigation_damage =
+            (event.amount * 100.0 / (100.0 + prots - prots_penned)).ceil() as i32;
         // ceil = round up, so damage gets -1 and healing gets +1, might use floor to nerf healing if op LOL
         let mitigated = (event.amount as i32 - post_mitigation_damage).abs() as u32;
-        health_mitigated_events.send(HealthMitigatedEvent{
+        health_mitigated_events.send(HealthMitigatedEvent {
             change: post_mitigation_damage,
             mitigated: mitigated,
             ability: event.ability,
@@ -198,9 +211,11 @@ pub fn calculate_health_change(
 pub fn apply_health_change(
     mut health_mitigated_events: EventReader<HealthMitigatedEvent>,
     mut health_query: Query<&mut Attributes>,
-){
+) {
     for event in health_mitigated_events.iter() {
-        let Ok(mut defender_stats) = health_query.get_mut(event.defender) else {continue};
+        let Ok(mut defender_stats) = health_query.get_mut(event.defender) else {
+            continue;
+        };
         let health = defender_stats.entry(Stat::Health.as_tag()).or_default();
         /*
         if event.change > 0 {
@@ -213,10 +228,7 @@ pub fn apply_health_change(
         *health = new_hp;
     }
 }
-pub fn regen_health(
-    mut query: Query<&mut Attributes>,
-    time: Res<Time>,
-){
+pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
     for mut attributes in query.iter_mut() {
         let regen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
         let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
@@ -229,15 +241,18 @@ pub fn regen_health(
     }
 }
 
-pub fn regen_resource(
-    mut query: Query<&mut Attributes>,
-    time: Res<Time>,
-){
+pub fn regen_resource(mut query: Query<&mut Attributes>, time: Res<Time>) {
     for mut attributes in query.iter_mut() {
-        let regen = *attributes.get(&Stat::CharacterResourceRegen.as_tag()).unwrap_or(&0.0);
-        let max = *attributes.get(&Stat::CharacterResourceMax.as_tag()).unwrap_or(&100.0);
-        let resource = attributes.entry(Stat::CharacterResource.as_tag()).or_default();
-        let result = *resource + (regen * time.delta_seconds()) ;
+        let regen = *attributes
+            .get(&Stat::CharacterResourceRegen.as_tag())
+            .unwrap_or(&0.0);
+        let max = *attributes
+            .get(&Stat::CharacterResourceMax.as_tag())
+            .unwrap_or(&100.0);
+        let resource = attributes
+            .entry(Stat::CharacterResource.as_tag())
+            .or_default();
+        let result = *resource + (regen * time.delta_seconds());
         *resource = result.clamp(0.0, max);
     }
 }
@@ -260,30 +275,28 @@ Health = 51.0.max(100.0) == 51.0;
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct Attributes(HashMap<AttributeTag, f32>);
 
-impl Default for Attributes{
+impl Default for Attributes {
     fn default() -> Self {
         let mut map: HashMap<AttributeTag, f32> = HashMap::new();
-        for stat in Stat::iter(){
+        for stat in Stat::iter() {
             use Stat::*;
-            match stat{
+            match stat {
                 Health | CharacterResource | Gold => continue, // these stats dont need modifier stack, add xp and level?
-                _ => ()
+                _ => (),
             }
             map.insert(
                 AttributeTag::Modifier {
                     modifier: Modifier::Base,
                     target: Box::new(stat.clone().into()),
-                }, 
-                stat.get_base()
+                },
+                stat.get_base(),
             );
         }
         Self(map)
     }
 }
 
-pub fn calculate_attributes(
-    mut attributes: Query<&mut Attributes, Changed<Attributes>>,
-){
+pub fn calculate_attributes(mut attributes: Query<&mut Attributes, Changed<Attributes>>) {
     for mut attributes in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before Mul<Base<Health>>
         let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
@@ -309,13 +322,13 @@ pub fn calculate_attributes(
 
                     *target_attr = modified;
                 }
-                AttributeTag::Stat(_) => ()
+                AttributeTag::Stat(_) => (),
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect )]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect)]
 pub enum AttributeTag {
     Modifier {
         modifier: Modifier,
@@ -325,7 +338,7 @@ pub enum AttributeTag {
     Stat(Stat),
 }
 
-impl Default for AttributeTag{
+impl Default for AttributeTag {
     fn default() -> Self {
         Self::Stat(Stat::Health)
     }
@@ -335,11 +348,11 @@ impl Default for AttributeTag{
 // if an ability changes 2 different stats in the same way, add or mult, itll break probably (?)
 impl Display for AttributeTag {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self{
+        match self {
             AttributeTag::Modifier { modifier, target } => {
                 write!(f, "{:?} {:?}", modifier, *target)
             }
-            AttributeTag::Stat(stat) => write!(f, "{:?}", stat)
+            AttributeTag::Stat(stat) => write!(f, "{:?}", stat),
         }
     }
 }

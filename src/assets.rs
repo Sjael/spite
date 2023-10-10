@@ -5,7 +5,6 @@ use bevy_asset_loader::prelude::*;
 
 use crate::GameState;
 
-
 #[derive(AssetCollection, Resource)]
 pub struct Icons {
     #[asset(path = "icons/frostbolt.png")]
@@ -26,15 +25,15 @@ pub struct Items {
     pub arondight: Handle<Image>,
     #[asset(path = "icons/items/HiddenDagger_T1.png")]
     pub hidden_dagger: Handle<Image>,
-    #[asset(path = "icons/items/SoulReaver_T3.png")]   
+    #[asset(path = "icons/items/SoulReaver_T3.png")]
     pub soul_reaver: Handle<Image>,
-    #[asset(path = "icons/items/Spellbook_T1.png")]   
+    #[asset(path = "icons/items/Spellbook_T1.png")]
     pub book_of_souls: Handle<Image>,
-    #[asset(path = "icons/items/Witchblade_T3.png")]   
+    #[asset(path = "icons/items/Witchblade_T3.png")]
     pub witchblade: Handle<Image>,
-    #[asset(path = "icons/items/DruidStone_T1.png")]   
+    #[asset(path = "icons/items/DruidStone_T1.png")]
     pub druid_stone: Handle<Image>,
-    #[asset(path = "icons/items/Polynomicon_T3.png")]   
+    #[asset(path = "icons/items/Polynomicon_T3.png")]
     pub polynomicon: Handle<Image>,
 }
 
@@ -58,26 +57,26 @@ pub struct Fonts {
 
 #[derive(AssetCollection, Resource)]
 pub struct Images {
-    #[asset(path = "images/minimap.png")]   
+    #[asset(path = "images/minimap.png")]
     pub minimap: Handle<Image>,
-    #[asset(path = "images/circle.png")]   
+    #[asset(path = "images/circle.png")]
     pub circle: Handle<Image>,
-    #[asset(path = "images/enemy_tower.png")]   
+    #[asset(path = "images/enemy_tower.png")]
     pub enemy_tower: Handle<Image>,
-    #[asset(path = "images/friendly_tower.png")]   
+    #[asset(path = "images/friendly_tower.png")]
     pub friendly_tower: Handle<Image>,
-    #[asset(path = "images/default.png")]   
+    #[asset(path = "images/default.png")]
     pub default: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]
 pub struct Models {
-    #[asset(path = "models/skybox.gltf#Scene0")]   
+    #[asset(path = "models/skybox.gltf#Scene0")]
     pub skybox: Handle<Scene>,
 }
 #[derive(AssetCollection, Resource)]
 pub struct Scenes {
-    #[asset(path = "scenes/arenaMap2.glb#Scene0")]   
+    #[asset(path = "scenes/arenaMap2.glb#Scene0")]
     pub arena_map: Handle<Scene>,
 }
 
@@ -101,21 +100,15 @@ impl Plugin for GameAssetPlugin {
     }
 }
 
-fn load_presets(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-){
+fn load_presets(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
     let colors = vec![
         ("white", Color::WHITE),
         ("blue", Color::BLUE),
         ("red", Color::RED),
     ];
     let mut presets = HashMap::new();
-    for (color_string, color) in colors{
+    for (color_string, color) in colors {
         presets.insert(color_string.into(), materials.add(color.into()));
     }
     commands.insert_resource(MaterialPresets(presets));
-
-
-
 }

@@ -2,7 +2,7 @@ pub mod arc;
 pub mod rectangle;
 
 pub use arc::*;
-use bevy_rapier3d::prelude::{Collider, ActiveEvents, ActiveCollisionTypes};
+use bevy_rapier3d::prelude::{ActiveCollisionTypes, ActiveEvents, Collider};
 pub use rectangle::*;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use bevy::prelude::*;
 
 use crate::assets::MaterialPresets;
 
-use super::{bundles::Targetter, TargetsInArea, TargetsHittable};
+use super::{bundles::Targetter, TargetsHittable, TargetsInArea};
 
 #[derive(Component, Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[reflect_value(Component, PartialEq, Serialize, Deserialize)]
@@ -61,21 +61,23 @@ pub fn load_ability_shape(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
         ));
-        let new_material = presets.0.get("red").unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into())).clone();
-        if let None = targetter{
-            commands.entity(entity).insert((
-                new_material,           
-                TargetsHittable::default(),
-            ));
+        let new_material = presets
+            .0
+            .get("red")
+            .unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into()))
+            .clone();
+        if let None = targetter {
+            commands
+                .entity(entity)
+                .insert((new_material, TargetsHittable::default()));
         }
     }
 }
 
-
-pub fn cross_product(first: Vec3, second: Vec3) -> Vec3{
+pub fn cross_product(first: Vec3, second: Vec3) -> Vec3 {
     let x = first[1] * second[2] - second[1] * first[2];
     let y = first[2] * second[0] - second[2] * first[0];
     let z = first[0] * second[2] - second[0] * first[1];
-    Vec3::new(x,y,z)
+    Vec3::new(x, y, z)
     // normalize if you want generated normal
 }
