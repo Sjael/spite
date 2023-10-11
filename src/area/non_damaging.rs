@@ -14,10 +14,7 @@ pub struct ObjectiveHealthOwner {
     pub looking_range: f32,
 }
 
-pub fn add_health_bar_detect_colliders(
-    detectors: Query<(Entity, &ObjectiveHealthOwner), Added<ObjectiveHealthOwner>>,
-    mut commands: Commands,
-) {
+pub fn add_health_bar_detect_colliders(detectors: Query<(Entity, &ObjectiveHealthOwner), Added<ObjectiveHealthOwner>>, mut commands: Commands) {
     for (entity, health_range) in &detectors {
         commands.entity(entity).with_children(|parent| {
             parent.spawn((
@@ -40,12 +37,8 @@ pub fn focus_objective_health(
     mut area_events: EventReader<AreaOverlapEvent>,
 ) {
     for event in area_events.iter() {
-        let Ok(parent) = query.get(event.sensor) else {
-            continue;
-        };
-        let Ok(player) = players.get(event.target) else {
-            continue;
-        };
+        let Ok(parent) = query.get(event.sensor) else { continue };
+        let Ok(player) = players.get(event.target) else { continue };
         if *player == *local_player {
             if event.overlap == AreaOverlapType::Entered {
                 focused_health_entity.0 = Some(parent.get());

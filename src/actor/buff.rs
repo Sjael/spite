@@ -102,19 +102,13 @@ pub fn apply_buffs(
 ) {
     for event in buff_events.iter() {
         if let Ok((mut buffs, mut attributes)) = targets_query.get_mut(event.target) {
-            let ability = format!(
-                "{}v{}",
-                event.buff_originator.index(),
-                event.buff_originator.generation()
-            );
+            let ability = format!("{}v{}", event.buff_originator.index(), event.buff_originator.generation());
             let caster = format!("{}v{}", event.caster.index(), event.caster.generation());
 
             let buff_id = format!("{}_{}_{}", caster, ability, event.info.stat.to_string());
             let mut added_stack = false;
             if buffs.map.contains_key(&buff_id) {
-                let Some(applied) = buffs.map.get_mut(&buff_id) else {
-                    continue;
-                };
+                let Some(applied) = buffs.map.get_mut(&buff_id) else { continue };
                 if applied.info.max_stacks > applied.stacks {
                     applied.stacks += 1;
                     added_stack = true;
@@ -132,10 +126,7 @@ pub fn apply_buffs(
                     BuffInfoApplied {
                         info: event.info.clone(),
                         stacks: 1,
-                        timer: Timer::new(
-                            Duration::from_millis((event.info.duration * 1000.0) as u64),
-                            TimerMode::Once,
-                        ),
+                        timer: Timer::new(Duration::from_millis((event.info.duration * 1000.0) as u64), TimerMode::Once),
                     },
                 );
                 add_events.send(BuffAddEvent {

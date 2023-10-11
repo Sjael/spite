@@ -11,14 +11,9 @@ use crate::{
         HasHealthBar,
     },
     assets::{Fonts, Icons, Images, Items},
-    game_manager::{
-        ActorType, DeathEvent, GameModeDetails, InGameSet, Scoreboard, Team, TeamRoster, TEAM_1,
-    },
+    game_manager::{ActorType, DeathEvent, GameModeDetails, InGameSet, Scoreboard, Team, TeamRoster, TEAM_1},
     item::{Item, ITEM_DB},
-    ui::{
-        hud_editor::*, ingame_menu::*, inventory::*, main_menu::*, mouse::*, spectating::*,
-        styles::*, ui_bundles::*,
-    },
+    ui::{hud_editor::*, ingame_menu::*, inventory::*, main_menu::*, mouse::*, spectating::*, styles::*, ui_bundles::*},
     GameState,
 };
 
@@ -45,28 +40,15 @@ impl Plugin for UiPlugin {
 
         app.add_plugins(InventoryPlugin);
         app.add_systems(OnEnter(GameState::MainMenu), (spawn_main_menu,));
-        app.add_systems(
-            Update,
-            (exit_game_main_menu.run_if(in_state(GameState::MainMenu)),),
-        );
+        app.add_systems(Update, (exit_game_main_menu.run_if(in_state(GameState::MainMenu)),));
         app.add_systems(OnExit(GameState::MainMenu), (cleanup,));
 
         app.add_systems(Update, (button_hovers, button_actions));
 
         app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
 
-        app.configure_set(
-            Update,
-            SpectatingSet
-                .run_if(resource_exists::<Spectating>())
-                .run_if(in_state(GameState::InGame)),
-        );
-        app.configure_set(
-            Update,
-            FreeMouseSet
-                .run_if(in_state(MouseState::Free))
-                .run_if(in_state(GameState::InGame)),
-        );
+        app.configure_set(Update, SpectatingSet.run_if(resource_exists::<Spectating>()).run_if(in_state(GameState::InGame)));
+        app.configure_set(Update, FreeMouseSet.run_if(in_state(MouseState::Free)).run_if(in_state(GameState::InGame)));
 
         app.add_systems(
             Update,
@@ -128,21 +110,13 @@ impl Plugin for UiPlugin {
         app.add_systems(OnEnter(InGameMenu::Open), toggle_ingame_menu);
         app.add_systems(OnEnter(InGameMenu::Closed), toggle_ingame_menu);
 
-        app.add_systems(
-            OnEnter(EditingHUD::Yes),
-            (give_editable_ui, scale_ui, reset_editable_ui),
-        );
+        app.add_systems(OnEnter(EditingHUD::Yes), (give_editable_ui, scale_ui, reset_editable_ui));
 
         app.add_systems(OnEnter(EditingHUD::No), remove_editable_ui);
     }
 }
 
-fn button_hovers(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>, Without<Category>),
-    >,
-) {
+fn button_hovers(mut interaction_query: Query<(&Interaction, &mut BackgroundColor), (Changed<Interaction>, With<Button>, Without<Category>)>) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
@@ -158,15 +132,8 @@ fn button_hovers(
     }
 }
 
-fn populate_scoreboard(
-    roster: Res<TeamRoster>,
-    mut commands: Commands,
-    scoreboard: Query<Entity, Added<ScoreboardUI>>,
-    fonts: Res<Fonts>,
-) {
-    let Ok(scoreboard_ui) = scoreboard.get_single() else {
-        return;
-    }; // else spawn scoreboard?
+fn populate_scoreboard(roster: Res<TeamRoster>, mut commands: Commands, scoreboard: Query<Entity, Added<ScoreboardUI>>, fonts: Res<Fonts>) {
+    let Ok(scoreboard_ui) = scoreboard.get_single() else { return }; // else spawn scoreboard?
     commands.entity(scoreboard_ui).despawn_descendants();
     for (team, players) in roster.teams.iter() {
         let mut color = Color::rgba(0.3, 0.15, 0.1, 0.95);
@@ -177,18 +144,12 @@ fn populate_scoreboard(
             println!("spawning");
             dbg!(player);
             commands.entity(scoreboard_ui).with_children(|parent| {
-                parent
-                    .spawn(scoreboard_entry(color))
-                    .with_children(|parent| {
-                        parent.spawn(plain_text(player.id.clone().to_string(), 14, &fonts));
-                    });
-                parent
-                    .spawn(scoreboard_entry(color))
-                    .with_children(|parent| {
-                        parent
-                            .spawn(plain_text("0 / 0 / 0", 14, &fonts))
-                            .insert(KDAText);
-                    });
+                parent.spawn(scoreboard_entry(color)).with_children(|parent| {
+                    parent.spawn(plain_text(player.id.clone().to_string(), 14, &fonts));
+                });
+                parent.spawn(scoreboard_entry(color)).with_children(|parent| {
+                    parent.spawn(plain_text("0 / 0 / 0", 14, &fonts)).insert(KDAText);
+                });
             });
         }
     }
@@ -226,43 +187,40 @@ fn add_base_ui(mut commands: Commands, items: Res<Items>, fonts: Res<Fonts>, ima
                 parent.spawn(team_thumbs());
             });
         });
-        parent
-            .spawn(bottom_left_ui_holder())
-            .with_children(|parent| {
-                parent.spawn(editable_ui_wrapper()).with_children(|parent| {
-                    parent.spawn(bottom_left_ui()).with_children(|parent| {
-                        parent.spawn(stats_ui()).with_children(|parent| {
-                            parent
-                                .spawn(color_text("0", 24, &fonts, Color::YELLOW))
-                                .insert(GoldInhand);
-                            for x in 0..6 {
-                                parent.spawn(plain_text(format!("stat {}", x), 16, &fonts));
-                            }
+        parent.spawn(bottom_left_ui_holder()).with_children(|parent| {
+            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                parent.spawn(bottom_left_ui()).with_children(|parent| {
+                    parent.spawn(stats_ui()).with_children(|parent| {
+                        parent.spawn(color_text("0", 24, &fonts, Color::YELLOW)).insert(GoldInhand);
+                        for x in 0..6 {
+                            parent.spawn(plain_text(format!("stat {}", x), 16, &fonts));
+                        }
+                    });
+                    parent.spawn(build_and_kda()).with_children(|parent| {
+                        parent.spawn(kda_ui()).with_children(|parent| {
+                            parent.spawn(plain_text("0 / 0 / 0", 18, &fonts)).insert(PersonalKDA);
                         });
-                        parent.spawn(build_and_kda()).with_children(|parent| {
-                            parent.spawn(kda_ui()).with_children(|parent| {
-                                parent
-                                    .spawn(plain_text("0 / 0 / 0", 18, &fonts))
-                                    .insert(PersonalKDA);
+                        parent.spawn(build_ui()).with_children(|parent| {
+                            parent.spawn(build_slot(1)).with_children(|parent| {
+                                //parent.spawn(item_image_build(&items,
+                                // Item::Arondight));
                             });
-                            parent.spawn(build_ui()).with_children(|parent| {
-                                parent.spawn(build_slot(1)).with_children(|parent| {
-                                    //parent.spawn(item_image_build(&items, Item::Arondight));
-                                });
-                                parent.spawn(build_slot(2)).with_children(|parent| {
-                                    //parent.spawn(item_image_build(&items, Item::HiddenDagger));
-                                });
-                                parent.spawn(build_slot(3));
-                                parent.spawn(build_slot(4)).with_children(|parent| {
-                                    //parent.spawn(item_image_build(&items, Item::SoulReaver));
-                                });
-                                parent.spawn(build_slot(5));
-                                parent.spawn(build_slot(6));
+                            parent.spawn(build_slot(2)).with_children(|parent| {
+                                //parent.spawn(item_image_build(&items,
+                                // Item::HiddenDagger));
                             });
+                            parent.spawn(build_slot(3));
+                            parent.spawn(build_slot(4)).with_children(|parent| {
+                                //parent.spawn(item_image_build(&items,
+                                // Item::SoulReaver));
+                            });
+                            parent.spawn(build_slot(5));
+                            parent.spawn(build_slot(6));
                         });
                     });
                 });
             });
+        });
         // non editable ui
         parent.spawn(tooltip());
         parent.spawn(tab_panel()).with_children(|parent| {
@@ -277,9 +235,7 @@ fn add_base_ui(mut commands: Commands, items: Res<Items>, fonts: Res<Fonts>, ima
         parent.spawn(store()).with_children(|parent| {
             parent.spawn(drag_bar());
             parent.spawn(gold_holder()).with_children(|parent| {
-                parent
-                    .spawn(color_text("0", 20, &fonts, Color::YELLOW))
-                    .insert((GoldInhand, ZIndex::Global(4)));
+                parent.spawn(color_text("0", 20, &fonts, Color::YELLOW)).insert((GoldInhand, ZIndex::Global(4)));
             });
             parent.spawn(list_categories()).with_children(|parent| {
                 /*parent.spawn(button()).insert(
@@ -288,23 +244,17 @@ fn add_base_ui(mut commands: Commands, items: Res<Items>, fonts: Res<Fonts>, ima
                     parent.spawn(button_text("Clear", &fonts));
                 });*/
                 for stat in CATEGORIES.iter() {
-                    parent
-                        .spawn(category(stat.clone()))
-                        .with_children(|parent| {
-                            parent.spawn(category_text(stat.to_string(), &fonts));
-                        });
+                    parent.spawn(category(stat.clone())).with_children(|parent| {
+                        parent.spawn(category_text(stat.to_string(), &fonts));
+                    });
                 }
             });
             parent.spawn(list_items()).with_children(|parent| {
                 for item in ITEM_DB.keys() {
-                    parent
-                        .spawn(store_item_wrap(item.clone()))
-                        .with_children(|parent| {
-                            parent.spawn(store_item(&items, item.clone()));
-                            parent
-                                .spawn(color_text("", 16, &fonts, Color::WHITE))
-                                .insert(ItemDiscount(item.clone()));
-                        });
+                    parent.spawn(store_item_wrap(item.clone())).with_children(|parent| {
+                        parent.spawn(store_item(&items, item.clone()));
+                        parent.spawn(color_text("", 16, &fonts, Color::WHITE)).insert(ItemDiscount(item.clone()));
+                    });
                 }
             });
             parent.spawn(inspector()).with_children(|parent| {
@@ -313,35 +263,20 @@ fn add_base_ui(mut commands: Commands, items: Res<Items>, fonts: Res<Fonts>, ima
                     parent.spawn(item_tree());
                 });
                 parent.spawn(item_details()).with_children(|parent| {
-                    parent
-                        .spawn(color_text("", 14, &fonts, Color::YELLOW))
-                        .insert(ItemPriceText);
-                    parent
-                        .spawn(color_text("", 16, &fonts, Color::GREEN))
-                        .insert((ItemDiscount(Item::Arondight), ItemDiscountText));
-                    parent
-                        .spawn(color_text("", 18, &fonts, Color::WHITE))
-                        .insert(ItemNameText);
+                    parent.spawn(color_text("", 14, &fonts, Color::YELLOW)).insert(ItemPriceText);
+                    parent.spawn(color_text("", 16, &fonts, Color::GREEN)).insert((ItemDiscount(Item::Arondight), ItemDiscountText));
+                    parent.spawn(color_text("", 18, &fonts, Color::WHITE)).insert(ItemNameText);
                     parent.spawn(hori()).with_children(|parent| {
-                        parent
-                            .spawn(button())
-                            .insert(ButtonAction::BuyItem)
-                            .with_children(|parent| {
-                                parent.spawn(plain_text("BUY", 20, &fonts));
-                            });
-                        parent
-                            .spawn(button())
-                            .insert(ButtonAction::SellItem)
-                            .with_children(|parent| {
-                                parent.spawn(plain_text("SELL", 16, &fonts));
-                            });
-                    });
-                    parent
-                        .spawn(button())
-                        .insert(ButtonAction::UndoStore)
-                        .with_children(|parent| {
-                            parent.spawn(plain_text("UNDO", 16, &fonts));
+                        parent.spawn(button()).insert(ButtonAction::BuyItem).with_children(|parent| {
+                            parent.spawn(plain_text("BUY", 20, &fonts));
                         });
+                        parent.spawn(button()).insert(ButtonAction::SellItem).with_children(|parent| {
+                            parent.spawn(plain_text("SELL", 16, &fonts));
+                        });
+                    });
+                    parent.spawn(button()).insert(ButtonAction::UndoStore).with_children(|parent| {
+                        parent.spawn(plain_text("UNDO", 16, &fonts));
+                    });
                 });
             });
         });
@@ -354,14 +289,7 @@ fn drag_holdable(
     windows: Query<&mut Window, With<PrimaryWindow>>,
     // both queries can be the same entity or different
     handle_query: Query<(Entity, &Interaction, &Parent), With<DragHandle>>,
-    mut draggable_query: Query<(
-        &mut Style,
-        &Parent,
-        &Node,
-        &GlobalTransform,
-        &Draggable,
-        &mut ZIndex,
-    )>,
+    mut draggable_query: Query<(&mut Style, &Parent, &Node, &GlobalTransform, &Draggable, &mut ZIndex)>,
     parent_query: Query<(&Node, &GlobalTransform, Option<&mut ZTracker>)>,
     build_slot_query: Query<&BuildSlotNumber>,
     mut offset: Local<Vec2>,
@@ -370,25 +298,17 @@ fn drag_holdable(
     mouse: Res<Input<MouseButton>>,
     mut holding: ResMut<CursorHolding>,
 ) {
-    let Ok(window) = windows.get_single() else {
-        return;
-    };
-    let Some(cursor_pos) = window.cursor_position() else {
-        return;
-    };
+    let Ok(window) = windows.get_single() else { return };
+    let Some(cursor_pos) = window.cursor_position() else { return };
     if !mouse.pressed(MouseButton::Left) {
-        return;
+        return
     }
     for (handle_entity, interaction, handle_parent) in &handle_query {
         if *interaction != Interaction::Pressed {
-            continue;
-        };
+            continue
+        }
         for entity in [handle_entity, handle_parent.get()] {
-            let Ok((mut style, parent, node, gt, draggable, mut z_index)) =
-                draggable_query.get_mut(entity)
-            else {
-                continue;
-            };
+            let Ok((mut style, parent, node, gt, draggable, mut z_index)) = draggable_query.get_mut(entity) else { continue };
             if mouse.just_pressed(MouseButton::Left) {
                 if let Ok((parent_node, parent_gt, mut ztracker)) = parent_query.get(parent.get()) {
                     parent_offset.x = parent_gt.translation().x - parent_node.size().x / 2.0;
@@ -398,10 +318,7 @@ fn drag_holdable(
                 offset.x = cursor_pos.x - (gt.translation().x - node.size().x / 2.0);
                 offset.y = cursor_pos.y - (gt.translation().y - node.size().y / 2.0);
                 if let Ok(build_number) = build_slot_query.get(parent.get()) {
-                    holding.0 = Some(HeldItem {
-                        item: entity,
-                        slot: build_number.0,
-                    });
+                    holding.0 = Some(HeldItem { item: entity, slot: build_number.0 });
                 }
                 if handle_entity == entity {
                     *z_index = ZIndex::Global(7);
@@ -437,7 +354,8 @@ fn drag_holdable(
             style.left = Val::Px(left_position);
             style.top = Val::Px(top_position);
             style.position_type = PositionType::Absolute;
-            return; // so we dont have to FocusPolicy::Block, can just return once we found something to drag
+            return // so we dont have to FocusPolicy::Block, can just return
+                   // once we found something to drag
         }
     }
 }
@@ -459,37 +377,19 @@ fn drop_holdable(
     windows: Query<&mut Window, With<PrimaryWindow>>,
     mouse: Res<Input<MouseButton>>,
     mut holding: ResMut<CursorHolding>,
-    mut slot_query: Query<
-        (
-            Entity,
-            &Interaction,
-            &mut Style,
-            &mut BackgroundColor,
-            Option<&Children>,
-            &BuildSlotNumber,
-        ),
-        With<DropSlot>,
-    >,
+    mut slot_query: Query<(Entity, &Interaction, &mut Style, &mut BackgroundColor, Option<&Children>, &BuildSlotNumber), With<DropSlot>>,
     mut drag_query: Query<(&mut Style, &Parent, &mut ZIndex), Without<DropSlot>>,
 ) {
-    let Some(holding_entity) = holding.0 else {
-        return;
-    };
-    let Ok(window) = windows.get_single() else {
-        return;
-    };
-    let Some(_) = window.cursor_position() else {
-        return;
-    };
+    let Some(holding_entity) = holding.0 else { return };
+    let Ok(window) = windows.get_single() else { return };
+    let Some(_) = window.cursor_position() else { return };
     if mouse.just_released(MouseButton::Left) {
-        let Ok((mut style, parent, mut zindex)) = drag_query.get_mut(holding_entity.item) else {
-            return;
-        };
+        let Ok((mut style, parent, mut zindex)) = drag_query.get_mut(holding_entity.item) else { return };
 
         for (drop_entity, interaction, mut style, mut bg, children, slot_num) in &mut slot_query {
             *bg = Color::GRAY.into();
             if *interaction == Interaction::None {
-                continue;
+                continue
             }
             commands.entity(holding_entity.item).set_parent(drop_entity);
             if let Some(children) = children {
@@ -513,13 +413,8 @@ fn drop_holdable(
     }
 }
 
-fn move_tooltip(
-    mut tooltip: Query<&mut Style, With<Tooltip>>,
-    mut move_events: EventReader<CursorMoved>,
-) {
-    let Ok(mut style) = tooltip.get_single_mut() else {
-        return;
-    };
+fn move_tooltip(mut tooltip: Query<&mut Style, With<Tooltip>>, mut move_events: EventReader<CursorMoved>) {
+    let Ok(mut style) = tooltip.get_single_mut() else { return };
     if let Some(cursor_move) = move_events.iter().next() {
         style.left = Val::Px(cursor_move.position.x);
         style.bottom = Val::Px(cursor_move.position.y);
@@ -530,9 +425,7 @@ fn hide_tooltip(
     // for when you close a menu when hovering, otherwise tooltip stays
     mut tooltip: Query<&mut Visibility, With<Tooltip>>,
 ) {
-    let Ok(mut vis) = tooltip.get_single_mut() else {
-        return;
-    };
+    let Ok(mut vis) = tooltip.get_single_mut() else { return };
     *vis = Visibility::Hidden;
 }
 
@@ -543,9 +436,7 @@ fn load_tooltip(
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ) {
-    let Ok((mut tooltip, mut vis, children, tooltip_entity)) = tooltip.get_single_mut() else {
-        return;
-    };
+    let Ok((mut tooltip, mut vis, children, tooltip_entity)) = tooltip.get_single_mut() else { return };
     let mut hovered_info: Option<AbilityTooltip> = None;
     for (hovering_entity, ability_info, interaction) in &hoverables {
         match interaction {
@@ -557,7 +448,7 @@ fn load_tooltip(
             Interaction::Hovered | Interaction::Pressed => {
                 if let Some(last_hovered) = tooltip.0 {
                     if last_hovered == hovering_entity {
-                        return;
+                        return
                     }
                 }
                 tooltip.0 = Some(hovering_entity.clone());
@@ -590,29 +481,18 @@ fn update_kda(
     local_player: Res<Player>,
 ) {
     if scoreboard.is_changed() {
-        let Ok(mut kda_text) = kda_query.get_single_mut() else {
-            return;
-        };
+        let Ok(mut kda_text) = kda_query.get_single_mut() else { return };
         for (player, info) in scoreboard.0.iter() {
             if *player == *local_player {
-                kda_text.sections[0].value = format!(
-                    "{} / {} / {}",
-                    info.kda.kills, info.kda.deaths, info.kda.assists
-                );
+                kda_text.sections[0].value = format!("{} / {} / {}", info.kda.kills, info.kda.deaths, info.kda.assists);
             }
         }
     }
 }
 
-pub fn killfeed_update(
-    mut commands: Commands,
-    mut death_events: EventReader<DeathEvent>,
-    killfeed_query: Query<Entity, With<Killfeed>>,
-) {
+pub fn killfeed_update(mut commands: Commands, mut death_events: EventReader<DeathEvent>, killfeed_query: Query<Entity, With<Killfeed>>) {
     for death in death_events.iter() {
-        let Ok(killfeed) = killfeed_query.get_single() else {
-            return;
-        };
+        let Ok(killfeed) = killfeed_query.get_single() else { return };
         let notification = commands.spawn(kill_notification()).id();
         commands.entity(killfeed).push_children(&[notification]);
     }
@@ -630,11 +510,7 @@ fn kill_notif_cleanup(mut commands: Commands, mut tween_events: EventReader<Twee
     }
 }
 
-fn tick_despawn_timers(
-    time: Res<Time>,
-    mut things_to_despawn: Query<(Entity, &mut DespawnTimer)>,
-    mut commands: Commands,
-) {
+fn tick_despawn_timers(time: Res<Time>, mut things_to_despawn: Query<(Entity, &mut DespawnTimer)>, mut commands: Commands) {
     for (entity, mut timer) in &mut things_to_despawn {
         timer.0.tick(time.delta());
         if timer.0.finished() {
@@ -643,15 +519,10 @@ fn tick_despawn_timers(
     }
 }
 
-fn tick_clock_ui(
-    time: Res<Time>,
-    mut clock: Query<&mut Text, With<InGameClock>>,
-    game_details: Res<GameModeDetails>,
-) {
-    // Shouldnt do abs calculations every tick probably just 1/s, increment the seconds, increment minute if above 60
-    let Ok(mut text) = clock.get_single_mut() else {
-        return;
-    };
+fn tick_clock_ui(time: Res<Time>, mut clock: Query<&mut Text, With<InGameClock>>, game_details: Res<GameModeDetails>) {
+    // Shouldnt do abs calculations every tick probably just 1/s, increment the
+    // seconds, increment minute if above 60
+    let Ok(mut text) = clock.get_single_mut() else { return };
     let elapsed = time.elapsed().as_secs() as i32;
     let adjusted = game_details.start_timer + elapsed;
     let mut sign = "";
@@ -665,10 +536,7 @@ fn tick_clock_ui(
 }
 
 pub fn button_actions(
-    mut interaction_query: Query<
-        (&ButtonAction, &Interaction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interaction_query: Query<(&ButtonAction, &Interaction), (Changed<Interaction>, With<Button>)>,
     mut game_state_next: ResMut<NextState<GameState>>,
     mut ingamemenu_next: ResMut<NextState<InGameMenu>>,
     mut editing_hud_next: ResMut<NextState<EditingHUD>>,
@@ -683,7 +551,7 @@ pub fn button_actions(
 ) {
     for (button_action, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
-            continue;
+            continue
         }
         match button_action {
             ButtonAction::Play => {
@@ -726,22 +594,15 @@ pub fn button_actions(
             }
             ButtonAction::UndoStore => {
                 let Some(spectating) = &player else { continue };
-                undo_events.send(UndoPressEvent {
-                    entity: spectating.0.clone(),
-                });
+                undo_events.send(UndoPressEvent { entity: spectating.0.clone() });
             }
             _ => (),
         }
     }
 }
 
-pub fn minimap_track(
-    mut arrow_query: Query<&mut Style, With<MinimapPlayerIcon>>,
-    trackables: Query<&GlobalTransform, With<Trackable>>,
-) {
-    let Ok(mut style) = arrow_query.get_single_mut() else {
-        return;
-    };
+pub fn minimap_track(mut arrow_query: Query<&mut Style, With<MinimapPlayerIcon>>, trackables: Query<&GlobalTransform, With<Trackable>>) {
+    let Ok(mut style) = arrow_query.get_single_mut() else { return };
     for tracking in trackables.iter() {
         let (player_left, player_top) = (tracking.translation().x, tracking.translation().z);
         style.left = Val::Px(player_left);
@@ -749,28 +610,20 @@ pub fn minimap_track(
     }
 }
 
-pub fn spawn_floating_health_bars(
-    mut commands: Commands,
-    health_bar_owners: Query<Entity, (With<Attributes>, Added<HasHealthBar>)>,
-) {
+pub fn spawn_floating_health_bars(mut commands: Commands, health_bar_owners: Query<Entity, (With<Attributes>, Added<HasHealthBar>)>) {
     for entity in &health_bar_owners {
-        commands
-            .spawn(follow_wrapper(entity))
-            .insert(HealthBarHolder(entity))
-            .with_children(|parent| {
-                parent.spawn(bar_background(12.0)).with_children(|parent| {
-                    parent
-                        .spawn(bar_fill(Color::rgba(0.94, 0.228, 0.128, 0.95)))
-                        .insert((
-                            HealthBar,
-                            BarTrack {
-                                entity: entity,
-                                current: Stat::Health.into(),
-                                max: Stat::HealthMax.into(),
-                            },
-                        ));
-                });
+        commands.spawn(follow_wrapper(entity)).insert(HealthBarHolder(entity)).with_children(|parent| {
+            parent.spawn(bar_background(12.0)).with_children(|parent| {
+                parent.spawn(bar_fill(Color::rgba(0.94, 0.228, 0.128, 0.95))).insert((
+                    HealthBar,
+                    BarTrack {
+                        entity: entity,
+                        current: Stat::Health.into(),
+                        max: Stat::HealthMax.into(),
+                    },
+                ));
             });
+        });
     }
 }
 
@@ -782,15 +635,13 @@ fn show_floating_health_bars(
     children_query: Query<&Children>,
     spectating: Res<Spectating>,
 ) {
-    let Ok((player_transform, team)) = possessing_query.get(spectating.0) else {
-        return;
-    };
+    let Ok((player_transform, team)) = possessing_query.get(spectating.0) else { return };
     for (attributes, target_transform, other_team, healthy_entity) in &healthy {
         let dir = (target_transform.translation - player_transform.translation).normalize();
         let direction_from_hp_bar = Quat::from_euler(EulerRot::XYZ, dir.x, dir.y, dir.z);
         for (mut vis, bar_holder) in &mut health_bars {
             if bar_holder.0 != healthy_entity {
-                continue;
+                continue
             }
             if player_transform.rotation.dot(direction_from_hp_bar) > 0.0 {
                 *vis = Visibility::Visible;
@@ -808,14 +659,9 @@ pub struct BarTrack {
     pub max: AttributeTag,
 }
 
-pub fn bar_track(
-    query: Query<&Attributes, Changed<Attributes>>,
-    mut bar_query: Query<(&mut Style, &BarTrack)>,
-) {
+pub fn bar_track(query: Query<&Attributes, Changed<Attributes>>, mut bar_query: Query<(&mut Style, &BarTrack)>) {
     for (mut style, tracking) in &mut bar_query {
-        let Ok(attributes) = query.get(tracking.entity) else {
-            continue;
-        };
+        let Ok(attributes) = query.get(tracking.entity) else { continue };
         let current = *attributes.get(&tracking.current).unwrap_or(&0.0);
         let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
         let new_size = current / max;
@@ -829,9 +675,7 @@ fn follow_in_3d(
     leader_query: Query<&GlobalTransform>,
     camera_query: Query<(&Camera, &GlobalTransform), With<PlayerCam>>,
 ) {
-    let Ok((camera, camera_transform)) = camera_query.get_single() else {
-        return;
-    };
+    let Ok((camera, camera_transform)) = camera_query.get_single() else { return };
     for (mut style, following, entity) in follwer_query.iter_mut() {
         let transform = if let Ok(gt) = leader_query.get(following.leader) {
             gt.translation()
@@ -839,13 +683,10 @@ fn follow_in_3d(
             last_seen.translation
         } else {
             commands.entity(entity).despawn_recursive();
-            continue;
+            continue
         };
 
-        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 2.0)
-        else {
-            continue;
-        };
+        let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 2.0) else { continue };
         style.left = Val::Px(viewport.x);
         style.top = Val::Px(viewport.y);
     }

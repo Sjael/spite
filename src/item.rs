@@ -157,7 +157,8 @@ impl Item {
         image.into()
     }
 
-    /// List of common parts between this item's set of flat parts and a list of items.
+    /// List of common parts between this item's set of flat parts and a list of
+    /// items.
     pub fn common_parts(&self, items: impl Iterator<Item = Item>) -> Vec<Item> {
         let mut all_parts = self.flat_parts();
         all_parts.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -175,7 +176,7 @@ impl Item {
                 items.remove(item_index);
             } else {
                 // Don't remove subparts
-                continue;
+                continue
             };
 
             common.push(component);
@@ -192,11 +193,7 @@ impl Item {
     }
 
     pub fn discounted_price(&self, inventory: &Inventory) -> u32 {
-        let discount: u32 = self
-            .common_parts(inventory.items())
-            .iter()
-            .map(|component| component.total_price())
-            .sum();
+        let discount: u32 = self.common_parts(inventory.items()).iter().map(|component| component.total_price()).sum();
         self.total_price() - discount
     }
 
@@ -217,16 +214,10 @@ impl Item {
     }
 
     pub fn total(&self) -> ItemTotal {
-        ITEM_TOTALS
-            .get(self)
-            .cloned()
-            .expect(&format!("Item total doesn't exist for {:?}", self))
+        ITEM_TOTALS.get(self).cloned().expect(&format!("Item total doesn't exist for {:?}", self))
     }
     pub fn info(&self) -> ItemInfo {
-        ITEM_DB
-            .get(self)
-            .cloned()
-            .expect(&format!("Item info doesn't exist for {:?}", self))
+        ITEM_DB.get(self).cloned().expect(&format!("Item info doesn't exist for {:?}", self))
     }
 
     pub fn parts(&self) -> Vec<Item> {

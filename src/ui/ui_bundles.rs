@@ -312,10 +312,7 @@ pub fn kill_notification() -> impl Bundle {
                 right: Val::Px(killfeed_offset),
                 ..default()
             },
-            end: UiRect {
-                right: Val::Px(0.),
-                ..default()
-            },
+            end: UiRect { right: Val::Px(0.), ..default() },
         },
     );
     let tween_opac_in = Tween::new(
@@ -349,11 +346,7 @@ pub fn kill_notification() -> impl Bundle {
         KillNotification,
         Name::new("Kill Notification"),
         Animator::new(tween_pos),
-        Animator::new(
-            tween_opac_in
-                .then(Delay::new(Duration::from_secs(delay_seconds)))
-                .then(tween_opac_out),
-        ),
+        Animator::new(tween_opac_in.then(Delay::new(Duration::from_secs(delay_seconds))).then(tween_opac_out)),
     )
 }
 
@@ -390,20 +383,14 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle {
                 position_type: PositionType::Absolute,
                 width: Val::Px(100.),
                 height: Val::Px(30.),
-                margin: UiRect {
-                    left: Val::Px(-50.0),
-                    ..default()
-                },
+                margin: UiRect { left: Val::Px(-50.0), ..default() },
                 justify_content: JustifyContent::Center,
                 ..default()
             },
             z_index: ZIndex::Global(-1),
             ..default()
         },
-        FollowIn3d {
-            leader: entity,
-            last_seen: None,
-        },
+        FollowIn3d { leader: entity, last_seen: None },
     )
 }
 
@@ -463,11 +450,7 @@ pub fn follow_inner_text(damage: String, fonts: &Res<Fonts>, color: Color) -> im
             ..default()
         },
         Animator::new(tween_pos),
-        Animator::new(
-            tween_opac_in
-                .then(Delay::new(Duration::from_secs(delay_seconds)))
-                .then(tween_opac_out),
-        ),
+        Animator::new(tween_opac_in.then(Delay::new(Duration::from_secs(delay_seconds))).then(tween_opac_out)),
     )
 }
 
@@ -699,10 +682,7 @@ pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {
     (
         TextBundle {
             style: Style {
-                margin: UiRect {
-                    top: Val::Px(30.),
-                    ..default()
-                },
+                margin: UiRect { top: Val::Px(30.), ..default() },
                 ..default()
             },
             text: Text::from_section(
@@ -855,10 +835,7 @@ pub fn buff_holder(time: f32, id: String) -> impl Bundle {
             ..default()
         },
         BuffId { id },
-        DespawnTimer(Timer::new(
-            Duration::from_millis((time * 1000.0) as u64),
-            TimerMode::Once,
-        )),
+        DespawnTimer(Timer::new(Duration::from_millis((time * 1000.0) as u64), TimerMode::Once)),
     )
 }
 
@@ -992,10 +969,7 @@ pub fn ability_holder() -> impl Bundle {
             style: Style {
                 flex_direction: FlexDirection::Row,
                 justify_content: JustifyContent::FlexStart,
-                margin: UiRect {
-                    bottom: Val::Px(30.),
-                    ..default()
-                },
+                margin: UiRect { bottom: Val::Px(30.), ..default() },
                 column_gap: Val::Px(6.),
                 ..default()
             },
@@ -1164,12 +1138,7 @@ pub fn tooltip() -> impl Bundle {
     )
 }
 
-pub fn spawn_ability_tooltip(
-    commands: &mut Commands,
-    icons: &Res<Icons>,
-    fonts: &Res<Fonts>,
-    info: &AbilityTooltip,
-) -> Entity {
+pub fn spawn_ability_tooltip(commands: &mut Commands, icons: &Res<Icons>, fonts: &Res<Fonts>, info: &AbilityTooltip) -> Entity {
     commands
         .spawn(tooltip_bg())
         .with_children(|parent| {
@@ -1187,10 +1156,7 @@ pub fn tooltip_bg() -> impl Bundle {
                 flex_direction: FlexDirection::ColumnReverse,
                 justify_content: JustifyContent::FlexEnd,
                 align_items: AlignItems::Baseline,
-                margin: UiRect {
-                    bottom: Val::Px(10.),
-                    ..default()
-                },
+                margin: UiRect { bottom: Val::Px(10.), ..default() },
                 padding: UiRect::all(Val::Px(20.)),
                 ..default()
             },
@@ -1424,10 +1390,7 @@ pub fn despawn_wrapper(delay: u32) -> impl Bundle {
     (
         NodeBundle { ..default() },
         Name::new("Despawen"),
-        DespawnTimer(Timer::new(
-            Duration::from_secs(delay.into()),
-            TimerMode::Once,
-        )),
+        DespawnTimer(Timer::new(Duration::from_secs(delay.into()), TimerMode::Once)),
     )
 }
 
@@ -1449,10 +1412,7 @@ pub fn damage_entry() -> impl Bundle {
     (
         NodeBundle {
             style: Style {
-                margin: UiRect {
-                    top: Val::Px(12.),
-                    ..default()
-                },
+                margin: UiRect { top: Val::Px(12.), ..default() },
                 align_content: AlignContent::Center,
                 align_self: AlignSelf::Start,
                 justify_content: JustifyContent::Center,
@@ -1570,10 +1530,7 @@ pub fn store() -> impl Bundle {
                 min_width: Val::Px(600.),
                 width: Val::Percent(45.),
                 height: Val::Percent(75.),
-                padding: UiRect {
-                    top: Val::Px(20.),
-                    ..default()
-                },
+                padding: UiRect { top: Val::Px(20.), ..default() },
                 left: Val::Px(210.0),
                 top: Val::Percent(10.0),
                 ..default()
@@ -1899,10 +1856,7 @@ pub fn button() -> impl Bundle {
                 justify_content: JustifyContent::Center,
                 // vertically center child text
                 align_items: AlignItems::Center,
-                margin: UiRect {
-                    bottom: Val::Px(10.),
-                    ..default()
-                },
+                margin: UiRect { bottom: Val::Px(10.), ..default() },
                 padding: UiRect::all(Val::Px(10.)),
                 ..default()
             },
@@ -1962,12 +1916,7 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
     },)
 }
 
-pub fn color_text(
-    text: impl Into<String>,
-    size: u32,
-    fonts: &Res<Fonts>,
-    color: Color,
-) -> impl Bundle {
+pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color: Color) -> impl Bundle {
     let text = text.into();
     (TextBundle {
         style: Style {

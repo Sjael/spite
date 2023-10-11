@@ -27,12 +27,7 @@ impl Plugin for ViewPlugin {
         app.add_systems(FixedUpdate, (avoid_intersecting,));
         app.add_systems(
             Update,
-            (
-                spawn_camera_gimbal,
-                swap_cameras.run_if(in_state(CharacterState::Dead)),
-                spectate_entity,
-            )
-                .in_set(SpectatingSet),
+            (spawn_camera_gimbal, swap_cameras.run_if(in_state(CharacterState::Dead)), spectate_entity).in_set(SpectatingSet),
         );
         app.add_systems(
             PostUpdate,
@@ -47,11 +42,7 @@ impl Plugin for ViewPlugin {
     }
 }
 
-fn update_spectatable(
-    mut objects: ResMut<SpectatableObjects>,
-    added_spectatables: Query<Entity, Added<Spectatable>>,
-    mut removed_spectatables: RemovedComponents<Spectatable>,
-) {
+fn update_spectatable(mut objects: ResMut<SpectatableObjects>, added_spectatables: Query<Entity, Added<Spectatable>>, mut removed_spectatables: RemovedComponents<Spectatable>) {
     for removing in &mut removed_spectatables {
         if let Some(index) = objects.map.iter().position(|entity| *entity == removing) {
             objects.map.remove(index);
@@ -67,22 +58,13 @@ pub fn camera_swivel_and_tilt(
     mut outer_gimbals: Query<&mut Transform, (With<OuterGimbal>, Without<InnerGimbal>)>,
     local_input: ResMut<PlayerInput>,
 ) {
-    let Ok(mut outer_transform) = outer_gimbals.get_single_mut() else {
-        return;
-    };
-    let Ok(mut inner_transform) = inner_gimbals.get_single_mut() else {
-        return;
-    };
+    let Ok(mut outer_transform) = outer_gimbals.get_single_mut() else { return };
+    let Ok(mut inner_transform) = inner_gimbals.get_single_mut() else { return };
     outer_transform.rotation = Quat::from_axis_angle(Vec3::Y, local_input.yaw as f32).into();
     inner_transform.rotation = Quat::from_axis_angle(Vec3::X, local_input.pitch as f32).into();
 }
 
-fn swap_cameras(
-    spectating: Res<Spectating>,
-    mut objects: ResMut<SpectatableObjects>,
-    mouse: Res<Input<MouseButton>>,
-    mut spectate_events: EventWriter<SpectateEvent>,
-) {
+fn swap_cameras(spectating: Res<Spectating>, mut objects: ResMut<SpectatableObjects>, mouse: Res<Input<MouseButton>>, mut spectate_events: EventWriter<SpectateEvent>) {
     if mouse.just_pressed(MouseButton::Left) {
         objects.current += 1;
     } else if mouse.just_pressed(MouseButton::Right) {
@@ -90,7 +72,7 @@ fn swap_cameras(
     }
     let length = objects.map.len() as isize;
     if length == 0 {
-        return;
+        return
     }
     let mut index = objects.current % length;
     if index < 0 {
@@ -103,18 +85,13 @@ fn swap_cameras(
     let spectate_new = objects.map.get(index as usize);
     if let Some(spectate_new) = spectate_new {
         if spectating.0 == *spectate_new {
-            return;
+            return
         }
-        spectate_events.send(SpectateEvent {
-            entity: *spectate_new,
-        })
+        spectate_events.send(SpectateEvent { entity: *spectate_new })
     }
 }
 
-pub fn move_reticle(
-    mut reticles: Query<(&mut Transform, &Reticle)>,
-    player_input: Res<PlayerInput>,
-) {
+pub fn move_reticle(mut reticles: Query<(&mut Transform, &Reticle)>, player_input: Res<PlayerInput>) {
     for (mut transform, reticle) in &mut reticles {
         let current_angle = player_input.pitch.clamp(-1.57, 0.);
         transform.translation.z = (1.57 + current_angle).tan() * -reticle.cam_height;
@@ -125,26 +102,15 @@ pub fn move_reticle(
 #[derive(Component)]
 pub struct FollowEntity(pub Entity);
 
-fn follow_entity(
-    mut followers: Query<(&mut Transform, &FollowEntity)>,
-    leaders: Query<&GlobalTransform>,
-) {
+fn follow_entity(mut followers: Query<(&mut Transform, &FollowEntity)>, leaders: Query<&GlobalTransform>) {
     for (mut transform, follow_entity) in &mut followers {
-        let Ok(leader_transform) = leaders.get(follow_entity.0) else {
-            continue;
-        };
+        let Ok(leader_transform) = leaders.get(follow_entity.0) else { continue };
         transform.translation = leader_transform.translation();
     }
 }
 
-fn spectate_entity(
-    mut spectate_events: EventReader<SpectateEvent>,
-    mut gimbal_query: Query<&mut FollowEntity, With<OuterGimbal>>,
-    mut spectating: ResMut<Spectating>,
-) {
-    let Ok(mut follow_entity) = gimbal_query.get_single_mut() else {
-        return;
-    };
+fn spectate_entity(mut spectate_events: EventReader<SpectateEvent>, mut gimbal_query: Query<&mut FollowEntity, With<OuterGimbal>>, mut spectating: ResMut<Spectating>) {
+    let Ok(mut follow_entity) = gimbal_query.get_single_mut() else { return };
     for new_spectate in spectate_events.iter() {
         follow_entity.0 = new_spectate.entity;
         spectating.0 = new_spectate.entity;
@@ -160,19 +126,16 @@ fn spawn_camera_gimbal(
     gimbal_query: Query<Entity, With<OuterGimbal>>,
 ) {
     if let Ok(_) = gimbal_query.get_single() {
-        return;
+        return
     }
-    let Some(possessed) = spectate_events.iter().next() else {
-        return;
-    };
+    let Some(possessed) = spectate_events.iter().next() else { return };
 
     spectating.0 = possessed.entity;
 
     let camera = commands
         .spawn((
             Camera3dBundle {
-                transform: Transform::from_translation(Vec3::new(0., 0., 6.5))
-                    .looking_at(Vec3::ZERO, Vec3::Y),
+                transform: Transform::from_translation(Vec3::new(0., 0., 6.5)).looking_at(Vec3::ZERO, Vec3::Y),
                 tonemapping: Tonemapping::ReinhardLuminance,
                 dither: DebandDither::Enabled,
                 camera: Camera {
@@ -233,10 +196,7 @@ fn spawn_camera_gimbal(
                 translation: Vec3::new(0., 0., 0.),
                 ..default()
             }),
-            Reticle {
-                max_distance: 7.0,
-                cam_height: 1.0,
-            },
+            Reticle { max_distance: 7.0, cam_height: 1.0 },
             Name::new("Reticle"),
         ))
         .id();
@@ -256,33 +216,16 @@ fn spawn_camera_gimbal(
 
     commands.entity(reticle).push_children(&[ret_mesh]);
     commands.entity(inner_gimbal).push_children(&[camera]);
-    commands
-        .entity(outer_gimbal)
-        .push_children(&[inner_gimbal, reticle]);
+    commands.entity(outer_gimbal).push_children(&[inner_gimbal, reticle]);
 }
 
-pub fn avoid_intersecting(
-    rapier_context: Res<RapierContext>,
-    all_global_transforms: Query<&GlobalTransform>,
-    mut avoiders: Query<(&mut Transform, &Parent, &AvoidIntersecting)>,
-) {
-    let filter = QueryFilter::only_fixed()
-        .exclude_sensors()
-        .groups(CAMERA_GROUPING);
+pub fn avoid_intersecting(rapier_context: Res<RapierContext>, all_global_transforms: Query<&GlobalTransform>, mut avoiders: Query<(&mut Transform, &Parent, &AvoidIntersecting)>) {
+    let filter = QueryFilter::only_fixed().exclude_sensors().groups(CAMERA_GROUPING);
     for (mut transform, parent, avoid) in &mut avoiders {
-        let adjusted_transform = if let Ok(global) = all_global_transforms.get(parent.get()) {
-            global.compute_transform()
-        } else {
-            Transform::default()
-        };
-        let (toi, normal) = if let Some((_entity, intersection)) = rapier_context
-            .cast_ray_and_get_normal(
-                adjusted_transform.translation,
-                adjusted_transform.rotation * avoid.dir,
-                avoid.max_toi + avoid.buffer,
-                true,
-                filter,
-            ) {
+        let adjusted_transform = if let Ok(global) = all_global_transforms.get(parent.get()) { global.compute_transform() } else { Transform::default() };
+        let (toi, normal) = if let Some((_entity, intersection)) =
+            rapier_context.cast_ray_and_get_normal(adjusted_transform.translation, adjusted_transform.rotation * avoid.dir, avoid.max_toi + avoid.buffer, true, filter)
+        {
             (intersection.toi, intersection.normal)
         } else {
             (avoid.max_toi + avoid.buffer, Vec3::ZERO)

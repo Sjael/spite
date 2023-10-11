@@ -53,25 +53,15 @@ impl std::fmt::Display for CCType {
 pub struct CCPlugin;
 impl Plugin for CCPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            PreUpdate,
-            (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre),
-        );
+        app.add_systems(PreUpdate, (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre));
     }
 }
 
 pub fn apply_ccs(mut targets_query: Query<&mut CCMap>, mut cc_events: EventReader<CCEvent>) {
     for event in cc_events.iter() {
-        let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else {
-            continue;
-        };
-        ccs.map.insert(
-            event.ccinfo.cctype,
-            Timer::new(
-                Duration::from_millis((event.ccinfo.duration * 1000.0) as u64),
-                TimerMode::Once,
-            ),
-        );
+        let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else { continue };
+        ccs.map
+            .insert(event.ccinfo.cctype, Timer::new(Duration::from_millis((event.ccinfo.duration * 1000.0) as u64), TimerMode::Once));
         sort_ccs(&mut ccs);
     }
 }

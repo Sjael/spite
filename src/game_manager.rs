@@ -7,9 +7,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    ability::{
-        bundles::Caster, Ability, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
-    },
+    ability::{bundles::Caster, Ability, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior},
     actor::{
         cast_ability,
         player::{Player, PlayerEntity},
@@ -47,18 +45,9 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
 
-        app.configure_set(
-            Update,
-            InGameSet::Update.run_if(in_state(GameState::InGame)),
-        );
-        app.configure_set(
-            PreUpdate,
-            InGameSet::Pre.run_if(in_state(GameState::InGame)),
-        );
-        app.configure_set(
-            PostUpdate,
-            InGameSet::Pre.run_if(in_state(GameState::InGame)),
-        );
+        app.configure_set(Update, InGameSet::Update.run_if(in_state(GameState::InGame)));
+        app.configure_set(PreUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)));
+        app.configure_set(PostUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)));
 
         app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
         app.add_systems(
@@ -197,10 +186,7 @@ pub struct Bounty {
 
 impl Default for Bounty {
     fn default() -> Self {
-        Self {
-            xp: 200.0,
-            gold: 250.0,
-        }
+        Self { xp: 200.0, gold: 250.0 }
     }
 }
 
@@ -243,27 +229,14 @@ pub struct LoggedNumbers {
     pub healing_dealt: u32,
 }
 
-fn place_homing_ability(
-    mut commands: Commands,
-    mut cast_events: EventReader<FireHomingEvent>,
-    caster: Query<(&GlobalTransform, &Team)>,
-) {
+fn place_homing_ability(mut commands: Commands, mut cast_events: EventReader<FireHomingEvent>, caster: Query<(&GlobalTransform, &Team)>) {
     for event in cast_events.iter() {
-        let Ok((caster_transform, team)) = caster.get(event.caster) else {
-            return;
-        };
+        let Ok((caster_transform, team)) = caster.get(event.caster) else { return };
 
-        let spawned = event
-            .ability
-            .get_bundle(&mut commands, &caster_transform.compute_transform());
+        let spawned = event.ability.get_bundle(&mut commands, &caster_transform.compute_transform());
 
         // Apply general components
-        commands.entity(spawned).insert((
-            Name::new("Tower shot"),
-            team.clone(),
-            Homing(event.target),
-            Caster(event.caster),
-        ));
+        commands.entity(spawned).insert((Name::new("Tower shot"), team.clone(), Homing(event.target), Caster(event.caster)));
 
         // if has a shape
         commands.entity(spawned).insert((
@@ -284,25 +257,17 @@ fn place_ability(
     reticle: Query<&GlobalTransform, With<Reticle>>,
     procmaps: Query<&ProcMap>,
 ) {
-    let Ok(reticle_transform) = reticle.get_single() else {
-        return;
-    };
+    let Ok(reticle_transform) = reticle.get_single() else { return };
     for event in cast_events.iter() {
-        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else {
-            return;
-        };
+        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else { return };
 
         // Get ability-specific components
         let spawned;
 
         if event.ability.on_reticle() {
-            spawned = event
-                .ability
-                .get_bundle(&mut commands, &reticle_transform.compute_transform());
+            spawned = event.ability.get_bundle(&mut commands, &reticle_transform.compute_transform());
         } else {
-            spawned = event
-                .ability
-                .get_bundle(&mut commands, &caster_transform.compute_transform());
+            spawned = event.ability.get_bundle(&mut commands, &caster_transform.compute_transform());
         }
 
         // Apply general components
@@ -356,15 +321,8 @@ fn handle_respawning(
     });
 }
 
-fn show_respawn_ui(
-    mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
-    mut death_events: EventReader<DeathEvent>,
-    mut spawn_events: EventReader<RespawnEvent>,
-    local_player: Res<Player>,
-) {
-    let Ok(mut vis) = death_timer.get_single_mut() else {
-        return;
-    };
+fn show_respawn_ui(mut death_timer: Query<&mut Visibility, With<RespawnHolder>>, mut death_events: EventReader<DeathEvent>, mut spawn_events: EventReader<RespawnEvent>, local_player: Res<Player>) {
+    let Ok(mut vis) = death_timer.get_single_mut() else { return };
     for event in spawn_events.iter() {
         if event.actor == ActorType::Player(*local_player) {
             *vis = Visibility::Hidden;
@@ -377,20 +335,11 @@ fn show_respawn_ui(
     }
 }
 
-fn tick_respawn_ui(
-    mut death_timer: Query<&mut Text, With<RespawnText>>,
-    gamemodedetails: ResMut<GameModeDetails>,
-    local_entity: Res<PlayerEntity>,
-) {
-    let Ok(mut respawn_text) = death_timer.get_single_mut() else {
-        return;
-    };
+fn tick_respawn_ui(mut death_timer: Query<&mut Text, With<RespawnText>>, gamemodedetails: ResMut<GameModeDetails>, local_entity: Res<PlayerEntity>) {
+    let Ok(mut respawn_text) = death_timer.get_single_mut() else { return };
     let Some(local) = local_entity.0 else { return };
-    let Some(respawn) = gamemodedetails.respawns.get(&local) else {
-        return;
-    };
-    let new_text =
-        (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
+    let Some(respawn) = gamemodedetails.respawns.get(&local) else { return };
+    let new_text = (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
     respawn_text.sections[1].value = new_text.to_string();
 }
 
@@ -413,27 +362,18 @@ pub enum ActorType {
     Player(Player),
 }
 
-fn check_deaths(
-    the_damned: Query<
-        (Entity, &IncomingDamageLog, &ActorType, &Attributes),
-        Changed<IncomingDamageLog>,
-    >,
-    the_guilty: Query<&ActorType>,
-    mut death_events: EventWriter<DeathEvent>,
-) {
+fn check_deaths(the_damned: Query<(Entity, &IncomingDamageLog, &ActorType, &Attributes), Changed<IncomingDamageLog>>, the_guilty: Query<&ActorType>, mut death_events: EventWriter<DeathEvent>) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
     for (guy, damagelog, actortype, attributes) in the_damned.iter() {
         let hp = attributes.get(&Stat::Health.as_tag()).unwrap_or(&1.0);
         if *hp > 0.0 {
-            continue;
+            continue
         }
 
         let mut killers = Vec::new();
         for instance in damagelog.list.iter().rev() {
-            if Instant::now().duration_since(instance.when)
-                > Duration::from_secs(TIME_FOR_KILL_CREDIT)
-            {
-                break;
+            if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT) {
+                break
             }
             //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
             killers.push(instance.attacker);
@@ -450,15 +390,7 @@ fn check_deaths(
 fn despawn_dead(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
-    mut the_damned: Query<
-        (
-            &mut Transform,
-            &mut Visibility,
-            &mut CharacterState,
-            Option<&Bounty>,
-        ),
-        With<ActorType>,
-    >,
+    mut the_damned: Query<(&mut Transform, &mut Visibility, &mut CharacterState, Option<&Bounty>), With<ActorType>>,
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
@@ -483,15 +415,10 @@ fn despawn_dead(
         }
         let respawn_timer = 8; // change to calculate based on level and game time, or static for jg camps
 
-        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity)
-        else {
-            return;
-        };
+        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity) else { return };
 
         for (index, awardee) in event.killers.iter().enumerate() {
-            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else {
-                continue;
-            };
+            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else { continue };
 
             if let Some(bounty) = bounty {
                 let gold = attributes.entry(Stat::Gold.into()).or_default();
@@ -501,7 +428,7 @@ fn despawn_dead(
             }
 
             if !is_dead_player {
-                continue;
+                continue
             }
             if let ActorType::Player(killer) = awardee_actor {
                 let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
@@ -531,7 +458,8 @@ fn despawn_dead(
     }
 }
 
-// Make only increment when damageable? Aegis before guarenteed death is meta now LMAO
+// Make only increment when damageable? Aegis before guarenteed death is meta
+// now LMAO
 fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
     for mut wanted in the_notorious.iter_mut() {
         wanted.gold += 2.0 * time.delta_seconds();
@@ -574,18 +502,10 @@ bitflags::bitflags! {
     }
 }
 
-pub const TEAM_1: Team = Team(TeamMask::from_bits_truncate(
-    TeamMask::TEAM_1.bits() | TeamMask::ALL.bits(),
-));
-pub const TEAM_2: Team = Team(TeamMask::from_bits_truncate(
-    TeamMask::TEAM_2.bits() | TeamMask::ALL.bits(),
-));
-pub const TEAM_3: Team = Team(TeamMask::from_bits_truncate(
-    TeamMask::TEAM_3.bits() | TeamMask::ALL.bits(),
-));
-pub const TEAM_NEUTRAL: Team = Team(TeamMask::from_bits_truncate(
-    TeamMask::NEUTRALS.bits() | TeamMask::ALL.bits(),
-));
+pub const TEAM_1: Team = Team(TeamMask::from_bits_truncate(TeamMask::TEAM_1.bits() | TeamMask::ALL.bits()));
+pub const TEAM_2: Team = Team(TeamMask::from_bits_truncate(TeamMask::TEAM_2.bits() | TeamMask::ALL.bits()));
+pub const TEAM_3: Team = Team(TeamMask::from_bits_truncate(TeamMask::TEAM_3.bits() | TeamMask::ALL.bits()));
+pub const TEAM_NEUTRAL: Team = Team(TeamMask::from_bits_truncate(TeamMask::NEUTRALS.bits() | TeamMask::ALL.bits()));
 pub const TEAM_ALL: Team = Team(TeamMask::from_bits_truncate(TeamMask::ALL.bits()));
 
 // Collision Grouping Flags
@@ -606,26 +526,11 @@ bitflags::bitflags! {
     }
 }
 
-pub const PLAYER_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::PLAYER.bits()),
-    Group::from_bits_truncate(Groups::PLAYER_FILTER.bits()),
-);
-pub const TERRAIN_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::TERRAIN.bits()),
-    Group::from_bits_truncate(Groups::TERRAIN_FILTER.bits()),
-);
-pub const ABILITY_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::ABILITY.bits()),
-    Group::from_bits_truncate(Groups::ABILITY_FILTER.bits()),
-);
-pub const GROUND_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::GROUND.bits()),
-    Group::from_bits_truncate(Groups::GROUND_FILTER.bits()),
-);
-pub const CAMERA_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::GROUND.bits()),
-    Group::from_bits_truncate(Groups::CAMERA_FILTER.bits()),
-);
+pub const PLAYER_GROUPING: CollisionGroups = CollisionGroups::new(Group::from_bits_truncate(Groups::PLAYER.bits()), Group::from_bits_truncate(Groups::PLAYER_FILTER.bits()));
+pub const TERRAIN_GROUPING: CollisionGroups = CollisionGroups::new(Group::from_bits_truncate(Groups::TERRAIN.bits()), Group::from_bits_truncate(Groups::TERRAIN_FILTER.bits()));
+pub const ABILITY_GROUPING: CollisionGroups = CollisionGroups::new(Group::from_bits_truncate(Groups::ABILITY.bits()), Group::from_bits_truncate(Groups::ABILITY_FILTER.bits()));
+pub const GROUND_GROUPING: CollisionGroups = CollisionGroups::new(Group::from_bits_truncate(Groups::GROUND.bits()), Group::from_bits_truncate(Groups::GROUND_FILTER.bits()));
+pub const CAMERA_GROUPING: CollisionGroups = CollisionGroups::new(Group::from_bits_truncate(Groups::GROUND.bits()), Group::from_bits_truncate(Groups::CAMERA_FILTER.bits()));
 
 #[derive(Component)]
 pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);

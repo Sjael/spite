@@ -21,9 +21,7 @@ pub mod bundles;
 pub mod rank;
 pub mod shape;
 
-#[derive(
-    Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,
-)]
+#[derive(Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 #[reflect(Component)]
 pub enum Ability {
     Frostbolt,
@@ -76,9 +74,7 @@ impl Ability {
             Ability::Frostbolt => commands.spawn(FrostboltInfo::fire_bundle(transform)).id(),
             Ability::Fireball => commands.spawn(FireballInfo::fire_bundle(transform)).id(),
             Ability::Bomb => commands.spawn(BombInfo::fire_bundle(transform)).id(),
-            _ => commands
-                .spawn(DefaultAbilityInfo::fire_bundle(transform))
-                .id(),
+            _ => commands.spawn(DefaultAbilityInfo::fire_bundle(transform)).id(),
         }
     }
 
@@ -199,10 +195,7 @@ pub struct AbilityBuilder {
 
 impl AbilityBuilder {
     pub fn new(ability: Ability) -> AbilityBuilder {
-        Self {
-            base_ability: ability,
-            scaling: None,
-        }
+        Self { base_ability: ability, scaling: None }
     }
     pub fn with_scaling(&mut self, scaling: u32) -> &mut Self {
         self.scaling = Some(scaling);
@@ -223,7 +216,8 @@ pub struct AbilityTooltip {
     pub description: String,
 }
 
-// Maybe we should have a "general" lifetime too even if the thing isn't being casted...?
+// Maybe we should have a "general" lifetime too even if the thing isn't being
+// casted...?
 #[derive(Component, Debug, Clone, Default, Reflect)]
 #[reflect(Component)]
 pub struct CastingLifetime {
@@ -278,10 +272,7 @@ impl MaxTargetsHit {
 
 impl Default for MaxTargetsHit {
     fn default() -> Self {
-        Self {
-            max: 255,
-            current: 0,
-        }
+        Self { max: 255, current: 0 }
     }
 }
 

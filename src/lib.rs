@@ -1,12 +1,10 @@
-use bevy::asset::ChangeWatcher;
-use bevy::prelude::*;
+use bevy::{asset::ChangeWatcher, prelude::*};
 use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
 use std::time::Duration;
 
 use ability::shape::load_ability_shape;
-use actor::view::ViewPlugin;
-use actor::CharacterPlugin;
+use actor::{view::ViewPlugin, CharacterPlugin};
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
@@ -52,17 +50,9 @@ pub fn app_plugins_both(app: &mut App) {
         TweeningPlugin,
     ));
 
-    app.add_plugins((
-        GameAssetPlugin,
-        GameManagerPlugin,
-        ViewPlugin,
-        UiPlugin,
-        CharacterPlugin,
-        AreaPlugin,
-        InputPlugin,
-    ))
-    .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
-    .add_systems(Update, tick_game);
+    app.add_plugins((GameAssetPlugin, GameManagerPlugin, ViewPlugin, UiPlugin, CharacterPlugin, AreaPlugin, InputPlugin))
+        .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
+        .add_systems(Update, tick_game);
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]

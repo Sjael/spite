@@ -80,10 +80,7 @@ impl Default for FrostboltInfo {
         Self {
             name: Name::new("Frostbolt"),
             id: Ability::Frostbolt,
-            shape: AbilityShape::Rectangle {
-                length: 0.8,
-                width: 0.5,
-            },
+            shape: AbilityShape::Rectangle { length: 0.8, width: 0.5 },
             transform: Transform::default(),
         }
     }
@@ -97,10 +94,7 @@ impl FrostboltInfo {
         (
             Name::new("Frostbolt"),
             Ability::Frostbolt,
-            AbilityShape::Rectangle {
-                length: 0.8,
-                width: 0.5,
-            },
+            AbilityShape::Rectangle { length: 0.8, width: 0.5 },
             SpatialBundle::from_transform(transform.clone()),
             Velocity {
                 linvel: direction * speed,
@@ -114,10 +108,7 @@ impl FrostboltInfo {
             Tags {
                 list: vec![
                     TagInfo::Damage(38.0),
-                    TagInfo::CC(CCInfo {
-                        cctype: CCType::Stun,
-                        duration: 1.0,
-                    }),
+                    TagInfo::CC(CCInfo { cctype: CCType::Stun, duration: 1.0 }),
                     TagInfo::Buff(BuffInfo {
                         stat: Stat::Health.into(),
                         amount: 10.0,
@@ -150,10 +141,7 @@ impl FrostboltInfo {
                 length: length_with_movement,
                 width: width,
             },
-            SpatialBundle::from_transform(Transform {
-                translation: offset,
-                ..default()
-            }),
+            SpatialBundle::from_transform(Transform { translation: offset, ..default() }),
             Sensor,
             Targetter,
         )
@@ -177,10 +165,7 @@ impl Default for FireballInfo {
         Self {
             name: Name::new("Fireball"),
             id: Ability::Fireball,
-            shape: AbilityShape::Arc {
-                radius: 1.,
-                angle: 360.,
-            },
+            shape: AbilityShape::Arc { radius: 1., angle: 360. },
             transform: Transform::default(),
         }
     }
@@ -194,10 +179,7 @@ impl FireballInfo {
         (
             Name::new("Fireball"),
             Ability::Fireball,
-            AbilityShape::Arc {
-                radius: 1.,
-                angle: 360.,
-            },
+            AbilityShape::Arc { radius: 1., angle: 360. },
             SpatialBundle::from_transform(transform.clone()),
             RigidBody::KinematicVelocityBased,
             Velocity {
@@ -208,9 +190,7 @@ impl FireballInfo {
             DamageType::Magical,
             UniqueTargetsHit::default(),
             CastingLifetime { seconds: 2.0 },
-            Tags {
-                list: vec![TagInfo::Damage(11.0)],
-            },
+            Tags { list: vec![TagInfo::Damage(11.0)] },
         )
     }
 
@@ -236,10 +216,7 @@ impl FireballInfo {
                 length: length_with_movement,
                 width: radius * 2.0,
             },
-            SpatialBundle::from_transform(Transform {
-                translation: offset,
-                ..default()
-            }),
+            SpatialBundle::from_transform(Transform { translation: offset, ..default() }),
             Sensor,
             Targetter,
         )
@@ -255,10 +232,7 @@ impl BombInfo {
         (
             Name::new("Bomb"),
             Ability::Bomb,
-            AbilityShape::Arc {
-                radius: 1.5,
-                angle: 360.,
-            },
+            AbilityShape::Arc { radius: 1.5, angle: 360. },
             SpatialBundle::from_transform(transform.clone()),
             RigidBody::KinematicVelocityBased,
             Velocity {
@@ -271,9 +245,7 @@ impl BombInfo {
             FiringInterval(500),
             TickBehavior::individual(),
             CastingLifetime { seconds: 3.0 },
-            Tags {
-                list: vec![TagInfo::Damage(16.0)],
-            },
+            Tags { list: vec![TagInfo::Damage(16.0)] },
         )
     }
 
@@ -295,14 +267,8 @@ impl BombInfo {
             offset = Vec3::new(0.0, 0.0, -length_with_movement / 2.0);
         }
         (
-            AbilityShape::Arc {
-                radius: radius,
-                angle: angle,
-            },
-            SpatialBundle::from_transform(Transform {
-                translation: offset,
-                ..default()
-            }),
+            AbilityShape::Arc { radius: radius, angle: angle },
+            SpatialBundle::from_transform(Transform { translation: offset, ..default() }),
             Sensor,
             Targetter,
         )
@@ -353,9 +319,7 @@ impl DefaultAbilityInfo {
             Sensor,
             MaxTargetsHit::new(1),
             CastingLifetime { seconds: 2.0 },
-            Tags {
-                list: vec![TagInfo::Damage(11.0)],
-            },
+            Tags { list: vec![TagInfo::Damage(11.0)] },
         )
     }
 
@@ -380,10 +344,7 @@ impl DefaultAbilityInfo {
                 length: length_with_movement,
                 width: width,
             },
-            SpatialBundle::from_transform(Transform {
-                translation: offset,
-                ..default()
-            }),
+            SpatialBundle::from_transform(Transform { translation: offset, ..default() }),
             Sensor,
             Targetter,
         )

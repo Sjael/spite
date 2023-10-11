@@ -35,18 +35,12 @@ impl Rectangle {
             indices: flat.indices.clone(),
         };
 
-        extruded.positions.extend(
-            flat.positions
-                .iter()
-                .map(|position| [position[0], position[1] + ABILITY_HEIGHT, position[2]]),
-        );
+        extruded
+            .positions
+            .extend(flat.positions.iter().map(|position| [position[0], position[1] + ABILITY_HEIGHT, position[2]]));
 
         // make top tris
-        extruded.indices.extend(
-            flat.indices
-                .iter()
-                .map(|tri| [tri[0] + 4, tri[1] + 4, tri[2] + 4]),
-        );
+        extruded.indices.extend(flat.indices.iter().map(|tri| [tri[0] + 4, tri[1] + 4, tri[2] + 4]));
 
         // make side tris
         for i in 0..=3 {
@@ -58,27 +52,14 @@ impl Rectangle {
 
     pub fn mesh(&self) -> Mesh {
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        let normals = std::iter::repeat([0.0, 1.0, 0.0])
-            .take(self.positions.len())
-            .collect::<Vec<_>>();
+        let normals = std::iter::repeat([0.0, 1.0, 0.0]).take(self.positions.len()).collect::<Vec<_>>();
 
-        let uvs = std::iter::repeat([0.0, 0.0])
-            .take(self.positions.len())
-            .collect::<Vec<_>>();
+        let uvs = std::iter::repeat([0.0, 0.0]).take(self.positions.len()).collect::<Vec<_>>();
 
-        mesh.set_indices(Some(Indices::U32(
-            self.indices
-                .clone()
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>(),
-        )));
+        mesh.set_indices(Some(Indices::U32(self.indices.clone().into_iter().flatten().collect::<Vec<_>>())));
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
-            self.positions
-                .iter()
-                .map(|position| [position[0], position[1], position[2]])
-                .collect::<Vec<_>>(),
+            self.positions.iter().map(|position| [position[0], position[1], position[2]]).collect::<Vec<_>>(),
         );
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -86,11 +67,7 @@ impl Rectangle {
     }
 
     pub fn collider(&self) -> Collider {
-        let vertices = self
-            .positions
-            .iter()
-            .map(|position| Vec3::from(*position))
-            .collect::<Vec<_>>();
+        let vertices = self.positions.iter().map(|position| Vec3::from(*position)).collect::<Vec<_>>();
 
         // TODO change to Cuboid, not ConvexHull
         Collider::convex_hull(&vertices).unwrap()

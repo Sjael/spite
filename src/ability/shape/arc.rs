@@ -37,11 +37,7 @@ impl Arc {
 
             let starting_angle = -angle / 2.0 - ROTATION_OFFSET;
             let angle_of_point = starting_angle + (angle * point_index as f32 / segments as f32);
-            positions.push([
-                angle_of_point.to_radians().cos() * radius,
-                0.0,
-                angle_of_point.to_radians().sin() * radius,
-            ]);
+            positions.push([angle_of_point.to_radians().cos() * radius, 0.0, angle_of_point.to_radians().sin() * radius]);
         }
         if a_circle {
             indices.push([0, 1, points_on_arc]);
@@ -61,15 +57,11 @@ impl Arc {
         };
 
         // Generate top extrusion vertices and indices.
-        extruded.positions.extend(
-            flat.positions
-                .iter()
-                .map(|position| [position[0], position[1] + ABILITY_HEIGHT, position[2]]),
-        );
+        extruded
+            .positions
+            .extend(flat.positions.iter().map(|position| [position[0], position[1] + ABILITY_HEIGHT, position[2]]));
         extruded.indices.extend(
-            flat.indices
-                .iter()
-                .map(|tri| tri.map(|index| index + flat.positions.len() as u32)), //.map(|tri| [tri[0], tri[1], tri[2]]),
+            flat.indices.iter().map(|tri| tri.map(|index| index + flat.positions.len() as u32)), //.map(|tri| [tri[0], tri[1], tri[2]]),
         );
 
         let total_points = flat.positions.len() as u32;
@@ -85,23 +77,13 @@ impl Arc {
                     // ELSE draw sides from center and skip
                     extruded.indices.push([0, total_points + 1, 1]);
                     extruded.indices.push([0, total_points, total_points + 1]);
-                    extruded
-                        .indices
-                        .push([0, total_points - 1, total_points * 2 - 1]);
-                    extruded
-                        .indices
-                        .push([0, total_points * 2 - 1, total_points]);
-                    continue;
+                    extruded.indices.push([0, total_points - 1, total_points * 2 - 1]);
+                    extruded.indices.push([0, total_points * 2 - 1, total_points]);
+                    continue
                 }
             }
-            extruded
-                .indices
-                .push([current_point, current_point + total_points, next_point]);
-            extruded.indices.push([
-                next_point,
-                current_point + total_points,
-                next_point + total_points,
-            ]);
+            extruded.indices.push([current_point, current_point + total_points, next_point]);
+            extruded.indices.push([next_point, current_point + total_points, next_point + total_points]);
         }
 
         extruded
@@ -127,17 +109,13 @@ impl Arc {
         let center_height = largest - smallest;
         let normals;
         if center_height < 0.1 {
-            normals = std::iter::repeat([0.0, 1.0, 0.0])
-                .take(self.positions.len())
-                .collect::<Vec<_>>();
+            normals = std::iter::repeat([0.0, 1.0, 0.0]).take(self.positions.len()).collect::<Vec<_>>();
         } else {
             normals = self
                 .positions
                 .iter()
                 .map(|position| {
-                    let pos: Vec3 =
-                        Vec3::new(position[0], position[1] - center_height / 2.0, position[2])
-                            .normalize();
+                    let pos: Vec3 = Vec3::new(position[0], position[1] - center_height / 2.0, position[2]).normalize();
                     [pos.x, pos.y, pos.z]
                 })
                 .collect::<Vec<_>>();
@@ -145,35 +123,20 @@ impl Arc {
 
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
-            self.positions
-                .iter()
-                .map(|position| [position[0], position[1], position[2]])
-                .collect::<Vec<_>>(),
+            self.positions.iter().map(|position| [position[0], position[1], position[2]]).collect::<Vec<_>>(),
         );
-        mesh.set_indices(Some(Indices::U32(
-            self.indices
-                .clone()
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>(),
-        )));
+        mesh.set_indices(Some(Indices::U32(self.indices.clone().into_iter().flatten().collect::<Vec<_>>())));
 
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
 
-        let uvs = std::iter::repeat([0.0, 0.0])
-            .take(self.positions.len())
-            .collect::<Vec<_>>();
+        let uvs = std::iter::repeat([0.0, 0.0]).take(self.positions.len()).collect::<Vec<_>>();
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
 
         mesh
     }
 
     pub fn collider(&self) -> Collider {
-        let vertices = self
-            .positions
-            .iter()
-            .map(|position| Vec3::from(*position))
-            .collect::<Vec<_>>();
+        let vertices = self.positions.iter().map(|position| Vec3::from(*position)).collect::<Vec<_>>();
 
         Collider::convex_hull(&vertices).unwrap()
     }

@@ -35,28 +35,16 @@ impl TabMenu {
 }
 
 pub fn window_focused(windows: Query<Option<&Window>, With<PrimaryWindow>>) -> bool {
-    match windows
-        .get_single()
-        .ok()
-        .and_then(|windows| windows.map(|window| window.focused))
-    {
+    match windows.get_single().ok().and_then(|windows| windows.map(|window| window.focused)) {
         Some(focused) => focused,
         _ => false,
     }
 }
 
-pub fn free_mouse(
-    mouse_state: Res<State<MouseState>>,
-    editor: Option<Res<Editor>>,
-    mut windows: Query<&mut Window, With<PrimaryWindow>>,
-) {
+pub fn free_mouse(mouse_state: Res<State<MouseState>>, editor: Option<Res<Editor>>, mut windows: Query<&mut Window, With<PrimaryWindow>>) {
     let editor_active = editor.map(|state| state.active()).unwrap_or(false);
-    let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else {
-        return;
-    };
-    let Ok(mut window) = windows.get_single_mut() else {
-        return;
-    };
+    let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else { return };
+    let Ok(mut window) = windows.get_single_mut() else { return };
     if mouse_state.is_changed() {
         if *mouse_state == MouseState::Locked && window_is_focused && !editor_active {
             window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
@@ -76,20 +64,11 @@ pub fn mouse_with_free_key(
     editing_hud: Res<State<EditingHUD>>,
     mut next_state: ResMut<NextState<MouseState>>,
 ) {
-    if *tab_menu == TabMenu::Closed
-        && *store_menu == StoreMenu::Closed
-        && *ingame_menu == InGameMenu::Closed
-        && *editing_hud == EditingHUD::No
-    {
+    if *tab_menu == TabMenu::Closed && *store_menu == StoreMenu::Closed && *ingame_menu == InGameMenu::Closed && *editing_hud == EditingHUD::No {
         next_state.set(MouseState::Locked);
     }
 
-    if kb.pressed(KeyCode::Space)
-        || *tab_menu == TabMenu::Open
-        || *store_menu == StoreMenu::Open
-        || *ingame_menu == InGameMenu::Open
-        || *editing_hud == EditingHUD::Yes
-    {
+    if kb.pressed(KeyCode::Space) || *tab_menu == TabMenu::Open || *store_menu == StoreMenu::Open || *ingame_menu == InGameMenu::Open || *editing_hud == EditingHUD::Yes {
         next_state.set(MouseState::Free);
     }
 }
@@ -103,19 +82,12 @@ pub fn menu_toggle(
     kb: Res<Input<KeyCode>>,
     mut store: Query<&mut Visibility, With<StoreMain>>,
     mut tab_panel: Query<&mut Visibility, (With<TabPanel>, Without<StoreMain>)>,
-    mut inner_menu_query: Query<
-        (&mut Visibility, &TabMenuType, &ComputedVisibility),
-        (Without<TabPanel>, Without<StoreMain>),
-    >,
+    mut inner_menu_query: Query<(&mut Visibility, &TabMenuType, &ComputedVisibility), (Without<TabPanel>, Without<StoreMain>)>,
     mut next_tab_state: ResMut<NextState<TabMenu>>,
     mut next_store_state: ResMut<NextState<StoreMenu>>,
 ) {
-    let Ok(mut store_vis) = store.get_single_mut() else {
-        return;
-    };
-    let Ok(mut panel_vis) = tab_panel.get_single_mut() else {
-        return;
-    };
+    let Ok(mut store_vis) = store.get_single_mut() else { return };
+    let Ok(mut panel_vis) = tab_panel.get_single_mut() else { return };
     use Visibility::*;
     if kb.just_pressed(KeyCode::R) {
         if *panel_vis == Visible {
