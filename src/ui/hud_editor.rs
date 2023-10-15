@@ -3,7 +3,10 @@ use bevy::{input::mouse::MouseWheel, prelude::*};
 use crate::assets::Fonts;
 
 use super::{
-    ui_bundles::{button, button_text, editing_ui, editing_ui_handle, editing_ui_label, Draggable, EditableUI, EditingUIHandle, UiForEditingUi},
+    ui_bundles::{
+        button, button_text, editing_ui, editing_ui_handle, editing_ui_label, Draggable,
+        EditableUI, EditingUIHandle, UiForEditingUi,
+    },
     ButtonAction,
 };
 
@@ -26,7 +29,12 @@ impl EditingHUD {
 #[derive(Component)]
 pub struct WasHidden;
 
-pub fn give_editable_ui(mut commands: Commands, mut editables: Query<(Entity, &Parent, &mut Visibility), With<EditableUI>>, names: Query<&Name>, fonts: Res<Fonts>) {
+pub fn give_editable_ui(
+    mut commands: Commands,
+    mut editables: Query<(Entity, &Parent, &mut Visibility), With<EditableUI>>,
+    names: Query<&Name>,
+    fonts: Res<Fonts>,
+) {
     for (entity, parent_entity, mut vis) in editables.iter_mut() {
         if *vis == Visibility::Hidden {
             *vis = Visibility::Visible;
@@ -43,16 +51,26 @@ pub fn give_editable_ui(mut commands: Commands, mut editables: Query<(Entity, &P
     }
 
     commands.spawn(editing_ui()).with_children(|parent| {
-        parent.spawn(button()).insert(ButtonAction::ResetUi).with_children(|parent| {
-            parent.spawn(button_text("Reset", &fonts));
-        });
-        parent.spawn(button()).insert(ButtonAction::EditUi).with_children(|parent| {
-            parent.spawn(button_text("Save", &fonts));
-        });
+        parent
+            .spawn(button())
+            .insert(ButtonAction::ResetUi)
+            .with_children(|parent| {
+                parent.spawn(button_text("Reset", &fonts));
+            });
+        parent
+            .spawn(button())
+            .insert(ButtonAction::EditUi)
+            .with_children(|parent| {
+                parent.spawn(button_text("Save", &fonts));
+            });
     });
 }
 
-pub fn scale_ui(mut editables: Query<&mut Transform, With<EditableUI>>, edit_handles: Query<(&Parent, &Interaction), With<EditingUIHandle>>, mut scroll_events: EventReader<MouseWheel>) {
+pub fn scale_ui(
+    mut editables: Query<&mut Transform, With<EditableUI>>,
+    edit_handles: Query<(&Parent, &Interaction), With<EditingUIHandle>>,
+    mut scroll_events: EventReader<MouseWheel>,
+) {
     for event in scroll_events.iter() {
         for (parent, interaction) in edit_handles.iter() {
             if interaction != &Interaction::Hovered {
@@ -71,7 +89,10 @@ pub fn scale_ui(mut editables: Query<&mut Transform, With<EditableUI>>, edit_han
 #[derive(Event)]
 pub struct ResetUiEvent;
 
-pub fn reset_editable_ui(mut editables: Query<(&mut Style, &mut Transform), With<EditableUI>>, reset_ui_events: EventReader<ResetUiEvent>) {
+pub fn reset_editable_ui(
+    mut editables: Query<(&mut Style, &mut Transform), With<EditableUI>>,
+    reset_ui_events: EventReader<ResetUiEvent>,
+) {
     if reset_ui_events.is_empty() {
         return
     }
@@ -84,7 +105,10 @@ pub fn reset_editable_ui(mut editables: Query<(&mut Style, &mut Transform), With
 
 pub fn remove_editable_ui(
     mut commands: Commands,
-    mut editables: Query<(Entity, &mut Visibility, Option<&WasHidden>), (With<EditableUI>, With<Draggable>)>,
+    mut editables: Query<
+        (Entity, &mut Visibility, Option<&WasHidden>),
+        (With<EditableUI>, With<Draggable>),
+    >,
     editing_ui: Query<Entity, With<UiForEditingUi>>,
     edit_handles: Query<Entity, With<EditingUIHandle>>,
 ) {

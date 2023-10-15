@@ -127,7 +127,13 @@ impl Plugin for StatsPlugin {
         app.register_type::<Vec<String>>();
         app.add_systems(
             Update,
-            (calculate_attributes, regen_health, regen_resource, calculate_health_change, apply_health_change)
+            (
+                calculate_attributes,
+                regen_health,
+                regen_resource,
+                calculate_health_change,
+                apply_health_change,
+            )
                 .chain()
                 .in_set(InGameSet::Update),
         );
@@ -146,7 +152,11 @@ pub struct HealthMitigatedEvent {
     pub when: Instant,
 }
 
-pub fn calculate_health_change(mut health_events: EventReader<HealthChangeEvent>, mut health_mitigated_events: EventWriter<HealthMitigatedEvent>, attribute_query: Query<&Attributes>) {
+pub fn calculate_health_change(
+    mut health_events: EventReader<HealthChangeEvent>,
+    mut health_mitigated_events: EventWriter<HealthMitigatedEvent>,
+    attribute_query: Query<&Attributes>,
+) {
     for event in health_events.iter() {
         let Ok(defender_stats) = attribute_query.get(event.defender) else { continue };
         let attacker_stats = if let Ok(attacker_stats) = attribute_query.get(event.attacker) {
@@ -157,20 +167,29 @@ pub fn calculate_health_change(mut health_events: EventReader<HealthChangeEvent>
 
         let (prots, pen) = if event.damage_type == DamageType::Physical {
             (
-                *defender_stats.get(&Stat::PhysicalProtection.as_tag()).unwrap_or(&100.0),
-                *attacker_stats.get(&Stat::PhysicalPenetration.as_tag()).unwrap_or(&0.0),
+                *defender_stats
+                    .get(&Stat::PhysicalProtection.as_tag())
+                    .unwrap_or(&100.0),
+                *attacker_stats
+                    .get(&Stat::PhysicalPenetration.as_tag())
+                    .unwrap_or(&0.0),
             )
         } else if event.damage_type == DamageType::Magical {
             (
-                *defender_stats.get(&Stat::MagicalProtection.as_tag()).unwrap_or(&100.0),
-                *attacker_stats.get(&Stat::MagicalPenetration.as_tag()).unwrap_or(&0.0),
+                *defender_stats
+                    .get(&Stat::MagicalProtection.as_tag())
+                    .unwrap_or(&100.0),
+                *attacker_stats
+                    .get(&Stat::MagicalPenetration.as_tag())
+                    .unwrap_or(&0.0),
             )
         } else {
             (0.0, 0.0)
         };
         let percent_pen = 10.0;
         let prots_penned = prots * percent_pen / 100.0 + pen;
-        let post_mitigation_damage = (event.amount * 100.0 / (100.0 + prots - prots_penned)).ceil() as i32;
+        let post_mitigation_damage =
+            (event.amount * 100.0 / (100.0 + prots - prots_penned)).ceil() as i32;
         // ceil = round up, so damage gets -1 and healing gets +1, might use floor to
         // nerf healing if op LOL
         let mitigated = (event.amount as i32 - post_mitigation_damage).abs() as u32;
@@ -187,7 +206,10 @@ pub fn calculate_health_change(mut health_events: EventReader<HealthChangeEvent>
     }
 }
 
-pub fn apply_health_change(mut health_mitigated_events: EventReader<HealthMitigatedEvent>, mut health_query: Query<&mut Attributes>) {
+pub fn apply_health_change(
+    mut health_mitigated_events: EventReader<HealthMitigatedEvent>,
+    mut health_query: Query<&mut Attributes>,
+) {
     for event in health_mitigated_events.iter() {
         let Ok(mut defender_stats) = health_query.get_mut(event.defender) else { continue };
         let health = defender_stats.entry(Stat::Health.as_tag()).or_default();
@@ -217,9 +239,15 @@ pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
 
 pub fn regen_resource(mut query: Query<&mut Attributes>, time: Res<Time>) {
     for mut attributes in query.iter_mut() {
-        let regen = *attributes.get(&Stat::CharacterResourceRegen.as_tag()).unwrap_or(&0.0);
-        let max = *attributes.get(&Stat::CharacterResourceMax.as_tag()).unwrap_or(&100.0);
-        let resource = attributes.entry(Stat::CharacterResource.as_tag()).or_default();
+        let regen = *attributes
+            .get(&Stat::CharacterResourceRegen.as_tag())
+            .unwrap_or(&0.0);
+        let max = *attributes
+            .get(&Stat::CharacterResourceMax.as_tag())
+            .unwrap_or(&100.0);
+        let resource = attributes
+            .entry(Stat::CharacterResource.as_tag())
+            .or_default();
         let result = *resource + (regen * time.delta_seconds());
         *resource = result.clamp(0.0, max);
     }

@@ -1,6 +1,7 @@
 use bevy::{asset::ChangeWatcher, prelude::*};
 use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
+use inventory::InventoryPlugin;
 use std::time::Duration;
 
 use ability::shape::load_ability_shape;
@@ -48,11 +49,20 @@ pub fn app_plugins_both(app: &mut App) {
             ..default()
         },
         TweeningPlugin,
+        InventoryPlugin,
     ));
 
-    app.add_plugins((GameAssetPlugin, GameManagerPlugin, ViewPlugin, UiPlugin, CharacterPlugin, AreaPlugin, InputPlugin))
-        .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
-        .add_systems(Update, tick_game);
+    app.add_plugins((
+        GameAssetPlugin,
+        GameManagerPlugin,
+        ViewPlugin,
+        UiPlugin,
+        CharacterPlugin,
+        AreaPlugin,
+        InputPlugin,
+    ))
+    .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
+    .add_systems(Update, tick_game);
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -91,5 +101,6 @@ pub mod area;
 pub mod assets;
 pub mod game_manager;
 pub mod input;
+pub mod inventory;
 pub mod item;
 pub mod ui;

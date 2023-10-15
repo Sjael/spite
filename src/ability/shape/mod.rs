@@ -21,7 +21,10 @@ pub enum AbilityShape {
 
 impl Default for AbilityShape {
     fn default() -> Self {
-        AbilityShape::Rectangle { length: 2.0, width: 3.0 }
+        AbilityShape::Rectangle {
+            length: 2.0,
+            width: 3.0,
+        }
     }
 }
 
@@ -58,9 +61,15 @@ pub fn load_ability_shape(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
         ));
-        let new_material = presets.0.get("red").unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into())).clone();
+        let new_material = presets
+            .0
+            .get("red")
+            .unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into()))
+            .clone();
         if let None = targetter {
-            commands.entity(entity).insert((new_material, TargetsHittable::default()));
+            commands
+                .entity(entity)
+                .insert((new_material, TargetsHittable::default()));
         }
     }
 }

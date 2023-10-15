@@ -25,15 +25,24 @@ pub fn spawn_main_menu(mut commands: Commands, fonts: Res<Fonts>) {
             MainMenuRoot,
         ))
         .with_children(|parent| {
-            parent.spawn(button()).insert(ButtonAction::Play).with_children(|parent| {
-                parent.spawn(button_text("Play", &fonts));
-            });
-            parent.spawn(button()).insert(ButtonAction::Settings).with_children(|parent| {
-                parent.spawn(button_text("Settings", &fonts));
-            });
-            parent.spawn(button()).insert(ButtonAction::Exit).with_children(|parent| {
-                parent.spawn(button_text("Exit Game", &fonts));
-            });
+            parent
+                .spawn(button())
+                .insert(ButtonAction::Play)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Play", &fonts));
+                });
+            parent
+                .spawn(button())
+                .insert(ButtonAction::Settings)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Settings", &fonts));
+                });
+            parent
+                .spawn(button())
+                .insert(ButtonAction::Exit)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Exit Game", &fonts));
+                });
         });
 }
 

@@ -13,7 +13,10 @@ use bevy::{
 use bevy_fly_camera::{camera_movement_system, mouse_motion_system};
 use bevy_rapier3d::prelude::*;
 use sacred_aurora::{
-    ability::{bundles::Caster, Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks},
+    ability::{
+        bundles::Caster, Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags,
+        TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
+    },
     actor::{
         buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
         crowd_control::{CCInfo, CCMap, CCType},
@@ -23,7 +26,10 @@ use sacred_aurora::{
     },
     area::non_damaging::ObjectiveHealthOwner,
     assets::*,
-    game_manager::{CharacterState, Fountain, InGameSet, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2, TEAM_NEUTRAL, TERRAIN_GROUPING},
+    game_manager::{
+        CharacterState, Fountain, InGameSet, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1, TEAM_2,
+        TEAM_NEUTRAL, TERRAIN_GROUPING,
+    },
     GameState,
 };
 use winit::window::Icon;
@@ -35,15 +41,30 @@ fn main() {
     app.add_systems(OnEnter(GameState::InGame), setup_map);
     app.add_systems(Startup, set_window_icon);
     app.add_systems(Startup, setup_camera);
-    app.add_systems(Update, (camera_movement_system, mouse_motion_system).in_set(InGameSet::Update).run_if(in_state(CharacterState::Dead)));
+    app.add_systems(
+        Update,
+        (camera_movement_system, mouse_motion_system)
+            .in_set(InGameSet::Update)
+            .run_if(in_state(CharacterState::Dead)),
+    );
     app.run();
 }
 
-pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>, icons: Res<Icons>, models: Res<Models>, scenes: Res<Scenes>) {
+pub fn setup_map(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    icons: Res<Icons>,
+    models: Res<Models>,
+    scenes: Res<Scenes>,
+) {
     //ground
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane { size: 4.0, subdivisions: 5 })),
+            mesh: meshes.add(Mesh::from(shape::Plane {
+                size: 4.0,
+                subdivisions: 5,
+            })),
             material: materials.add(icons.basic_attack.clone().into()),
             transform: Transform {
                 translation: Vec3::new(0.0, 0.0, 0.0),
@@ -63,7 +84,14 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
                 translation: Vec3::new(-3.0, 0.5, -22.0),
                 ..default()
             }),
-            meshes.add(shape::Capsule { radius: 0.7, depth: 2.0, ..default() }.into()),
+            meshes.add(
+                shape::Capsule {
+                    radius: 0.7,
+                    depth: 2.0,
+                    ..default()
+                }
+                .into(),
+            ),
             materials.add(StandardMaterial::from(Color::RED)),
             Collider::capsule(Vec3::ZERO, Vec3::Y, 0.7),
             RigidBody::Fixed,
@@ -73,8 +101,12 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
             {
                 let mut attributes = Attributes::default();
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;
-                *attributes.entry(Stat::MagicalProtection.into()).or_default() = 60.0;
-                *attributes.entry(Stat::PhysicalProtection.into()).or_default() = 60.0;
+                *attributes
+                    .entry(Stat::MagicalProtection.into())
+                    .or_default() = 60.0;
+                *attributes
+                    .entry(Stat::PhysicalProtection.into())
+                    .or_default() = 60.0;
                 attributes
             },
             Tower,
@@ -88,7 +120,11 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
         .id();
 
     let tower_range = commands
-        .spawn((SpatialBundle::default(), TEAM_NEUTRAL, Name::new("Range Collider")))
+        .spawn((
+            SpatialBundle::default(),
+            TEAM_NEUTRAL,
+            Name::new("Range Collider"),
+        ))
         .insert((
             Collider::cylinder(1.0, 7.),
             ActiveEvents::COLLISION_EVENTS,
@@ -121,7 +157,13 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
                 translation: Vec3::new(-3.0, 0.5, -17.0),
                 ..default()
             }),
-            meshes.add(shape::Capsule { radius: 0.4, ..default() }.into()),
+            meshes.add(
+                shape::Capsule {
+                    radius: 0.4,
+                    ..default()
+                }
+                .into(),
+            ),
             materials.add(StandardMaterial::from(Color::INDIGO)),
             Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
             RigidBody::Dynamic,
@@ -144,7 +186,10 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
             translation: Vec3::new(-10.0, 0.0, 10.0),
             ..default()
         }),
-        meshes.add(Mesh::from(shape::Plane { size: 4.0, subdivisions: 2 })),
+        meshes.add(Mesh::from(shape::Plane {
+            size: 4.0,
+            subdivisions: 2,
+        })),
         materials.add(StandardMaterial::from(Color::MAROON)),
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
@@ -155,7 +200,13 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
         TargetsHittable::default(),
         TEAM_NEUTRAL,
         Tags {
-            list: vec![TagInfo::Damage(12.0), TagInfo::CC(CCInfo { cctype: CCType::Stun, duration: 3.0 })],
+            list: vec![
+                TagInfo::Damage(12.0),
+                TagInfo::CC(CCInfo {
+                    cctype: CCType::Stun,
+                    duration: 3.0,
+                }),
+            ],
         },
         Name::new("DamageFountain"),
     ));
@@ -166,7 +217,10 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
             translation: Vec3::new(10.0, 0.0, 10.0),
             ..default()
         }),
-        meshes.add(Mesh::from(shape::Plane { size: 4.0, subdivisions: 2 })),
+        meshes.add(Mesh::from(shape::Plane {
+            size: 4.0,
+            subdivisions: 2,
+        })),
         materials.add(StandardMaterial::from(Color::GOLD)),
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
@@ -205,7 +259,10 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
             translation: Vec3::new(10.0, 0.0, -10.0),
             ..default()
         }),
-        meshes.add(Mesh::from(shape::Plane { size: 4.0, subdivisions: 2 })),
+        meshes.add(Mesh::from(shape::Plane {
+            size: 4.0,
+            subdivisions: 2,
+        })),
         materials.add(StandardMaterial::from(Color::GREEN)),
         Collider::cuboid(2.0, 0.3, 2.0),
         Sensor,
@@ -278,7 +335,10 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
     });
     commands.spawn((
         PointLightBundle {
-            point_light: PointLight { shadows_enabled: true, ..default() },
+            point_light: PointLight {
+                shadows_enabled: true,
+                ..default()
+            },
             transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
             ..default()
         },
@@ -309,7 +369,8 @@ pub fn setup_map(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut m
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(11., 5., 24.)).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_translation(Vec3::new(11., 5., 24.))
+                .looking_at(Vec3::ZERO, Vec3::Y),
             tonemapping: Tonemapping::ReinhardLuminance,
             dither: DebandDither::Enabled,
             ..default()
@@ -325,7 +386,10 @@ pub fn setup_camera(mut commands: Commands) {
     ));
 }
 
-fn set_window_icon(windows: NonSend<WinitWindows>, primary_window: Query<Entity, With<PrimaryWindow>>) {
+fn set_window_icon(
+    windows: NonSend<WinitWindows>,
+    primary_window: Query<Entity, With<PrimaryWindow>>,
+) {
     let Ok(primary_entity) = primary_window.get_single() else { return };
     let Some(primary) = windows.get_window(primary_entity) else { return };
     let icon_buf = Cursor::new(include_bytes!("../assets/icons/fireball.png"));

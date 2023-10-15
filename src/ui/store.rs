@@ -3,21 +3,47 @@ use bevy::prelude::*;
 use crate::{
     ability::TargetsInArea,
     actor::{
-        player::{Player, PlayerEntity},
+        player::PlayerEntity,
         stats::{Attributes, Stat, Stat::*},
-        view::Spectating,
     },
     area::{AreaOverlapEvent, AreaOverlapType},
     assets::Items,
-    game_manager::{CharacterState, Fountain, InGameSet},
-    item::{Item, ITEM_TOTALS},
+    game_manager::Fountain,
+    inventory::Inventory,
+    item::Item,
 };
 
 use super::{
     styles::{NORMAL_BUTTON, PRESSED_BUTTON},
     ui_bundles::*,
-    ButtonAction, SpectatingSet,
+    SpectatingSet,
 };
+
+pub struct StorePlugin;
+impl Plugin for StorePlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(CategorySorted::default());
+        app.insert_resource(ItemInspected::default());
+        app.insert_resource(StoreSnapshot::default());
+        app.add_event::<StoreEvent>();
+        app.add_event::<UndoPressEvent>();
+
+        app.add_systems(
+            Update,
+            (
+                sort_items,
+                click_category,
+                inspect_item,
+                try_buy_item,
+                try_sell_item,
+                try_undo_store,
+                confirm_buy,
+                update_discounts.after(inspect_item),
+            )
+                .in_set(SpectatingSet),
+        );
+    }
+}
 
 pub const CATEGORIES: [Stat; 7] = [
     Health,
@@ -35,48 +61,10 @@ pub struct CategorySorted(pub Vec<Stat>);
 #[derive(Resource, Default)]
 pub struct ItemInspected(pub Option<Item>);
 
-#[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
-#[reflect]
-pub struct Inventory(pub [Option<Item>; 6]);
-
-impl Inventory {
-    pub fn items(&self) -> impl Iterator<Item = Item> + '_ {
-        self.iter().cloned().filter_map(|x| x)
-    }
-}
-
-pub struct InventoryPlugin;
-impl Plugin for InventoryPlugin {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(CategorySorted::default());
-        app.insert_resource(ItemInspected::default());
-        app.insert_resource(StoreSnapshot::default());
-        app.add_event::<StoreEvent>();
-        app.add_event::<UndoPressEvent>();
-        app.register_type::<Inventory>();
-
-        app.add_systems(
-            Update,
-            (
-                sort_items,
-                click_category,
-                inspect_item,
-                try_buy_item,
-                try_sell_item,
-                try_undo_store,
-                confirm_buy,
-                update_inventory_ui,
-                update_discounts.after(inspect_item),
-            )
-                .in_set(SpectatingSet),
-        );
-    }
-}
-
-// TODO
-// HIDE ONLY ITEMS IN LIST node
-
-pub fn sort_items(mut item_query: Query<(&ItemAttributes, &mut Style)>, categories_toggled: Res<CategorySorted>) {
+pub fn sort_items(
+    mut item_query: Query<(&ItemAttributes, &mut Style)>,
+    categories_toggled: Res<CategorySorted>,
+) {
     if !categories_toggled.is_changed() {
         return
     }
@@ -85,7 +73,11 @@ pub fn sort_items(mut item_query: Query<(&ItemAttributes, &mut Style)>, categori
         if categories_toggled.0.is_empty() {
             continue
         }
-        if attributes.0.iter().any(|stat| categories_toggled.0.contains(stat)) {
+        if attributes
+            .0
+            .iter()
+            .any(|stat| categories_toggled.0.contains(stat))
+        {
             continue
         }
         style.display = Display::None;
@@ -93,7 +85,10 @@ pub fn sort_items(mut item_query: Query<(&ItemAttributes, &mut Style)>, categori
 }
 
 pub fn click_category(
-    interaction_query: Query<(&Category, &Interaction, Entity), (Changed<Interaction>, With<Button>)>,
+    interaction_query: Query<
+        (&Category, &Interaction, Entity),
+        (Changed<Interaction>, With<Button>),
+    >,
     mut button_query: Query<&mut BackgroundColor, With<Category>>,
     mut categories_toggled: ResMut<CategorySorted>,
 ) {
@@ -116,7 +111,10 @@ pub fn click_category(
 }
 
 pub fn update_discounts(
-    mut query: ParamSet<(Query<(&mut Text, &ItemDiscount), Changed<ItemDiscount>>, Query<(&mut Text, &ItemDiscount)>)>,
+    mut query: ParamSet<(
+        Query<(&mut Text, &ItemDiscount), Changed<ItemDiscount>>,
+        Query<(&mut Text, &ItemDiscount)>,
+    )>,
     player_entity: Res<PlayerEntity>,
     changed_inventories: Query<(&Inventory, Entity), Changed<Inventory>>,
     inventories: Query<&Inventory>,
@@ -219,7 +217,11 @@ fn spawn_tree(commands: &mut Commands, item: Item, item_images: &Res<Items>) -> 
     vert
 }
 
-fn try_buy_item(mut events: EventReader<StoreEvent>, mut buyers: Query<(&mut Attributes, &mut Inventory)>, mut snapshot: ResMut<StoreSnapshot>) {
+fn try_buy_item(
+    mut events: EventReader<StoreEvent>,
+    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
+    mut snapshot: ResMut<StoreSnapshot>,
+) {
     for event in events.iter() {
         if event.direction != TransactionType::Buy {
             continue
@@ -230,7 +232,10 @@ fn try_buy_item(mut events: EventReader<StoreEvent>, mut buyers: Query<(&mut Att
         if *gold > discounted_price {
             // remove components
             for item in event.item.common_parts(inventory.items()) {
-                let Some(index) = inventory.iter().position(|old| *old == Some(item.clone())) else { continue };
+                let Some(index) = inventory.iter().position(|old| *old == Some(item.clone()))
+                else {
+                    continue
+                };
                 inventory.0[index] = None;
             }
             let open_slot = inventory.0.iter().position(|x| x == &None);
@@ -249,28 +254,11 @@ fn try_buy_item(mut events: EventReader<StoreEvent>, mut buyers: Query<(&mut Att
     }
 }
 
-fn update_inventory_ui(
-    mut commands: Commands,
-    query: Query<(&Inventory, Entity), Changed<Inventory>>,
-    slot_query: Query<(Entity, &BuildSlotNumber)>,
-    items: Res<Items>,
-    local_entity: Res<PlayerEntity>,
+fn try_sell_item(
+    mut events: EventReader<StoreEvent>,
+    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
+    mut snapshot: ResMut<StoreSnapshot>,
 ) {
-    let Some(local) = local_entity.0 else { return };
-    for (inv, entity) in query.iter() {
-        if entity != local {
-            continue
-        }
-        for (slot_e, index) in &slot_query {
-            commands.entity(slot_e).despawn_descendants();
-            let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else { continue };
-            let new_item = commands.spawn(item_image_build(&items, item.clone())).id();
-            commands.entity(new_item).set_parent(slot_e);
-        }
-    }
-}
-
-fn try_sell_item(mut events: EventReader<StoreEvent>, mut buyers: Query<(&mut Attributes, &mut Inventory)>, mut snapshot: ResMut<StoreSnapshot>) {
     for event in events.iter() {
         if event.direction != TransactionType::Sell {
             continue
@@ -278,7 +266,10 @@ fn try_sell_item(mut events: EventReader<StoreEvent>, mut buyers: Query<(&mut At
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else { continue };
         let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1.0);
         let refund = event.item.total_price() as f32;
-        if let Some(index) = inventory.iter().position(|old| *old == Some(event.item.clone())) {
+        if let Some(index) = inventory
+            .iter()
+            .position(|old| *old == Some(event.item.clone()))
+        {
             inventory.0[index] = None;
             let sell_price = (refund * 0.67).floor();
             *gold += sell_price;
@@ -287,7 +278,11 @@ fn try_sell_item(mut events: EventReader<StoreEvent>, mut buyers: Query<(&mut At
     }
 }
 
-fn try_undo_store(mut events: EventReader<UndoPressEvent>, mut buyers: Query<(&mut Attributes, &mut Inventory)>, mut snapshot: ResMut<StoreSnapshot>) {
+fn try_undo_store(
+    mut events: EventReader<UndoPressEvent>,
+    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
+    mut snapshot: ResMut<StoreSnapshot>,
+) {
     for event in events.iter() {
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.entity) else { continue };
         let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(1.0);

@@ -86,20 +86,26 @@ pub struct MaterialPresets(pub HashMap<String, Handle<StandardMaterial>>);
 pub struct GameAssetPlugin;
 impl Plugin for GameAssetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_loading_state(LoadingState::new(GameState::Loading).continue_to_state(GameState::MainMenu))
-            .add_collection_to_loading_state::<_, Icons>(GameState::Loading)
-            .add_collection_to_loading_state::<_, Fonts>(GameState::Loading)
-            .add_collection_to_loading_state::<_, Images>(GameState::Loading)
-            .add_collection_to_loading_state::<_, Scenes>(GameState::Loading)
-            .add_collection_to_loading_state::<_, Models>(GameState::Loading)
-            .add_collection_to_loading_state::<_, Items>(GameState::Loading);
+        app.add_loading_state(
+            LoadingState::new(GameState::Loading).continue_to_state(GameState::MainMenu),
+        )
+        .add_collection_to_loading_state::<_, Icons>(GameState::Loading)
+        .add_collection_to_loading_state::<_, Fonts>(GameState::Loading)
+        .add_collection_to_loading_state::<_, Images>(GameState::Loading)
+        .add_collection_to_loading_state::<_, Scenes>(GameState::Loading)
+        .add_collection_to_loading_state::<_, Models>(GameState::Loading)
+        .add_collection_to_loading_state::<_, Items>(GameState::Loading);
 
         app.add_systems(Startup, load_presets);
     }
 }
 
 fn load_presets(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
-    let colors = vec![("white", Color::WHITE), ("blue", Color::BLUE), ("red", Color::RED)];
+    let colors = vec![
+        ("white", Color::WHITE),
+        ("blue", Color::BLUE),
+        ("red", Color::RED),
+    ];
     let mut presets = HashMap::new();
     for (color_string, color) in colors {
         presets.insert(color_string.into(), materials.add(color.into()));

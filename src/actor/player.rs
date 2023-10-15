@@ -16,7 +16,12 @@ use super::{
     CooldownMap, InputCastEvent,
 };
 
-pub fn player_mouse_input(mut ev_mouse: EventReader<MouseMotion>, mut player_input: ResMut<PlayerInput>, sensitivity: Res<MouseSensitivity>, mouse_state: Res<State<MouseState>>) {
+pub fn player_mouse_input(
+    mut ev_mouse: EventReader<MouseMotion>,
+    mut player_input: ResMut<PlayerInput>,
+    sensitivity: Res<MouseSensitivity>,
+    mouse_state: Res<State<MouseState>>,
+) {
     if *mouse_state == MouseState::Free {
         return
     } // if mouse is free, dont turn character
@@ -31,11 +36,19 @@ pub fn player_mouse_input(mut ev_mouse: EventReader<MouseMotion>, mut player_inp
 }
 
 // change to use leafwing slots? Also input component?
-pub fn player_keys_input(keyboard_input: Res<Input<KeyCode>>, mouse_input: Res<Input<MouseButton>>, mut player_input: ResMut<PlayerInput>) {
-    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
-    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
-    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
-    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+pub fn player_keys_input(
+    keyboard_input: Res<Input<KeyCode>>,
+    mouse_input: Res<Input<MouseButton>>,
+    mut player_input: ResMut<PlayerInput>,
+) {
+    player_input
+        .set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
+    player_input
+        .set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
+    player_input
+        .set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
+    player_input
+        .set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
     player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
     player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
     player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
@@ -44,7 +57,11 @@ pub fn player_keys_input(keyboard_input: Res<Input<KeyCode>>, mouse_input: Res<I
     player_input.set_right_click(mouse_input.pressed(MouseButton::Right));
 }
 
-pub fn update_local_player_inputs(player_input: Res<PlayerInput>, mut query: Query<(&mut PlayerInput, &ActorType)>, local_player: Res<Player>) {
+pub fn update_local_player_inputs(
+    player_input: Res<PlayerInput>,
+    mut query: Query<(&mut PlayerInput, &ActorType)>,
+    local_player: Res<Player>,
+) {
     for (mut input, actortype) in &mut query {
         if actortype != &ActorType::Player(*local_player) {
             continue
@@ -56,7 +73,15 @@ pub fn update_local_player_inputs(player_input: Res<PlayerInput>, mut query: Que
 
 // Make this local only? would be weird to sync other players cast settings, but
 // sure?
-pub fn select_ability(mut query: Query<(&mut HoveredAbility, &ActionState<Ability>, &AbilityCastSettings, Entity)>, mut cast_event: EventWriter<InputCastEvent>) {
+pub fn select_ability(
+    mut query: Query<(
+        &mut HoveredAbility,
+        &ActionState<Ability>,
+        &AbilityCastSettings,
+        Entity,
+    )>,
+    mut cast_event: EventWriter<InputCastEvent>,
+) {
     for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
         for ability in ab_state.get_just_pressed() {
             let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
@@ -94,12 +119,22 @@ pub fn show_targetter(
         }
         let Some(hovered_ability) = hovered.0 else { continue };
 
-        let mut handle = presets.0.get("blue").unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into())).clone();
+        let mut handle = presets
+            .0
+            .get("blue")
+            .unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into()))
+            .clone();
         if cooldowns.map.contains_key(&hovered_ability) {
-            handle = presets.0.get("white").unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into())).clone();
+            handle = presets
+                .0
+                .get("white")
+                .unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into()))
+                .clone();
         }
         let targetter = hovered_ability.get_targetter(&mut commands);
-        commands.entity(targetter).insert((hovered_ability.clone(), handle));
+        commands
+            .entity(targetter)
+            .insert((hovered_ability.clone(), handle));
 
         if hovered_ability.on_reticle() {
             commands.entity(targetter).set_parent(reticle_entity);
@@ -133,7 +168,10 @@ pub fn change_targetter_color(
     }
 }
 
-pub fn normal_casting(mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>, mut cast_event: EventWriter<InputCastEvent>) {
+pub fn normal_casting(
+    mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>,
+    mut cast_event: EventWriter<InputCastEvent>,
+) {
     for (input, mut hovered, player) in &mut query {
         let Some(hovered_ability) = hovered.0 else { continue };
         if input.left_click() {
@@ -148,7 +186,22 @@ pub fn normal_casting(mut query: Query<(&PlayerInput, &mut HoveredAbility, Entit
     }
 }
 
-#[derive(Component, Resource, Reflect, Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut)]
+#[derive(
+    Component,
+    Resource,
+    Reflect,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Eq,
+    Hash,
+    Deref,
+    DerefMut,
+)]
 #[reflect(Component)]
 pub struct Player {
     pub id: u32,
@@ -259,7 +312,8 @@ impl PlayerInput {
         self.binary_inputs.set(PlayerInputKeys::LEFT_CLICK, clicked);
     }
     pub fn set_right_click(&mut self, clicked: bool) {
-        self.binary_inputs.set(PlayerInputKeys::RIGHT_CLICK, clicked);
+        self.binary_inputs
+            .set(PlayerInputKeys::RIGHT_CLICK, clicked);
     }
     pub fn left_click(&self) -> bool {
         self.binary_inputs.contains(PlayerInputKeys::LEFT_CLICK)

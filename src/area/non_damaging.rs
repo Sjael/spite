@@ -14,7 +14,10 @@ pub struct ObjectiveHealthOwner {
     pub looking_range: f32,
 }
 
-pub fn add_health_bar_detect_colliders(detectors: Query<(Entity, &ObjectiveHealthOwner), Added<ObjectiveHealthOwner>>, mut commands: Commands) {
+pub fn add_health_bar_detect_colliders(
+    detectors: Query<(Entity, &ObjectiveHealthOwner), Added<ObjectiveHealthOwner>>,
+    mut commands: Commands,
+) {
     for (entity, health_range) in &detectors {
         commands.entity(entity).with_children(|parent| {
             parent.spawn((

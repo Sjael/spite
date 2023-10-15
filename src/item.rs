@@ -5,7 +5,7 @@ use derive_more::Display;
 
 use bevy::prelude::*;
 
-use crate::{actor::stats::Stat, assets::Items, ui::inventory::Inventory};
+use crate::{actor::stats::Stat, assets::Items, inventory::Inventory};
 
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 #[reflect(Component)]
@@ -105,6 +105,7 @@ lazy_static! {
                     price: 300,
                     stats: HashMap::from([
                         (PhysicalProtection, 20),
+                        (Health, 100),
                     ]),
                     ..default()
                 }
@@ -132,7 +133,7 @@ lazy_static! {
 
             for part in info.parts{
                 let part_info: &mut ItemTotal = map.entry(part.clone()).or_insert(part.calculate_total());
-                if part_info.ancestors.contains(&item){ continue };
+                if part_info.ancestors.contains(&item){ continue }
                 part_info.ancestors.push(item.clone());
             }
         }
@@ -193,7 +194,11 @@ impl Item {
     }
 
     pub fn discounted_price(&self, inventory: &Inventory) -> u32 {
-        let discount: u32 = self.common_parts(inventory.items()).iter().map(|component| component.total_price()).sum();
+        let discount: u32 = self
+            .common_parts(inventory.items())
+            .iter()
+            .map(|component| component.total_price())
+            .sum();
         self.total_price() - discount
     }
 
@@ -214,10 +219,16 @@ impl Item {
     }
 
     pub fn total(&self) -> ItemTotal {
-        ITEM_TOTALS.get(self).cloned().expect(&format!("Item total doesn't exist for {:?}", self))
+        ITEM_TOTALS
+            .get(self)
+            .cloned()
+            .expect(&format!("Item total doesn't exist for {:?}", self))
     }
     pub fn info(&self) -> ItemInfo {
-        ITEM_DB.get(self).cloned().expect(&format!("Item info doesn't exist for {:?}", self))
+        ITEM_DB
+            .get(self)
+            .cloned()
+            .expect(&format!("Item info doesn't exist for {:?}", self))
     }
 
     pub fn parts(&self) -> Vec<Item> {

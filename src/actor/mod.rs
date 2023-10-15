@@ -3,9 +3,12 @@ use std::{collections::HashMap, time::Duration};
 use crate::{
     ability::{rank::Rank, Ability, DamageType},
     actor::view::{Spectatable, SpectateEvent, Spectating},
-    game_manager::{AbilityFireEvent, ActorType, Bounty, CharacterState, InGameSet, PLAYER_GROUPING, TEAM_1},
+    game_manager::{
+        AbilityFireEvent, ActorType, Bounty, CharacterState, InGameSet, PLAYER_GROUPING, TEAM_1,
+    },
     input::{copy_action_state, SlotBundle},
-    ui::{inventory::Inventory, Trackable},
+    inventory::Inventory,
+    ui::Trackable,
     GameState,
 };
 use bevy::prelude::*;
@@ -71,7 +74,12 @@ impl Plugin for CharacterPlugin {
                 .in_set(InGameSet::Update),
         );
         // Process transforms always after inputs, and translations after rotations
-        app.add_systems(PostUpdate, (actor_swivel, actor_movement).chain().in_set(InGameSet::Post));
+        app.add_systems(
+            PostUpdate,
+            (actor_swivel, actor_movement)
+                .chain()
+                .in_set(InGameSet::Post),
+        );
     }
 }
 
@@ -119,7 +127,13 @@ fn init_player(
         let player_entity = commands
             .spawn((
                 SpatialBundle::from_transform(event.transform.clone()),
-                _meshes.add(shape::Capsule { radius: 0.4, ..default() }.into()),
+                _meshes.add(
+                    shape::Capsule {
+                        radius: 0.4,
+                        ..default()
+                    }
+                    .into(),
+                ),
                 green.clone(),
                 event.actor.clone(), // ActorType
                 player,              // Player
@@ -138,7 +152,9 @@ fn init_player(
                 let mut attributes = Attributes::default();
                 *attributes.entry(Stat::Health.into()).or_default() = 33.0;
                 *attributes.entry(Stat::Speed.into()).or_default() = 6.0;
-                *attributes.entry(Stat::CharacterResource.into()).or_default() = 33.0;
+                *attributes
+                    .entry(Stat::CharacterResource.into())
+                    .or_default() = 33.0;
                 attributes
             })
             .insert((
@@ -162,7 +178,9 @@ fn init_player(
 
         let player_is_owned = event.actor == ActorType::Player(*local_player); // make it check if you are that player
         if player_is_owned {
-            spectate_events.send(SpectateEvent { entity: player_entity });
+            spectate_events.send(SpectateEvent {
+                entity: player_entity,
+            });
             commands.insert_resource(PlayerEntity(Some(player_entity)));
             commands.insert_resource(Spectating(player_entity));
             commands.insert_resource(PlayerInput::default());
@@ -182,7 +200,9 @@ fn respawn_entity(
         *vis = Visibility::Visible;
         *state = CharacterState::Alive;
         if event.actor == ActorType::Player(*local_player) {
-            spectate_events.send(SpectateEvent { entity: event.entity });
+            spectate_events.send(SpectateEvent {
+                entity: event.entity,
+            });
         }
     }
 }
@@ -228,7 +248,8 @@ pub fn actor_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput
         }
 
         let direction_normalized = direction.normalize_or_zero();
-        let movement_vector = Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
+        let movement_vector =
+            Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
 
         // don't effect the y direction since you can't move in that direction.
         velocity.linvel.x = movement_vector.x;
@@ -236,7 +257,11 @@ pub fn actor_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput
     }
 }
 
-pub fn cast_ability(mut players: Query<(&CooldownMap, &CCMap, &mut HoveredAbility)>, mut attempt_cast_event: EventReader<InputCastEvent>, mut cast_event: EventWriter<CastEvent>) {
+pub fn cast_ability(
+    mut players: Query<(&CooldownMap, &CCMap, &mut HoveredAbility)>,
+    mut attempt_cast_event: EventReader<InputCastEvent>,
+    mut cast_event: EventWriter<CastEvent>,
+) {
     for event in attempt_cast_event.iter() {
         let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else { continue };
         if ccmap.map.contains_key(&CCType::Silence) || ccmap.map.contains_key(&CCType::Stun) {
@@ -273,16 +298,26 @@ pub enum CastingStage {
     None,
 }
 
-fn start_ability_windup(mut players: Query<(&mut WindupTimer, &mut Casting)>, mut cast_events: EventReader<CastEvent>) {
+fn start_ability_windup(
+    mut players: Query<(&mut WindupTimer, &mut Casting)>,
+    mut cast_events: EventReader<CastEvent>,
+) {
     for event in cast_events.iter() {
         let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else { continue };
         let windup = event.ability.get_windup();
-        winduptimer.0 = Timer::new(Duration::from_millis((windup * 1000.) as u64), TimerMode::Once);
+        winduptimer.0 = Timer::new(
+            Duration::from_millis((windup * 1000.) as u64),
+            TimerMode::Once,
+        );
         casting.0 = Some(event.ability);
     }
 }
 
-fn tick_windup_timer(time: Res<Time>, mut players: Query<(Entity, &mut WindupTimer, &mut Casting)>, mut fire_event: EventWriter<AbilityFireEvent>) {
+fn tick_windup_timer(
+    time: Res<Time>,
+    mut players: Query<(Entity, &mut WindupTimer, &mut Casting)>,
+    mut fire_event: EventWriter<AbilityFireEvent>,
+) {
     for (entity, mut timer, mut casting) in players.iter_mut() {
         let Some(ability) = casting.0 else { continue };
         timer.0.tick(time.delta());
@@ -296,14 +331,24 @@ fn tick_windup_timer(time: Res<Time>, mut players: Query<(Entity, &mut WindupTim
     }
 }
 
-fn trigger_cooldown(mut cast_events: EventReader<AbilityFireEvent>, mut query: Query<(&mut CooldownMap, &Attributes)>) {
+fn trigger_cooldown(
+    mut cast_events: EventReader<AbilityFireEvent>,
+    mut query: Query<(&mut CooldownMap, &Attributes)>,
+) {
     for event in cast_events.iter() {
         let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else { continue };
-        let cdr = 1.0 - (*attributes.get(&Stat::CooldownReduction.as_tag()).unwrap_or(&0.0) / 100.0);
+        let cdr = 1.0
+            - (*attributes
+                .get(&Stat::CooldownReduction.as_tag())
+                .unwrap_or(&0.0)
+                / 100.0);
 
         cooldowns.map.insert(
             event.ability.clone(),
-            Timer::new(Duration::from_millis((event.ability.get_cooldown() * cdr * 1000.) as u64), TimerMode::Once),
+            Timer::new(
+                Duration::from_millis((event.ability.get_cooldown() * cdr * 1000.) as u64),
+                TimerMode::Once,
+            ),
         );
     }
 }
@@ -402,31 +447,68 @@ fn update_damage_logs(
         if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
             defender_log.list.push(damage_instance.clone());
             if defender_log.sums.contains_key(&damage_instance.sensor) {
-                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else { continue };
+                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {
+                    continue
+                };
                 hits.add_damage(damage_instance.clone());
-                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Stack, LogSide::Incoming));
+                log_hit_events.send(LogHit::new(
+                    damage_instance.clone(),
+                    LogType::Stack,
+                    LogSide::Incoming,
+                ));
             } else {
-                defender_log.sums.insert(damage_instance.sensor.clone(), DamageSum::from_instance(damage_instance.clone()));
-                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Add, LogSide::Incoming));
+                defender_log.sums.insert(
+                    damage_instance.sensor.clone(),
+                    DamageSum::from_instance(damage_instance.clone()),
+                );
+                log_hit_events.send(LogHit::new(
+                    damage_instance.clone(),
+                    LogType::Add,
+                    LogSide::Incoming,
+                ));
             }
         }
 
         if let Ok(mut attacker_log) = outgoing_logs.get_mut(damage_instance.attacker) {
             attacker_log.list.push(damage_instance.clone());
             if attacker_log.sums.contains_key(&damage_instance.sensor) {
-                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else { continue };
+                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {
+                    continue
+                };
                 if targets_hit.contains_key(&damage_instance.defender) {
-                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else { continue };
+                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {
+                        continue
+                    };
                     hits.add_damage(damage_instance.clone());
-                    log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Stack, LogSide::Outgoing));
+                    log_hit_events.send(LogHit::new(
+                        damage_instance.clone(),
+                        LogType::Stack,
+                        LogSide::Outgoing,
+                    ));
                 } else {
-                    targets_hit.insert(damage_instance.defender.clone(), DamageSum::from_instance(damage_instance.clone()));
-                    log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Add, LogSide::Outgoing));
+                    targets_hit.insert(
+                        damage_instance.defender.clone(),
+                        DamageSum::from_instance(damage_instance.clone()),
+                    );
+                    log_hit_events.send(LogHit::new(
+                        damage_instance.clone(),
+                        LogType::Add,
+                        LogSide::Outgoing,
+                    ));
                 }
             } else {
-                let init = HashMap::from([(damage_instance.defender, DamageSum::from_instance(damage_instance.clone()))]);
-                attacker_log.sums.insert(damage_instance.sensor.clone(), init);
-                log_hit_events.send(LogHit::new(damage_instance.clone(), LogType::Add, LogSide::Outgoing));
+                let init = HashMap::from([(
+                    damage_instance.defender,
+                    DamageSum::from_instance(damage_instance.clone()),
+                )]);
+                attacker_log
+                    .sums
+                    .insert(damage_instance.sensor.clone(), init);
+                log_hit_events.send(LogHit::new(
+                    damage_instance.clone(),
+                    LogType::Add,
+                    LogSide::Outgoing,
+                ));
             }
         }
     }
