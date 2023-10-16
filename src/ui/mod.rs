@@ -73,8 +73,6 @@ impl Plugin for UiPlugin {
         app.add_systems(
             Update,
             (
-                update_health,
-                update_character_resource,
                 update_gold_inhand,
                 update_cc_bar,
                 toggle_cc_bar,
@@ -96,7 +94,7 @@ impl Plugin for UiPlugin {
                 follow_in_3d,
                 floating_damage_cleanup,
                 update_buff_timers,
-                update_objective_health,
+                //update_objective_health,
                 toggle_objective_health,
                 populate_scoreboard,
             )
@@ -118,6 +116,7 @@ impl Plugin for UiPlugin {
                 //show_floating_health_bars.run_if(resource_exists::<Spectating>()),
                 spawn_floating_health_bars,
                 bar_track,
+                text_track,
                 state_ingame_menu,
                 update_kda,
             )
@@ -759,13 +758,13 @@ pub fn spawn_floating_health_bars(
 
 fn show_floating_health_bars(
     mut commands: Commands,
-    possessing_query: Query<(&Transform, &Team)>,
+    query: Query<(&Transform, &Team)>,
     healthy: Query<(&Attributes, &Transform, &Team, Entity), With<HasHealthBar>>,
     mut health_bars: Query<(&mut Visibility, &HealthBarHolder)>,
     children_query: Query<&Children>,
     spectating: Res<Spectating>,
 ) {
-    let Ok((player_transform, team)) = possessing_query.get(spectating.0) else { return };
+    let Ok((player_transform, team)) = query.get(spectating.0) else { return };
     for (attributes, target_transform, other_team, healthy_entity) in &healthy {
         let dir = (target_transform.translation - player_transform.translation).normalize();
         let direction_from_hp_bar = Quat::from_euler(EulerRot::XYZ, dir.x, dir.y, dir.z);

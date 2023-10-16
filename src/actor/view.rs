@@ -154,9 +154,9 @@ fn spawn_camera_gimbal(
     if let Ok(_) = gimbal_query.get_single() {
         return
     }
-    let Some(possessed) = spectate_events.iter().next() else { return };
+    let Some(spectated) = spectate_events.iter().next() else { return };
 
-    spectating.0 = possessed.entity;
+    spectating.0 = spectated.entity;
 
     let camera = commands
         .spawn((
@@ -201,7 +201,7 @@ fn spawn_camera_gimbal(
                 ..default()
             }),
             OuterGimbal,
-            FollowEntity(possessed.entity),
+            FollowEntity(spectated.entity),
             Name::new("Outer Gimbal"),
         ))
         .id();

@@ -20,12 +20,12 @@ use crate::{
 pub fn add_player_ui(
     mut commands: Commands,
     ui_query: Query<Entity, With<RootUI>>,
-    player_query: Query<&SlotAbilityMap, Added<Player>>,
+    player_query: Query<(Entity, &SlotAbilityMap), Added<Player>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
 ) {
     let Ok(root_ui) = ui_query.get_single() else { return };
-    for ability_map in player_query.iter() {
+    for (entity, ability_map) in player_query.iter() {
         commands.entity(root_ui).with_children(|parent| {
             parent.spawn(character_ui()).with_children(|parent| {
                 // Bottom Container
@@ -42,21 +42,34 @@ pub fn add_player_ui(
                             parent.spawn(bar_background(20.0)).with_children(|parent| {
                                 parent
                                     .spawn(bar_fill(Color::rgb(0.27, 0.77, 0.26)))
-                                    .insert(HealthBarUI);
+                                    .insert(
+                                        BarTrack{
+                                        entity,
+                                            current: Stat::Health.as_tag(),
+                                            max: Stat::HealthMax.as_tag(),
+                                        }
+                                    );
                                 parent.spawn(bar_text_wrapper()).with_children(|parent| {
                                     parent
                                         .spawn(custom_text(&fonts, 18.0, -1.0))
-                                        .insert(HealthBarText);
+                                        .insert(TextTrack::hp(entity));
+
                                 });
                             });
                             parent.spawn(bar_background(14.0)).with_children(|parent| {
                                 parent
                                     .spawn(bar_fill(Color::rgb(0.92, 0.24, 0.01)))
-                                    .insert(ResourceBarUI);
+                                    .insert(
+                                        BarTrack{
+                                        entity,
+                                            current: Stat::CharacterResource.as_tag(),
+                                            max: Stat::CharacterResourceMax.as_tag(),
+                                        }
+                                    );
                                 parent.spawn(bar_text_wrapper()).with_children(|parent| {
                                     parent
                                         .spawn(custom_text(&fonts, 14.0, -2.0))
-                                        .insert(ResourceBarText);
+                                        .insert(TextTrack::res(entity));
                                 });
                             });
                         });
@@ -130,11 +143,51 @@ pub fn add_ability_icons(
 }
 
 #[derive(Component)]
+pub struct TextTrack {
+    pub entity: Entity,
+    pub stat: Vec<AttributeTag>,
+    pub layout: String,
+}
+impl TextTrack{
+    fn res(entity: Entity) -> TextTrack{
+        Self{
+            entity,
+            stat: vec![Stat::CharacterResource.as_tag(), Stat::CharacterResourceMax.as_tag(), Stat::CharacterResourceRegen.as_tag()],
+            layout: "x / x (+x)".to_string(),
+        }
+    }
+    fn hp(entity: Entity) -> TextTrack{
+        Self{
+            entity,
+            stat: vec![Stat::Health.as_tag(), Stat::HealthMax.as_tag(), Stat::HealthRegen.as_tag()],
+            layout: "x / x (+x)".to_string(),
+        }
+    }
+}
+
+impl Default for TextTrack{
+    fn default() -> TextTrack{
+        Self { entity: Entity::from_raw(3), stat: vec![Stat::Health.as_tag()], layout: "x".to_string() }
+    }
+}
+
+#[derive(Component)]
 pub struct BarTrack {
     pub entity: Entity,
     pub current: AttributeTag,
     pub max: AttributeTag,
 }
+
+impl BarTrack{
+    fn hp(entity: Entity) -> BarTrack{
+        BarTrack{
+            entity,
+            current: Stat::Health.as_tag(),
+            max: Stat::HealthMax.as_tag(),
+        }
+    }
+}
+
 
 pub fn bar_track(
     query: Query<&Attributes, Changed<Attributes>>,
@@ -146,6 +199,42 @@ pub fn bar_track(
         let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
         let new_size = current / max;
         style.width = Val::Percent(new_size * 100.0);
+    }
+}
+
+pub fn text_track(
+    query: Query<&Attributes, Changed<Attributes>>,
+    mut text_query: Query<(&mut Text, &TextTrack)>,
+    fonts: Res<Fonts>,
+) {
+    for (mut text, tracking) in &mut text_query {
+        let Ok(attributes) = query.get(tracking.entity) else { continue };
+        let mut whole_str = tracking.layout.clone();
+        for stat in tracking.stat.iter(){
+            let current = *attributes.get(stat).unwrap_or(&0.0);
+            whole_str = whole_str.replacen("x", &current.trunc().to_string(), 1);
+        }
+
+        *text = Text::from_section(
+            whole_str,
+            TextStyle {
+                font: fonts.exo_semibold.clone(),
+                font_size: 18.0,
+                color: Color::WHITE,
+            },
+        );
+    }
+}
+
+pub fn update_gold_inhand(
+    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
+    mut text_query: Query<&mut Text, With<GoldInhand>>,
+    spectating: Res<Spectating>,
+) {
+    let Ok(attributes) = query.get(spectating.0) else { return };
+    let gold = *attributes.get(&Stat::Gold.as_tag()).unwrap_or(&0.0);
+    for mut text in text_query.iter_mut() {
+        text.sections[0].value = gold.trunc().to_string();
     }
 }
 
@@ -161,104 +250,7 @@ pub fn update_cc_bar(
     bar.width = Val::Percent(cc_timer.percent_left() * 100.0);
 }
 
-pub fn update_health(
-    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
-    mut text_query: Query<&mut Text, With<HealthBarText>>,
-    mut bar_query: Query<&mut Style, With<HealthBarUI>>,
-    fonts: Res<Fonts>,
-    spectating: Res<Spectating>,
-) {
-    let Ok(mut text) = text_query.get_single_mut() else { return };
-    let Ok(mut bar) = bar_query.get_single_mut() else { return };
-    let Ok(attributes) = query.get(spectating.0) else { return };
-    let current = *attributes.get(&Stat::Health.as_tag()).unwrap_or(&0.0);
-    let regen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
-    let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
 
-    let current_text = format!("{}", current.trunc());
-    let max_text = format!(" / {}", max.trunc());
-    let regen_text = format!(" (+{})", regen.trunc());
-    *text = Text::from_sections([
-        TextSection {
-            value: current_text,
-            style: TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 18.0,
-                color: Color::WHITE,
-            },
-        },
-        TextSection {
-            value: max_text,
-            style: TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 18.0,
-                color: Color::YELLOW,
-            },
-        },
-        TextSection {
-            value: regen_text,
-            style: TextStyle {
-                font: fonts.exo_semibold.clone(),
-                font_size: 18.0,
-                color: Color::WHITE,
-            },
-        },
-    ]);
-    let new_size = current / max;
-    bar.width = Val::Percent(new_size * 100.0);
-}
-
-pub fn update_character_resource(
-    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
-    mut text_query: Query<&mut Text, With<ResourceBarText>>,
-    mut bar_query: Query<&mut Style, With<ResourceBarUI>>,
-    spectating: Res<Spectating>,
-) {
-    let Ok(mut text) = text_query.get_single_mut() else { return };
-    let Ok(mut bar) = bar_query.get_single_mut() else { return };
-    let Ok(attributes) = query.get(spectating.0) else { return };
-    let current = *attributes
-        .get(&Stat::CharacterResource.as_tag())
-        .unwrap_or(&0.0);
-    let regen = *attributes
-        .get(&Stat::CharacterResourceRegen.as_tag())
-        .unwrap_or(&0.0);
-    let max = *attributes
-        .get(&Stat::CharacterResourceMax.as_tag())
-        .unwrap_or(&100.0);
-
-    text.sections[0].value = format!("{} / {} (+{})", current.trunc(), max.trunc(), regen.trunc());
-
-    let new_size = current / max;
-    bar.width = Val::Percent(new_size * 100.0);
-}
-
-pub fn update_objective_health(
-    focused_health_entity: Res<FocusedHealthEntity>,
-    mut bar_query: Query<&mut Style, With<ObjectiveHealthFill>>,
-    query: Query<&Attributes, Changed<Attributes>>,
-) {
-    let Some(focused_entity) = focused_health_entity.0 else { return };
-    let Ok(mut bar) = bar_query.get_single_mut() else { return };
-    let Ok(attributes) = query.get(focused_entity) else { return };
-    let current = *attributes.get(&Stat::Health.as_tag()).unwrap_or(&0.0);
-    let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
-
-    let new_size = current / max;
-    bar.width = Val::Percent(new_size * 100.0);
-}
-
-pub fn update_gold_inhand(
-    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
-    mut text_query: Query<&mut Text, With<GoldInhand>>,
-    spectating: Res<Spectating>,
-) {
-    let Ok(attributes) = query.get(spectating.0) else { return };
-    let gold = *attributes.get(&Stat::Gold.as_tag()).unwrap_or(&0.0);
-    for mut text in text_query.iter_mut() {
-        text.sections[0].value = gold.trunc().to_string();
-    }
-}
 
 pub fn toggle_cc_bar(
     spectating: Res<Spectating>,
@@ -423,14 +415,19 @@ pub fn add_buffs(
 }
 
 pub fn toggle_objective_health(
+    mut commands: Commands,
     focused_health_entity: Res<FocusedHealthEntity>,
     mut obj_health_holder: Query<&mut Visibility, With<ObjectiveHealth>>,
     mut obj_text: Query<&mut Text, With<ObjectiveName>>,
+    mut obj_bar: Query<Entity, With<ObjectiveHealthFill>>,
     objective_query: Query<&Name>,
 ) {
     if focused_health_entity.is_changed() {
         let Ok(mut vis) = obj_health_holder.get_single_mut() else { return };
+        let Ok(entity) = obj_bar.get_single_mut() else { return };
         if let Some(focused_entity) = focused_health_entity.0 {
+            commands.entity(entity).insert(BarTrack::hp(focused_entity));
+            
             let Ok(mut text) = obj_text.get_single_mut() else { return };
             let Ok(name) = objective_query.get(focused_entity) else { return };
             text.sections[0].value = name.as_str().to_string();

@@ -1642,7 +1642,7 @@ pub fn gold_holder() -> impl Bundle {
             },
             ..default()
         },
-        Name::new("GoldInhand"),
+        Name::new("Gold Text Holder"),
     )
 }
 
@@ -1925,23 +1925,6 @@ pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     ))
 }
 
-pub fn gold_text(fonts: &Res<Fonts>) -> impl Bundle {
-    (
-        TextBundle {
-            text: Text::from_section(
-                "200",
-                TextStyle {
-                    font: fonts.exo_light.clone(),
-                    font_size: 30.0,
-                    color: Color::YELLOW,
-                },
-            ),
-            z_index: ZIndex::Global(4),
-            ..default()
-        },
-        GoldInhand,
-    )
-}
 
 pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
