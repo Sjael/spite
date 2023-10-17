@@ -1925,7 +1925,6 @@ pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     ))
 }
 
-
 pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> impl Bundle {
     let text = text.into();
     (TextBundle {

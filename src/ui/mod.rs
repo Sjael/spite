@@ -73,7 +73,6 @@ impl Plugin for UiPlugin {
         app.add_systems(
             Update,
             (
-                update_gold_inhand,
                 update_cc_bar,
                 toggle_cc_bar,
                 update_cast_bar,
@@ -193,7 +192,11 @@ fn populate_scoreboard(
     }
 }
 
-fn add_base_ui(mut commands: Commands, items: Res<Items>, fonts: Res<Fonts>, images: Res<Images>) {
+fn add_base_ui(
+    mut commands: Commands, 
+    fonts: Res<Fonts>, 
+    images: Res<Images>
+) {
     commands.spawn(root_ui()).with_children(|parent| {
         // can be edited in HUD editor
         parent.spawn(header_holder()).with_children(|parent| {
@@ -215,143 +218,19 @@ fn add_base_ui(mut commands: Commands, items: Res<Items>, fonts: Res<Fonts>, ima
                 });
             });
         });
-        parent.spawn(respawn_holder()).with_children(|parent| {
-            parent.spawn(editable_ui_wrapper()).with_children(|parent| {
-                parent.spawn(respawn_text(&fonts));
-            });
-        });
         parent.spawn(team_thumbs_holder()).with_children(|parent| {
             parent.spawn(editable_ui_wrapper()).with_children(|parent| {
                 parent.spawn(team_thumbs());
             });
         });
-        parent
-            .spawn(bottom_left_ui_holder())
-            .with_children(|parent| {
-                parent.spawn(editable_ui_wrapper()).with_children(|parent| {
-                    parent.spawn(bottom_left_ui()).with_children(|parent| {
-                        parent.spawn(stats_ui()).with_children(|parent| {
-                            parent
-                                .spawn(color_text("0", 24, &fonts, Color::YELLOW))
-                                .insert(GoldInhand);
-                            for x in 0..6 {
-                                parent.spawn(plain_text(format!("stat {}", x), 16, &fonts));
-                            }
-                        });
-                        parent.spawn(build_and_kda()).with_children(|parent| {
-                            parent.spawn(kda_ui()).with_children(|parent| {
-                                parent
-                                    .spawn(plain_text("0 / 0 / 0", 18, &fonts))
-                                    .insert(PersonalKDA);
-                            });
-                            parent.spawn(build_ui()).with_children(|parent| {
-                                parent.spawn(build_slot(1)).with_children(|parent| {
-                                    //parent.spawn(item_image_build(&items,
-                                    // Item::Arondight));
-                                });
-                                parent.spawn(build_slot(2)).with_children(|parent| {
-                                    //parent.spawn(item_image_build(&items,
-                                    // Item::HiddenDagger));
-                                });
-                                parent.spawn(build_slot(3));
-                                parent.spawn(build_slot(4)).with_children(|parent| {
-                                    //parent.spawn(item_image_build(&items,
-                                    // Item::SoulReaver));
-                                });
-                                parent.spawn(build_slot(5));
-                                parent.spawn(build_slot(6));
-                            });
-                        });
-                    });
-                });
-            });
         // non editable ui
         parent.spawn(tooltip());
-        parent.spawn(tab_panel()).with_children(|parent| {
-            parent.spawn(damage_log()).with_children(|parent| {
-                parent.spawn(log_outgoing());
-                parent.spawn(log_incoming());
-            });
-            parent.spawn(scoreboard());
-            parent.spawn(death_recap());
-            parent.spawn(abilities_panel());
-        });
-        parent.spawn(store()).with_children(|parent| {
-            parent.spawn(drag_bar());
-            parent.spawn(gold_holder()).with_children(|parent| {
-                parent
-                    .spawn(color_text("0", 20, &fonts, Color::YELLOW))
-                    .insert((GoldInhand, ZIndex::Global(4)));
-            });
-            parent.spawn(list_categories()).with_children(|parent| {
-                /*parent.spawn(button()).insert(
-                    ButtonAction::ClearFilter,
-                ).with_children(|parent| {
-                    parent.spawn(button_text("Clear", &fonts));
-                });*/
-                for stat in CATEGORIES.iter() {
-                    parent
-                        .spawn(category(stat.clone()))
-                        .with_children(|parent| {
-                            parent.spawn(category_text(stat.to_string(), &fonts));
-                        });
-                }
-            });
-            parent.spawn(list_items()).with_children(|parent| {
-                for item in ITEM_DB.keys() {
-                    parent
-                        .spawn(store_item_wrap(item.clone()))
-                        .with_children(|parent| {
-                            parent.spawn(store_item(&items, item.clone()));
-                            parent
-                                .spawn(color_text("", 16, &fonts, Color::WHITE))
-                                .insert(ItemDiscount(item.clone()));
-                        });
-                }
-            });
-            parent.spawn(inspector()).with_children(|parent| {
-                parent.spawn(item_parents());
-                parent.spawn(grow_wrap()).with_children(|parent| {
-                    parent.spawn(item_tree());
-                });
-                parent.spawn(item_details()).with_children(|parent| {
-                    parent
-                        .spawn(color_text("", 14, &fonts, Color::YELLOW))
-                        .insert(ItemPriceText);
-                    parent
-                        .spawn(color_text("", 16, &fonts, Color::GREEN))
-                        .insert((ItemDiscount(Item::Arondight), ItemDiscountText));
-                    parent
-                        .spawn(color_text("", 18, &fonts, Color::WHITE))
-                        .insert(ItemNameText);
-                    parent.spawn(hori()).with_children(|parent| {
-                        parent
-                            .spawn(button())
-                            .insert(ButtonAction::BuyItem)
-                            .with_children(|parent| {
-                                parent.spawn(plain_text("BUY", 20, &fonts));
-                            });
-                        parent
-                            .spawn(button())
-                            .insert(ButtonAction::SellItem)
-                            .with_children(|parent| {
-                                parent.spawn(plain_text("SELL", 16, &fonts));
-                            });
-                    });
-                    parent
-                        .spawn(button())
-                        .insert(ButtonAction::UndoStore)
-                        .with_children(|parent| {
-                            parent.spawn(plain_text("UNDO", 16, &fonts));
-                        });
-                });
-            });
-        });
+        
     });
 }
 
 fn drag_holdable(
-    mut commands: Commands,
+    //mut commands: Commands,
     //items: Res<Items>,
     windows: Query<&mut Window, With<PrimaryWindow>>,
     // both queries can be the same entity or different

@@ -11,11 +11,13 @@ use crate::{
         view::Spectating,
         CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer,
     },
-    assets::{Fonts, Icons, Images},
+    assets::{Fonts, Icons, Images, Items},
     game_manager::{AbilityFireEvent, Team},
     input::SlotAbilityMap,
-    ui::ui_bundles::*,
+    ui::ui_bundles::*, item::{ITEM_DB, Item},
 };
+
+use super::{store::CATEGORIES, ButtonAction};
 
 pub fn add_player_ui(
     mut commands: Commands,
@@ -23,6 +25,7 @@ pub fn add_player_ui(
     player_query: Query<(Entity, &SlotAbilityMap), Added<Player>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
+    items: Res<Items>, 
 ) {
     let Ok(root_ui) = ui_query.get_single() else { return };
     for (entity, ability_map) in player_query.iter() {
@@ -42,34 +45,22 @@ pub fn add_player_ui(
                             parent.spawn(bar_background(20.0)).with_children(|parent| {
                                 parent
                                     .spawn(bar_fill(Color::rgb(0.27, 0.77, 0.26)))
-                                    .insert(
-                                        BarTrack{
-                                        entity,
-                                            current: Stat::Health.as_tag(),
-                                            max: Stat::HealthMax.as_tag(),
-                                        }
-                                    );
+                                    .insert(BarTrack::hp(entity));
                                 parent.spawn(bar_text_wrapper()).with_children(|parent| {
                                     parent
                                         .spawn(custom_text(&fonts, 18.0, -1.0))
-                                        .insert(TextTrack::hp(entity));
-
+                                        .insert(TextTrack::new(entity, Stat::Health));
                                 });
                             });
                             parent.spawn(bar_background(14.0)).with_children(|parent| {
                                 parent
                                     .spawn(bar_fill(Color::rgb(0.92, 0.24, 0.01)))
-                                    .insert(
-                                        BarTrack{
-                                        entity,
-                                            current: Stat::CharacterResource.as_tag(),
-                                            max: Stat::CharacterResourceMax.as_tag(),
-                                        }
-                                    );
+                                    .insert(BarTrack::res(entity));
+
                                 parent.spawn(bar_text_wrapper()).with_children(|parent| {
                                     parent
                                         .spawn(custom_text(&fonts, 14.0, -2.0))
-                                        .insert(TextTrack::res(entity));
+                                        .insert(TextTrack::new(entity, Stat::CharacterResource));
                                 });
                             });
                         });
@@ -113,6 +104,129 @@ pub fn add_player_ui(
                         });
                     });
             });
+            parent
+                .spawn(bottom_left_ui_holder())
+                .with_children(|parent| {
+                    parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                        parent.spawn(bottom_left_ui()).with_children(|parent| {
+                            parent.spawn(stats_ui()).with_children(|parent| {
+                                parent
+                                    .spawn(color_text("0", 24, &fonts, Color::YELLOW))
+                                    .insert(TextTrack::new(entity, Stat::Gold));
+                                for x in 0..6 {
+                                    parent.spawn(plain_text(format!("stat {}", x), 16, &fonts));
+                                }
+                            });
+                            parent.spawn(build_and_kda()).with_children(|parent| {
+                                parent.spawn(kda_ui()).with_children(|parent| {
+                                    parent
+                                        .spawn(plain_text("0 / 0 / 0", 18, &fonts))
+                                        .insert(PersonalKDA);
+                                });
+                                parent.spawn(build_ui()).with_children(|parent| {
+                                    parent.spawn(build_slot(1)).with_children(|parent| {
+                                        //parent.spawn(item_image_build(&items,
+                                        // Item::Arondight));
+                                    });
+                                    parent.spawn(build_slot(2)).with_children(|parent| {
+                                        //parent.spawn(item_image_build(&items,
+                                        // Item::HiddenDagger));
+                                    });
+                                    parent.spawn(build_slot(3));
+                                    parent.spawn(build_slot(4)).with_children(|parent| {
+                                        //parent.spawn(item_image_build(&items,
+                                        // Item::SoulReaver));
+                                    });
+                                    parent.spawn(build_slot(5));
+                                    parent.spawn(build_slot(6));
+                                });
+                            });
+                        });
+                    });
+                });
+            parent.spawn(respawn_holder()).with_children(|parent| {
+                parent.spawn(editable_ui_wrapper()).with_children(|parent| {
+                    parent.spawn(respawn_text(&fonts));
+                });
+            });
+            parent.spawn(tab_panel()).with_children(|parent| {
+                parent.spawn(damage_log()).with_children(|parent| {
+                    parent.spawn(log_outgoing());
+                    parent.spawn(log_incoming());
+                });
+                parent.spawn(scoreboard());
+                parent.spawn(death_recap());
+                parent.spawn(abilities_panel());
+            });
+            parent.spawn(store()).with_children(|parent| {
+                parent.spawn(drag_bar());
+                parent.spawn(gold_holder()).with_children(|parent| {
+                    parent
+                        .spawn(color_text("0", 20, &fonts, Color::YELLOW))
+                        .insert((
+                            TextTrack::new(entity, Stat::Gold),
+                            ZIndex::Global(4)
+                        ));
+                });
+                parent.spawn(list_categories()).with_children(|parent| {
+                    for stat in CATEGORIES.iter() {
+                        parent
+                            .spawn(category(stat.clone()))
+                            .with_children(|parent| {
+                                parent.spawn(category_text(stat.to_string(), &fonts));
+                            });
+                    }
+                });
+                parent.spawn(list_items()).with_children(|parent| {
+                    for item in ITEM_DB.keys() {
+                        parent
+                            .spawn(store_item_wrap(item.clone()))
+                            .with_children(|parent| {
+                                parent.spawn(store_item(&items, item.clone()));
+                                parent
+                                    .spawn(color_text("", 16, &fonts, Color::WHITE))
+                                    .insert(ItemDiscount(item.clone()));
+                            });
+                    }
+                });
+                parent.spawn(inspector()).with_children(|parent| {
+                    parent.spawn(item_parents());
+                    parent.spawn(grow_wrap()).with_children(|parent| {
+                        parent.spawn(item_tree());
+                    });
+                    parent.spawn(item_details()).with_children(|parent| {
+                        parent
+                            .spawn(color_text("", 14, &fonts, Color::YELLOW))
+                            .insert(ItemPriceText);
+                        parent
+                            .spawn(color_text("", 16, &fonts, Color::GREEN))
+                            .insert((ItemDiscount(Item::Arondight), ItemDiscountText));
+                        parent
+                            .spawn(color_text("", 18, &fonts, Color::WHITE))
+                            .insert(ItemNameText);
+                        parent.spawn(hori()).with_children(|parent| {
+                            parent
+                                .spawn(button())
+                                .insert(ButtonAction::BuyItem)
+                                .with_children(|parent| {
+                                    parent.spawn(plain_text("BUY", 20, &fonts));
+                                });
+                            parent
+                                .spawn(button())
+                                .insert(ButtonAction::SellItem)
+                                .with_children(|parent| {
+                                    parent.spawn(plain_text("SELL", 16, &fonts));
+                                });
+                        });
+                        parent
+                            .spawn(button())
+                            .insert(ButtonAction::UndoStore)
+                            .with_children(|parent| {
+                                parent.spawn(plain_text("UNDO", 16, &fonts));
+                            });
+                    });
+                });
+            });
         });
     }
 }
@@ -148,28 +262,29 @@ pub struct TextTrack {
     pub stat: Vec<AttributeTag>,
     pub layout: String,
 }
-impl TextTrack{
-    fn res(entity: Entity) -> TextTrack{
-        Self{
-            entity,
-            stat: vec![Stat::CharacterResource.as_tag(), Stat::CharacterResourceMax.as_tag(), Stat::CharacterResourceRegen.as_tag()],
-            layout: "x / x (+x)".to_string(),
+impl TextTrack {
+    pub fn new(entity: Entity, stat: Stat) -> Self{
+        let mut stats = vec![stat.clone().as_tag()];
+        let mut layout = "x".to_string();
+        match stat{
+            Stat::Health => {
+                layout = "x / x  (+x)".to_string();
+                stats.append(&mut vec![Stat::HealthMax.as_tag(), Stat::HealthRegen.as_tag()]);
+            }
+            Stat::CharacterResource => {
+                layout = "x / x  (+x)".to_string();
+                stats.append(&mut vec![Stat::CharacterResourceMax.as_tag(), Stat::CharacterResourceRegen.as_tag()]);
+            }
+            _ => ()
         }
-    }
-    fn hp(entity: Entity) -> TextTrack{
         Self{
             entity,
-            stat: vec![Stat::Health.as_tag(), Stat::HealthMax.as_tag(), Stat::HealthRegen.as_tag()],
-            layout: "x / x (+x)".to_string(),
+            stat: stats,
+            layout,
         }
     }
 }
 
-impl Default for TextTrack{
-    fn default() -> TextTrack{
-        Self { entity: Entity::from_raw(3), stat: vec![Stat::Health.as_tag()], layout: "x".to_string() }
-    }
-}
 
 #[derive(Component)]
 pub struct BarTrack {
@@ -178,29 +293,23 @@ pub struct BarTrack {
     pub max: AttributeTag,
 }
 
-impl BarTrack{
-    fn hp(entity: Entity) -> BarTrack{
-        BarTrack{
+impl BarTrack {
+    fn hp(entity: Entity) -> BarTrack {
+        BarTrack {
             entity,
             current: Stat::Health.as_tag(),
             max: Stat::HealthMax.as_tag(),
         }
     }
-}
-
-
-pub fn bar_track(
-    query: Query<&Attributes, Changed<Attributes>>,
-    mut bar_query: Query<(&mut Style, &BarTrack)>,
-) {
-    for (mut style, tracking) in &mut bar_query {
-        let Ok(attributes) = query.get(tracking.entity) else { continue };
-        let current = *attributes.get(&tracking.current).unwrap_or(&0.0);
-        let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
-        let new_size = current / max;
-        style.width = Val::Percent(new_size * 100.0);
+    fn res(entity: Entity) -> BarTrack {
+        BarTrack {
+            entity,
+            current: Stat::CharacterResource.as_tag(),
+            max: Stat::CharacterResourceMax.as_tag(),
+        }
     }
 }
+
 
 pub fn text_track(
     query: Query<&Attributes, Changed<Attributes>>,
@@ -210,7 +319,7 @@ pub fn text_track(
     for (mut text, tracking) in &mut text_query {
         let Ok(attributes) = query.get(tracking.entity) else { continue };
         let mut whole_str = tracking.layout.clone();
-        for stat in tracking.stat.iter(){
+        for stat in tracking.stat.iter() {
             let current = *attributes.get(stat).unwrap_or(&0.0);
             whole_str = whole_str.replacen("x", &current.trunc().to_string(), 1);
         }
@@ -226,15 +335,16 @@ pub fn text_track(
     }
 }
 
-pub fn update_gold_inhand(
-    query: Query<&Attributes, (With<Player>, Changed<Attributes>)>,
-    mut text_query: Query<&mut Text, With<GoldInhand>>,
-    spectating: Res<Spectating>,
+pub fn bar_track(
+    query: Query<&Attributes, Changed<Attributes>>,
+    mut bar_query: Query<(&mut Style, &BarTrack)>,
 ) {
-    let Ok(attributes) = query.get(spectating.0) else { return };
-    let gold = *attributes.get(&Stat::Gold.as_tag()).unwrap_or(&0.0);
-    for mut text in text_query.iter_mut() {
-        text.sections[0].value = gold.trunc().to_string();
+    for (mut style, tracking) in &mut bar_query {
+        let Ok(attributes) = query.get(tracking.entity) else { continue };
+        let current = *attributes.get(&tracking.current).unwrap_or(&0.0);
+        let max = *attributes.get(&tracking.max).unwrap_or(&100.0);
+        let new_size = current / max;
+        style.width = Val::Percent(new_size * 100.0);
     }
 }
 
@@ -250,7 +360,15 @@ pub fn update_cc_bar(
     bar.width = Val::Percent(cc_timer.percent_left() * 100.0);
 }
 
-
+pub fn update_cast_bar(
+    spectating: Res<Spectating>,
+    windup_query: Query<&WindupTimer>,
+    mut cast_bar_fill: Query<&mut Style, With<CastBarFill>>,
+) {
+    let Ok(windup) = windup_query.get(spectating.0) else { return };
+    let Ok(mut style) = cast_bar_fill.get_single_mut() else { return };
+    style.width = Val::Percent(windup.0.percent() * 100.0);
+}
 
 pub fn toggle_cc_bar(
     spectating: Res<Spectating>,
@@ -275,15 +393,6 @@ pub fn toggle_cc_bar(
     }
 }
 
-pub fn update_cast_bar(
-    spectating: Res<Spectating>,
-    windup_query: Query<&WindupTimer>,
-    mut cast_bar_fill: Query<&mut Style, With<CastBarFill>>,
-) {
-    let Ok(windup) = windup_query.get(spectating.0) else { return };
-    let Ok(mut style) = cast_bar_fill.get_single_mut() else { return };
-    style.width = Val::Percent(windup.0.percent() * 100.0);
-}
 
 pub fn toggle_cast_bar(
     spectating: Res<Spectating>,
@@ -427,7 +536,7 @@ pub fn toggle_objective_health(
         let Ok(entity) = obj_bar.get_single_mut() else { return };
         if let Some(focused_entity) = focused_health_entity.0 {
             commands.entity(entity).insert(BarTrack::hp(focused_entity));
-            
+
             let Ok(mut text) = obj_text.get_single_mut() else { return };
             let Ok(name) = objective_query.get(focused_entity) else { return };
             text.sections[0].value = name.as_str().to_string();
