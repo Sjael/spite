@@ -304,7 +304,7 @@ fn start_ability_windup(
 ) {
     for event in cast_events.iter() {
         let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else { continue };
-        let windup = event.ability.get_windup();
+        let windup = event.ability.get_actor_times();
         winduptimer.0 = Timer::new(
             Duration::from_millis((windup * 1000.) as u64),
             TimerMode::Once,

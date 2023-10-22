@@ -192,11 +192,7 @@ fn populate_scoreboard(
     }
 }
 
-fn add_base_ui(
-    mut commands: Commands, 
-    fonts: Res<Fonts>, 
-    images: Res<Images>
-) {
+fn add_base_ui(mut commands: Commands, fonts: Res<Fonts>, images: Res<Images>) {
     commands.spawn(root_ui()).with_children(|parent| {
         // can be edited in HUD editor
         parent.spawn(header_holder()).with_children(|parent| {
@@ -225,7 +221,6 @@ fn add_base_ui(
         });
         // non editable ui
         parent.spawn(tooltip());
-        
     });
 }
 

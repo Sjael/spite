@@ -14,7 +14,8 @@ use crate::{
     assets::{Fonts, Icons, Images, Items},
     game_manager::{AbilityFireEvent, Team},
     input::SlotAbilityMap,
-    ui::ui_bundles::*, item::{ITEM_DB, Item},
+    item::{Item, ITEM_DB},
+    ui::ui_bundles::*,
 };
 
 use super::{store::CATEGORIES, ButtonAction};
@@ -25,7 +26,7 @@ pub fn add_player_ui(
     player_query: Query<(Entity, &SlotAbilityMap), Added<Player>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
-    items: Res<Items>, 
+    items: Res<Items>,
 ) {
     let Ok(root_ui) = ui_query.get_single() else { return };
     for (entity, ability_map) in player_query.iter() {
@@ -163,10 +164,7 @@ pub fn add_player_ui(
                 parent.spawn(gold_holder()).with_children(|parent| {
                     parent
                         .spawn(color_text("0", 20, &fonts, Color::YELLOW))
-                        .insert((
-                            TextTrack::new(entity, Stat::Gold),
-                            ZIndex::Global(4)
-                        ));
+                        .insert((TextTrack::new(entity, Stat::Gold), ZIndex::Global(4)));
                 });
                 parent.spawn(list_categories()).with_children(|parent| {
                     for stat in CATEGORIES.iter() {
@@ -263,28 +261,33 @@ pub struct TextTrack {
     pub layout: String,
 }
 impl TextTrack {
-    pub fn new(entity: Entity, stat: Stat) -> Self{
+    pub fn new(entity: Entity, stat: Stat) -> Self {
         let mut stats = vec![stat.clone().as_tag()];
         let mut layout = "x".to_string();
-        match stat{
+        match stat {
             Stat::Health => {
                 layout = "x / x  (+x)".to_string();
-                stats.append(&mut vec![Stat::HealthMax.as_tag(), Stat::HealthRegen.as_tag()]);
+                stats.append(&mut vec![
+                    Stat::HealthMax.as_tag(),
+                    Stat::HealthRegen.as_tag(),
+                ]);
             }
             Stat::CharacterResource => {
                 layout = "x / x  (+x)".to_string();
-                stats.append(&mut vec![Stat::CharacterResourceMax.as_tag(), Stat::CharacterResourceRegen.as_tag()]);
+                stats.append(&mut vec![
+                    Stat::CharacterResourceMax.as_tag(),
+                    Stat::CharacterResourceRegen.as_tag(),
+                ]);
             }
-            _ => ()
+            _ => (),
         }
-        Self{
+        Self {
             entity,
             stat: stats,
             layout,
         }
     }
 }
-
 
 #[derive(Component)]
 pub struct BarTrack {
@@ -309,7 +312,6 @@ impl BarTrack {
         }
     }
 }
-
 
 pub fn text_track(
     query: Query<&Attributes, Changed<Attributes>>,
@@ -392,7 +394,6 @@ pub fn toggle_cc_bar(
         *vis = Visibility::Visible;
     }
 }
-
 
 pub fn toggle_cast_bar(
     spectating: Res<Spectating>,

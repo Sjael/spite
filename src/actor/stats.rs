@@ -337,7 +337,7 @@ pub enum AttributeTag {
 
 impl Default for AttributeTag {
     fn default() -> Self {
-        Self::Stat(Stat::Health)
+        Stat::Health.into()
     }
 }
 

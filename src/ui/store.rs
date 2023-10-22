@@ -1,4 +1,5 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, ecs::system::Command};
+use bevy_rapier3d::rapier::prelude::ChannelEventCollector;
 
 use crate::{
     ability::TargetsInArea,
@@ -8,7 +9,7 @@ use crate::{
     },
     area::{AreaOverlapEvent, AreaOverlapType},
     assets::Items,
-    game_manager::Fountain,
+    game_manager::{Fountain, GameModeDetails},
     inventory::Inventory,
     item::Item,
 };
@@ -37,7 +38,7 @@ impl Plugin for StorePlugin {
                 try_buy_item,
                 try_sell_item,
                 try_undo_store,
-                confirm_buy,
+                leave_store,
                 update_discounts.after(inspect_item),
             )
                 .in_set(SpectatingSet),
@@ -110,7 +111,7 @@ pub fn click_category(
     }
 }
 
-pub fn update_discounts(
+fn update_discounts(
     mut query: ParamSet<(
         Query<(&mut Text, &ItemDiscount), Changed<ItemDiscount>>,
         Query<(&mut Text, &ItemDiscount)>,
@@ -131,6 +132,14 @@ pub fn update_discounts(
     for (mut text, discounted_item) in query.p0().iter_mut() {
         let Ok(inv) = inventories.get(local) else { continue };
         discount_style(discounted_item.0.clone(), &inv, &mut text);
+    }
+}
+
+pub fn update_inventory(
+    mut changed_inventories: Query<(&Inventory, &mut Attributes), Changed<Inventory>>,
+){
+    for (inv, mut attributes) in changed_inventories.iter_mut(){
+
     }
 }
 
@@ -161,10 +170,10 @@ pub fn inspect_item(
     for (item, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
             continue
-        };
+        }
         if item_inspected.0 == Some(item.clone()) {
             continue
-        }; // already inspecting item
+        } // already inspecting item
 
         let Ok((tree_entity, tree_children)) = tree_holder.get_single() else { return };
         item_inspected.0 = Some(item.clone());
@@ -227,9 +236,9 @@ fn try_buy_item(
             continue
         }
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else { continue };
-        let gold = attributes.entry(Stat::Gold.as_tag()).or_default();
+        let wallet = *attributes.get(&Stat::Gold.as_tag()).unwrap_or(&0.0);
         let discounted_price = event.item.discounted_price(&inventory) as f32;
-        if *gold > discounted_price {
+        if wallet > discounted_price {
             // remove components
             for item in event.item.common_parts(inventory.items()) {
                 let Some(index) = inventory.iter().position(|old| *old == Some(item.clone()))
@@ -237,19 +246,28 @@ fn try_buy_item(
                     continue
                 };
                 inventory.0[index] = None;
+                for (stat, stat_change) in item.info().stats{
+                    let stat_before = attributes.entry(stat.as_tag()).or_default();
+                    *stat_before -= stat_change as f32;
+                }
             }
             let open_slot = inventory.0.iter().position(|x| x == &None);
             if let Some(slot) = open_slot {
                 // pay the price
+                let gold = attributes.entry(Stat::Gold.as_tag()).or_default();
                 *gold -= discounted_price;
                 snapshot.gold -= discounted_price as i32;
                 // insert item
                 inventory.0[slot] = Some(event.item.clone());
+                for (stat, stat_change) in event.item.info().stats{
+                    let stat_before = attributes.entry(stat.as_tag()).or_default();
+                    *stat_before += stat_change as f32;
+                }
             } else {
-                dbg!("inventory full");
+                info!("inventory full");
             }
         } else {
-            dbg!("you're too broke for that lol");
+            info!("you're too broke for that lol");
         }
     }
 }
@@ -273,6 +291,10 @@ fn try_sell_item(
             inventory.0[index] = None;
             let sell_price = (refund * 0.67).floor();
             *gold += sell_price;
+            for (stat, stat_change) in event.item.info().stats{
+                let stat_before = attributes.entry(stat.as_tag()).or_default();
+                *stat_before -= stat_change as f32;
+            }
             snapshot.gold += sell_price as i32;
         }
     }
@@ -292,7 +314,9 @@ fn try_undo_store(
     }
 }
 
-fn confirm_buy(
+
+
+fn leave_store(
     mut snapshot: ResMut<StoreSnapshot>,
     buyers: Query<&Inventory>,
     local_entity: Res<PlayerEntity>,
@@ -312,11 +336,30 @@ fn confirm_buy(
     snapshot.gold = 0;
 }
 
+
+impl Command for StoreEvent{
+    fn apply(self, world: &mut World) {
+        let mut counter = world.get_resource_or_insert_with(GameModeDetails::default);
+        let mut query = world.query::<(&mut Attributes, &Inventory)>();
+        for (x, y) in query.iter_mut(world){
+
+        }
+        if self.direction == TransactionType::Buy{
+
+        } else {
+
+        }
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct StoreSnapshot {
     inventory: Inventory,
     gold: i32,
 }
+
+#[derive(Component, Default)]
+pub struct StoreHistory(pub Vec<StoreEvent>);
 
 #[derive(Event)]
 pub struct UndoPressEvent {

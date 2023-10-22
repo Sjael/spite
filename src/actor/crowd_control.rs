@@ -80,7 +80,6 @@ pub fn tick_ccs(time: Res<Time>, mut query: Query<&mut CCMap>) {
             timer.tick(time.delta());
             !timer.finished()
         });
-        sort_ccs(&mut ccs);
     }
 }
 

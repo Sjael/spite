@@ -8,9 +8,9 @@ use std::{
 
 use crate::{
     ability::{
-        bundles::Caster, Ability, AbilityTooltip, CastingLifetime, DamageType, FilteredTargets,
+        bundles::Caster, Ability, AbilityTooltip, AreaLifetime, DamageType, FilteredTargets,
         FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
-        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks, UniqueTargetsHit,
+        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks, UniqueTargetsHit, AreaTimeline, DeployAreaStage,
     },
     actor::{
         buff::{BuffInfo, BuffTargets},
@@ -67,6 +67,7 @@ impl Plugin for AreaPlugin {
                 track_homing,
                 add_health_bar_detect_colliders,
                 focus_objective_health,
+                tick_timeline.before(area_queue_targets),
             ),
         );
         app.add_systems(
@@ -250,12 +251,14 @@ fn area_queue_targets(
         &mut TargetsHittable,
         Option<&TickBehavior>,
         Option<&FilteredTargets>,
+        &AreaTimeline,
     )>,
 ) {
-    for (targets_in_area, mut targets_hittable, tick_behavior, filtered_targets) in
+    for (targets_in_area, mut targets_hittable, tick_behavior, filtered_targets, timeline) in
         sensor_query.iter_mut()
     {
         targets_hittable.list = Vec::new();
+        if timeline.stage != DeployAreaStage::Firing { continue }
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
                 TickBehavior::Static(ref static_timer) => {
@@ -287,7 +290,7 @@ fn area_queue_targets(
                 }
             }
         } else {
-            targets_hittable.list = targets_in_area.list.clone();
+            targets_hittable.list = targets_in_area.list.clone(); // any that enter get hit
         }
     }
 }
@@ -455,7 +458,7 @@ fn catch_collisions(
 fn tick_lifetime(
     mut commands: Commands,
     time: Res<Time>,
-    mut lifetimes: Query<(&mut CastingLifetime, Entity)>,
+    mut lifetimes: Query<(&mut AreaLifetime, Entity)>,
 ) {
     for (mut lifetime, entity) in lifetimes.iter_mut() {
         //dbg!(lifetime.clone());
@@ -463,6 +466,26 @@ fn tick_lifetime(
         if lifetime.seconds <= 0.0 {
             commands.entity(entity).despawn_recursive();
         }
+    }
+}
+
+fn tick_timeline(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut lifetimes: Query<(&mut AreaTimeline, Entity)>,
+) {
+    for (mut timeline, entity) in lifetimes.iter_mut() {
+        //dbg!(lifetime.clone());
+        timeline.timer.tick(time.delta());
+        if timeline.timer.finished() {
+            use crate::ability::DeployAreaStage::*;
+            let new_stage = timeline.stage.get_next_stage();
+            let new_time = timeline.blueprint.get(&new_stage).unwrap_or(&0.0).clone();
+            timeline.timer = Timer::new(Duration::from_secs_f32(new_time), TimerMode::Once);
+            if timeline.stage == Recovery{
+                commands.entity(entity).despawn_recursive();
+            }
+        }  
     }
 }
 
@@ -482,14 +505,19 @@ fn apply_interval(
 fn tick_hit_timers(
     time: Res<Time>,
     mut area_timers: Query<(
+        &TargetsInArea,
         &mut Ticks,
         &FiringInterval,
-        &TargetsInArea,
         &mut TickBehavior,
         Option<&PausesWhenEmpty>,
+        Option<&AreaTimeline>,
     )>,
 ) {
-    for (mut ticks, interval, targets_in_area, mut tick_behavior, pauses) in &mut area_timers {
+    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline,) in &mut area_timers {
+        // only tick area timers if has timeline and is firing 
+        if let Some(timeline) = timeline{
+            if timeline.stage != DeployAreaStage::Firing{ continue }
+        }
         match *tick_behavior {
             TickBehavior::Individual(ref mut individual_timers) => {
                 // tick per-target timer and retain it

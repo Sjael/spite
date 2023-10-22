@@ -228,6 +228,7 @@ pub enum CastType {
     Quick,
     Instant,
 }
+
 #[derive(Component, Debug)]
 pub struct AbilityCastSettings(pub HashMap<Ability, CastType>);
 

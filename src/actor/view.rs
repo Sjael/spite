@@ -23,6 +23,7 @@ impl Plugin for ViewPlugin {
         app.insert_resource(SpectatableObjects::default());
 
         app.add_event::<SpectateEvent>();
+        app.add_event::<PossessEvent>();
 
         app.add_systems(FixedUpdate, (avoid_intersecting,));
         app.add_systems(
@@ -293,6 +294,15 @@ pub struct SpectatorCam;
 #[derive(Resource, Deref, DerefMut, Debug)]
 pub struct Spectating(pub Entity);
 
+#[derive(Debug)]
+pub struct Possessable {
+    pub entity: Entity,
+    pub active: bool,
+}
+
+#[derive(Resource, Deref, DerefMut, Debug)]
+pub struct Possessing(pub Possessable);
+
 #[derive(Resource, Default, Clone, Debug)]
 pub struct SpectatableObjects {
     map: Vec<Entity>,
@@ -319,5 +329,9 @@ pub struct InnerGimbal;
 
 #[derive(Event)]
 pub struct SpectateEvent {
+    pub entity: Entity,
+}
+#[derive(Event)]
+pub struct PossessEvent {
     pub entity: Entity,
 }

@@ -48,7 +48,7 @@ pub struct SpatialAbilityBundle {
     pub targetsinarea: TargetsInArea,
     pub targetstoeffect: TargetsHittable,
     pub tags: Tags,
-    pub lifetime: CastingLifetime,
+    pub lifetime: AreaLifetime,
 }
 
 impl Default for SpatialAbilityBundle {
@@ -109,7 +109,7 @@ impl FrostboltInfo {
             RigidBody::KinematicVelocityBased,
             Sensor,
             DamageType::Physical,
-            CastingLifetime { seconds: 1.0 },
+            AreaLifetime { seconds: 1.0 },
             MaxTargetsHit::new(1),
             Tags {
                 list: vec![
@@ -207,7 +207,7 @@ impl FireballInfo {
             Sensor,
             DamageType::Magical,
             UniqueTargetsHit::default(),
-            CastingLifetime { seconds: 2.0 },
+            AreaLifetime { seconds: 2.0 },
             Tags {
                 list: vec![TagInfo::Damage(11.0)],
             },
@@ -268,9 +268,9 @@ impl BombInfo {
             Sensor,
             Ticks::Unlimited,
             DamageType::Magical,
-            FiringInterval(500),
+            FiringInterval(0.5),
             TickBehavior::individual(),
-            CastingLifetime { seconds: 3.0 },
+            AreaLifetime { seconds: 3.0 },
             Tags {
                 list: vec![TagInfo::Damage(16.0)],
             },
@@ -352,7 +352,7 @@ impl DefaultAbilityInfo {
             },
             Sensor,
             MaxTargetsHit::new(1),
-            CastingLifetime { seconds: 2.0 },
+            AreaLifetime { seconds: 2.0 },
             Tags {
                 list: vec![TagInfo::Damage(11.0)],
             },
