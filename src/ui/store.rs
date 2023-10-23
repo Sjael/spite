@@ -25,7 +25,6 @@ impl Plugin for StorePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CategorySorted::default());
         app.insert_resource(ItemInspected::default());
-        app.insert_resource(StoreSnapshot::default());
         app.add_event::<StoreEvent>();
         app.add_event::<UndoPressEvent>();
 
@@ -226,14 +225,22 @@ fn spawn_tree(commands: &mut Commands, item: Item, item_images: &Res<Items>) -> 
 
 fn try_buy_item(
     mut events: EventReader<StoreEvent>,
-    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
-    mut snapshot: ResMut<StoreSnapshot>,
+    mut buyers: Query<(
+        &mut Attributes,
+        &mut Inventory,
+        &mut StoreBuffer,
+        &mut StoreHistory,
+    )>,
 ) {
     for event in events.iter() {
         if event.direction != TransactionType::Buy {
             continue
         }
-        let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else { continue };
+        let Ok((mut attributes, mut inventory, mut buffer, mut history)) =
+            buyers.get_mut(event.player)
+        else {
+            continue;
+        };
         let wallet = attributes.get(Stat::Gold);
         let discounted_price = event.item.discounted_price(&inventory);
         if wallet > discounted_price {
@@ -248,7 +255,10 @@ fn try_buy_item(
                 // pay the price
                 let gold = attributes.get_mut(Stat::Gold);
                 *gold -= discounted_price;
-                snapshot.gold -= discounted_price;
+                buffer.insert(event.item);
+                if event.fresh {
+                    history.insert(*event);
+                }
             } else {
                 info!("inventory full");
             }
@@ -260,47 +270,60 @@ fn try_buy_item(
 
 fn try_sell_item(
     mut events: EventReader<StoreEvent>,
-    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
-    mut snapshot: ResMut<StoreSnapshot>,
+    mut buyers: Query<(
+        &mut Attributes,
+        &mut Inventory,
+        &mut StoreBuffer,
+        &mut StoreHistory,
+    )>,
 ) {
     for event in events.iter() {
         if event.direction != TransactionType::Sell {
             continue
         }
-        let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else { continue };
+        let Ok((mut attributes, mut inventory, mut buffer, mut history)) =
+            buyers.get_mut(event.player)
+        else {
+            continue;
+        };
 
-        let gold = attributes.get_mut(Stat::Gold);
         let refund = event.item.total_price();
-        if let Some(index) = inventory
-            .iter()
-            .position(|old| *old == Some(event.item.clone()))
-        {
-            inventory.0[index] = None;
-            let sell_price = (refund as f32 * 0.67).floor();
-            *gold += sell_price;
+        if inventory.take(event.item) {
             attributes.remove_stats(event.item.info().stats.into_iter());
-            snapshot.gold += sell_price;
+
+            let gold = attributes.get_mut(Stat::Gold);
+            let sell_price = if buffer.take_fresh(event.item) {
+                refund
+            } else {
+                (refund as f32 * 0.67).floor()
+            };
+            *gold += sell_price;
+            if event.fresh {
+                history.insert(*event);
+            }
         }
     }
 }
 
 fn try_undo_store(
-    mut events: EventReader<UndoPressEvent>,
-    mut buyers: Query<(&mut Attributes, &mut Inventory)>,
-    mut snapshot: ResMut<StoreSnapshot>,
+    mut undo_events: EventReader<UndoPressEvent>,
+    mut store_events: EventWriter<StoreEvent>,
+    mut buyers: Query<&mut StoreHistory>,
 ) {
-    for event in events.iter() {
-        let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.entity) else { continue };
-        let gold = attributes.get_mut(Stat::Gold);
-        *inventory = snapshot.inventory;
-        *gold -= snapshot.gold;
-        snapshot.gold = 0.0;
+    for event in undo_events.iter() {
+        info!("undo event");
+        let Ok(mut store_history) = buyers.get_mut(event.entity) else { continue };
+        info!("has history: {:?}", store_history);
+
+        if let Some(mut last) = store_history.pop_last() {
+            last.fresh = false;
+            store_events.send(last.flip());
+        }
     }
 }
 
 fn leave_store(
-    mut snapshot: ResMut<StoreSnapshot>,
-    buyers: Query<&Inventory>,
+    mut buyers: Query<&mut StoreBuffer>,
     local_entity: Res<PlayerEntity>,
     mut area_events: EventReader<AreaOverlapEvent>,
     sensors: Query<&TargetsInArea, With<Fountain>>,
@@ -311,47 +334,82 @@ fn leave_store(
         return
     }
     let Ok(_) = sensors.get(event.sensor) else { return };
-    let Ok(inv) = buyers.get(local) else { return };
+    let Ok(mut buffer) = buyers.get_mut(local) else { return };
 
-    snapshot.inventory = inv.clone();
-    dbg!(inv.clone());
-    snapshot.gold = 0.0;
+    buffer.clear();
 }
 
-impl Command for StoreEvent {
-    fn apply(self, world: &mut World) {
-        let mut counter = world.get_resource_or_insert_with(GameModeDetails::default);
-        let mut query = world.query::<(&mut Attributes, &Inventory)>();
-        for (x, y) in query.iter_mut(world) {}
-        if self.direction == TransactionType::Buy {
+/// Uncommitted changes to the inventory.
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[reflect]
+pub struct StoreBuffer(Vec<Item>);
+
+impl StoreBuffer {
+    pub fn take_fresh(&mut self, item: Item) -> bool {
+        if let Some(index) = self.0.iter().position(|i| *i == item) {
+            self.0.swap_remove(index);
+            true
         } else {
+            false
         }
+    }
+
+    pub fn insert(&mut self, item: Item) {
+        self.0.push(item);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
     }
 }
 
-#[derive(Resource, Default)]
-pub struct StoreSnapshot {
-    inventory: Inventory,
-    gold: f32,
-}
+#[derive(Component, Debug, Default)]
+pub struct StoreHistory(Vec<StoreEvent>);
 
-#[derive(Component, Default)]
-pub struct StoreHistory(pub Vec<StoreEvent>);
+impl StoreHistory {
+    pub fn pop_last(&mut self) -> Option<StoreEvent> {
+        if self.0.len() == 0 {
+            return None;
+        }
+        Some(self.0.remove(self.0.len() - 1))
+    }
+
+    pub fn insert(&mut self, event: StoreEvent) {
+        self.0.push(event);
+    }
+}
 
 #[derive(Event)]
 pub struct UndoPressEvent {
     pub entity: Entity,
 }
 
-#[derive(Event)]
+#[derive(Debug, Event, Copy, Clone)]
 pub struct StoreEvent {
     pub item: Item,
     pub player: Entity,
     pub direction: TransactionType,
+    pub fresh: bool,
 }
 
-#[derive(PartialEq, Eq)]
+impl StoreEvent {
+    pub fn flip(mut self) -> Self {
+        self.direction = self.direction.flip();
+        self
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TransactionType {
     Buy,
     Sell,
+}
+
+impl TransactionType {
+    pub fn flip(self) -> Self {
+        match self {
+            Self::Buy => Self::Sell,
+            Self::Sell => Self::Buy,
+        }
+    }
 }

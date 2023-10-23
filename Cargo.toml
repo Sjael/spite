@@ -3,12 +3,8 @@ name = "sacred_aurora"
 version = "0.1.0"
 edition = "2021"
 
-
 [profile.dev.package."*"]
 opt-level = 3
-
-
-
 
 [dependencies]
 bevy = "0.11.0"
@@ -24,7 +20,6 @@ lazy_static = "1.4.0"
 # for geometric shapes as sprites
 #bevy_prototype_lyon = "0.8.0" 
 
-
 # Relatively stable crates down here
 bitflags = "1.3"
 derive_more = "0.99"
@@ -32,11 +27,9 @@ rand = "0.8.4"
 serde = { version = "1.0", features = ["derive"] }
 fixed = {version = "1.11", features = ["serde", "std", "serde-str"]}
 
-
 # keep the following in sync with Bevy's dependencies for window icon
 winit = { version = "0.28", default-features = false }
 image = { version = "0.24", default-features = false }
-
 
 [[bin]]
 name = "local"

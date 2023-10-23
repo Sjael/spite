@@ -8,7 +8,10 @@ use crate::{
     },
     input::{copy_action_state, SlotBundle},
     inventory::Inventory,
-    ui::Trackable,
+    ui::{
+        store::{StoreBuffer, StoreHistory},
+        Trackable,
+    },
     GameState,
 };
 use bevy::prelude::*;
@@ -138,21 +141,30 @@ fn init_player(
                 event.actor.clone(), // ActorType
                 player,              // Player
                 Name::new(format!("Player {}", spawning_id.to_string())),
-                Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
-                ActiveEvents::COLLISION_EVENTS,
-                RigidBody::Dynamic,
-                Friction::coefficient(2.0),
-                LockedAxes::ROTATION_LOCKED,
-                Velocity::default(),
-                PLAYER_GROUPING,
                 CharacterState::Alive,
-                Inventory::default(),
+                (
+                    // physics
+                    Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
+                    ActiveEvents::COLLISION_EVENTS,
+                    RigidBody::Dynamic,
+                    Friction::coefficient(2.0),
+                    LockedAxes::ROTATION_LOCKED,
+                    Velocity::default(),
+                    PLAYER_GROUPING,
+                ),
+                (
+                    // Inventory/store
+                    Inventory::default(),
+                    StoreHistory::default(),
+                    StoreBuffer::default(),
+                ),
             ))
             .insert({
                 let mut attributes = Attributes::default();
                 attributes.insert(Stat::Health, 33.0);
                 attributes.insert(Stat::Speed, 6.0);
                 attributes.insert(Stat::CharacterResource, 33.0);
+                attributes.insert(Stat::Gold, 20_000.0);
                 attributes
             })
             .insert((

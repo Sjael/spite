@@ -570,6 +570,7 @@ pub fn button_actions(
                         player: spectating.0.clone(),
                         item: inspected,
                         direction: TransactionType::Buy,
+                        fresh: true,
                     })
                 }
             }
@@ -579,6 +580,7 @@ pub fn button_actions(
                         player: spectating.0.clone(),
                         item: inspected,
                         direction: TransactionType::Sell,
+                        fresh: true,
                     })
                 }
             }

@@ -12,7 +12,9 @@ use crate::{
 
 #[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
 #[reflect]
-pub struct Inventory(pub [Option<Item>; 6]);
+pub struct Inventory {
+    items: [Option<Item>; 6],
+}
 
 impl Inventory {
     /// Iterator over all items in this inventory.
