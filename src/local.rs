@@ -100,13 +100,11 @@ pub fn setup_map(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             {
                 let mut attributes = Attributes::default();
-                *attributes.entry(Stat::Health.into()).or_default() = 33.0;
-                *attributes
-                    .entry(Stat::MagicalProtection.into())
-                    .or_default() = 60.0;
-                *attributes
-                    .entry(Stat::PhysicalProtection.into())
-                    .or_default() = 60.0;
+                attributes.insert(Stat::Health, 33.0);
+                attributes
+                    .insert(Stat::MagicalProtection, 60.0);
+                attributes
+                    .insert(Stat::PhysicalProtection, 60.0);
                 attributes
             },
             Tower,

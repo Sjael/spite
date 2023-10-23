@@ -53,7 +53,6 @@ impl Ability {
         }
     }
 
-
     pub fn get_area_timeline(&self) -> AreaTimeline {
         let times = match self {
             Ability::Bomb => HashMap::from([
@@ -64,7 +63,7 @@ impl Ability {
             _ => HashMap::new(),
         };
         let windup = times.get(&DeployAreaStage::Windup).unwrap_or(&0.0).clone();
-        AreaTimeline{
+        AreaTimeline {
             blueprint: times,
             stage: DeployAreaStage::Windup,
             timer: Timer::new(Duration::from_secs_f32(windup), TimerMode::Once),
@@ -252,16 +251,16 @@ pub struct AreaLifetime {
 
 #[derive(Component, Clone, Debug, Default, Reflect, PartialEq)]
 #[reflect(Component)]
-pub struct AreaTimeline{
+pub struct AreaTimeline {
     pub stage: DeployAreaStage,
     pub timer: Timer,
     pub blueprint: HashMap<DeployAreaStage, f32>,
 }
 
-impl AreaTimeline{
-    pub fn new(bp: HashMap<DeployAreaStage, f32>) -> Self{
+impl AreaTimeline {
+    pub fn new(bp: HashMap<DeployAreaStage, f32>) -> Self {
         let x = bp.get(&DeployAreaStage::Windup).unwrap_or(&0.0).clone();
-        Self{
+        Self {
             blueprint: bp,
             stage: DeployAreaStage::Windup,
             timer: Timer::new(Duration::from_secs_f32(x), TimerMode::Once),
@@ -270,16 +269,16 @@ impl AreaTimeline{
 }
 
 #[derive(Clone, Debug, Reflect, PartialEq, Eq, Hash, Default)]
-pub enum DeployAreaStage{
-    Windup, // between fire from player, to spawned in world
+pub enum DeployAreaStage {
+    Windup,  // between fire from player, to spawned in world
     Outline, // between fire and shown to enemies, change to different component?
     #[default]
     Firing, // active in world
     Recovery, // delay before despawn
 }
 
-impl DeployAreaStage{
-    pub fn get_next_stage(&mut self) -> Self{
+impl DeployAreaStage {
+    pub fn get_next_stage(&mut self) -> Self {
         use DeployAreaStage::*;
         match self {
             Windup => Outline,
@@ -297,20 +296,19 @@ pub struct OutlineDelay(pub f32);
 struct CastingStages(HashMap<Ability, CastTimeline>);
 
 #[derive(Reflect, Clone, Debug)]
-struct CastTimeline{
+struct CastTimeline {
     stage: ActorCastStage,
     timer: Timer,
     blueprint: HashMap<ActorCastStage, f32>,
 }
 
 #[derive(Clone, Debug, Reflect, PartialEq, Eq, Hash)]
-pub enum ActorCastStage{
-    Charging, // if ability has a charge before even getting a targetter (athena dash, tia 1)
-    Prefire, // between press and firing/goes on CD
+pub enum ActorCastStage {
+    Charging,   // if ability has a charge before even getting a targetter (athena dash, tia 1)
+    Prefire,    // between press and firing/goes on CD
     Channeling, // if channelling an ability, like anubis 1
-    Postfire, // recovery time after going on CD
+    Postfire,   // recovery time after going on CD
 }
-
 
 #[derive(Component, Default, Debug, Clone, Reflect)]
 #[reflect(Component)]
@@ -394,7 +392,6 @@ impl TickBehavior {
     }
 }
 
-
 #[derive(Default, Reflect, Debug, Clone)]
 pub struct StaticTimer(pub Timer);
 
@@ -404,28 +401,28 @@ pub struct IndividualTargetTimers {
     pub map: HashMap<Entity, Timer>,
 }
 
-pub struct FiringLifetime{
+pub struct FiringLifetime {
     pub ticks: Ticks,
     pub behavior: TickBehavior,
     pub interval: f32,
 }
 
-impl FiringLifetime{
-    pub fn set_timer(&mut self){
-        match self.behavior{
+impl FiringLifetime {
+    pub fn set_timer(&mut self) {
+        match self.behavior {
             TickBehavior::Static(ref mut timer) => {
                 timer.set_duration(Duration::from_millis(self.interval as u64));
             }
             _ => (),
         }
     }
-    pub fn from_ticks(ticks: Ticks, lifetime: f32) -> Self{
-        let i = match ticks{
+    pub fn from_ticks(ticks: Ticks, lifetime: f32) -> Self {
+        let i = match ticks {
             Ticks::Multiple(tick_num) => lifetime / tick_num as f32,
             Ticks::Once => lifetime,
             _ => 1.0,
         };
-        FiringLifetime{
+        FiringLifetime {
             ticks,
             behavior: TickBehavior::individual(),
             interval: i,
@@ -433,7 +430,7 @@ impl FiringLifetime{
     }
 }
 
-impl Default for FiringLifetime{
+impl Default for FiringLifetime {
     fn default() -> Self {
         FiringLifetime::from_ticks(Ticks::Once, 2.0)
     }
@@ -453,7 +450,7 @@ pub enum Ticks {
 #[derive(Component, Debug, Clone, Reflect)]
 pub struct FiringInterval(pub f32);
 
-impl Default for FiringInterval{
+impl Default for FiringInterval {
     fn default() -> Self {
         FiringInterval(1.0)
     }

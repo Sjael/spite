@@ -144,7 +144,7 @@ pub fn apply_buffs(
                 });
             }
             if added_stack {
-                let stat = attributes.entry(event.info.stat.clone()).or_default();
+                let stat = attributes.get_mut(event.info.stat.clone());
                 *stat += event.info.amount;
             }
         }
@@ -156,7 +156,7 @@ pub fn tick_buffs(time: Res<Time>, mut query: Query<(&mut BuffMap, &mut Attribut
         buffs.map.retain(|_, buff| {
             buff.timer.tick(time.delta());
             if buff.timer.finished() {
-                let stat = attributes.entry(buff.info.stat.clone()).or_default();
+                let stat = attributes.get_mut(buff.info.stat.clone());
                 *stat -= buff.stacks as f32 * buff.info.amount;
                 false
             } else {

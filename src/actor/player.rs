@@ -23,7 +23,7 @@ pub fn player_mouse_input(
     mouse_state: Res<State<MouseState>>,
 ) {
     if *mouse_state == MouseState::Free {
-        return
+        return;
     } // if mouse is free, dont turn character
     let mut cumulative_delta = Vec2::ZERO;
     for ev in ev_mouse.iter() {
@@ -64,7 +64,7 @@ pub fn update_local_player_inputs(
 ) {
     for (mut input, actortype) in &mut query {
         if actortype != &ActorType::Player(*local_player) {
-            continue
+            continue;
         }
         *input = player_input.clone();
         //info!("setting local player inputs: {:?}", player_input);
@@ -112,7 +112,7 @@ pub fn show_targetter(
         for (targetter_entity, old_ability) in &targetters {
             if let Some(hovered_ability) = hovered.0 {
                 if hovered_ability == *old_ability {
-                    continue
+                    continue;
                 }
             }
             commands.entity(targetter_entity).despawn_recursive();
@@ -161,7 +161,7 @@ pub fn change_targetter_color(
         }
         for (old_ability, mut material) in &mut targetters {
             if old_ability != &hovered_ability {
-                continue
+                continue;
             }
             *material = color.clone();
         }

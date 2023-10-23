@@ -409,16 +409,16 @@ fn check_deaths(
 ) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
     for (guy, damagelog, actortype, attributes) in the_damned.iter() {
-        let hp = attributes.get(&Stat::Health.as_tag()).unwrap_or(&1.0);
-        if *hp > 0.0 {
-            continue
+        let hp = attributes.get(Stat::Health);
+        if hp > 0.0 {
+            continue;
         }
         let mut killers = Vec::new();
         for instance in damagelog.list.iter().rev() {
             if Instant::now().duration_since(instance.when)
                 > Duration::from_secs(TIME_FOR_KILL_CREDIT)
             {
-                break
+                break;
             }
             //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
             killers.push(instance.attacker);
@@ -470,23 +470,23 @@ fn despawn_dead(
 
         let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity)
         else {
-            return
+            return;
         };
 
         for (index, awardee) in event.killers.iter().enumerate() {
             let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else {
-                continue
+                continue;
             };
 
             if let Some(bounty) = bounty {
-                let gold = attributes.entry(Stat::Gold.into()).or_default();
+                let gold = attributes.get_mut(Stat::Gold);
                 *gold += bounty.gold;
-                let xp = attributes.entry(Stat::Xp.into()).or_default();
+                let xp = attributes.get_mut(Stat::Xp);
                 *xp += bounty.xp;
             }
 
             if !is_dead_player {
-                continue
+                continue;
             }
             if let ActorType::Player(killer) = awardee_actor {
                 let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
@@ -528,7 +528,7 @@ fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
 fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: Res<Time>) {
     let gold_per_second = 3.0;
     for mut attributes in attribute_query.iter_mut() {
-        let gold = attributes.entry(Stat::Gold.as_tag()).or_insert(92700.0);
+        let gold = attributes.get_mut(Stat::Gold);
         *gold += gold_per_second * time.delta_seconds();
     }
 }

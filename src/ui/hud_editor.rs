@@ -74,7 +74,7 @@ pub fn scale_ui(
     for event in scroll_events.iter() {
         for (parent, interaction) in edit_handles.iter() {
             if interaction != &Interaction::Hovered {
-                continue
+                continue;
             }
             let Ok(mut transform) = editables.get_mut(parent.get()) else { continue };
             if event.y > 0.0 {
@@ -94,7 +94,7 @@ pub fn reset_editable_ui(
     reset_ui_events: EventReader<ResetUiEvent>,
 ) {
     if reset_ui_events.is_empty() {
-        return
+        return;
     }
     for (mut style, mut transform) in editables.iter_mut() {
         style.top = Val::Px(0.0);

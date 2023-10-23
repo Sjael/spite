@@ -24,10 +24,10 @@ pub enum Item {
 #[derive(Default, Clone)]
 pub struct ItemInfo {
     /// Cost of this item, excluding parts.
-    pub price: u32,
+    pub price: f32,
     /// Direct parts to this item.
     pub parts: Vec<Item>,
-    pub stats: HashMap<Stat, u32>,
+    pub stats: HashMap<Stat, f32>,
     // pub passives: Vec<ItemPassive>,
 }
 
@@ -35,8 +35,10 @@ pub struct ItemInfo {
 #[derive(Default, Clone)]
 pub struct ItemTotal {
     /// Total cost of this item, including parts.
-    pub total_price: u32,
+    pub total_price: f32,
     /// Flattened parts related to this item.
+    /// 
+    /// First part of the tuple is the "nested"-ness of the item.
     pub flat_parts: Vec<(u8, Item)>,
     pub ancestors: Vec<Item>,
 }
@@ -49,42 +51,42 @@ lazy_static! {
             (
                 Arondight,
                 ItemInfo{
-                    price: 100,
+                    price: 100.0,
                     parts: vec![SoulReaver],
                     stats: HashMap::from([
-                        (PhysicalPower, 60),
-                        (CooldownReduction, 15),
+                        (PhysicalPower, 60.0),
+                        (CooldownReduction, 15.0),
                     ]),
                 }
             ),
             (
                 SoulReaver,
                 ItemInfo{
-                    price: 100,
+                    price: 100.0,
                     parts: vec![Polynomicon, Polynomicon],
                     stats: HashMap::from([
-                        (PhysicalPower, 60),
-                        (CooldownReduction, 15),
+                        (PhysicalPower, 60.0),
+                        (CooldownReduction, 15.0),
                     ]),
                 }
             ),
             (
                 Deathbringer,
                 ItemInfo{
-                    price: 900,
+                    price: 900.0,
                     parts: vec![HiddenDagger, HiddenDagger],
                     stats: HashMap::from([
-                        (PhysicalPower, 60),
-                        (PhysicalPenetration, 15),
+                        (PhysicalPower, 60.0),
+                        (PhysicalPenetration, 15.0),
                     ]),
                 }
             ),
             (
                 HiddenDagger,
                 ItemInfo{
-                    price: 500,
+                    price: 500.0,
                     stats: HashMap::from([
-                        (PhysicalPower, 15),
+                        (PhysicalPower, 15.0),
                     ]),
                     ..default()
                 }
@@ -92,9 +94,9 @@ lazy_static! {
             (
                 BookOfSouls,
                 ItemInfo{
-                    price: 100,
+                    price: 100.0,
                     stats: HashMap::from([
-                        (MagicalPower, 30),
+                        (MagicalPower, 30.0),
                     ]),
                     ..default()
                 }
@@ -102,10 +104,10 @@ lazy_static! {
             (
                 DruidStone,
                 ItemInfo{
-                    price: 300,
+                    price: 300.0,
                     stats: HashMap::from([
-                        (PhysicalProtection, 20),
-                        (Health, 100),
+                        (PhysicalProtection, 20.0),
+                        (Health, 100.0),
                     ]),
                     ..default()
                 }
@@ -113,10 +115,10 @@ lazy_static! {
             (
                 Polynomicon,
                 ItemInfo{
-                    price: 100,
+                    price: 100.0,
                     stats: HashMap::from([
-                        (MagicalPower, 80),
-                        (CooldownReduction, 20),
+                        (MagicalPower, 80.0),
+                        (CooldownReduction, 20.0),
                     ]),
                     parts: vec![BookOfSouls, BookOfSouls],
                 }
@@ -177,7 +179,7 @@ impl Item {
                 items.remove(item_index);
             } else {
                 // Don't remove subparts
-                continue
+                continue;
             };
 
             common.push(component);
@@ -193,8 +195,8 @@ impl Item {
         common
     }
 
-    pub fn discounted_price(&self, inventory: &Inventory) -> u32 {
-        let discount: u32 = self
+    pub fn discounted_price(&self, inventory: &Inventory) -> f32 {
+        let discount: f32 = self
             .common_parts(inventory.items())
             .iter()
             .map(|component| component.total_price())
@@ -224,6 +226,7 @@ impl Item {
             .cloned()
             .expect(&format!("Item total doesn't exist for {:?}", self))
     }
+
     pub fn info(&self) -> ItemInfo {
         ITEM_DB
             .get(self)
@@ -231,16 +234,20 @@ impl Item {
             .expect(&format!("Item info doesn't exist for {:?}", self))
     }
 
+    /// Direct descendant items for this item.
     pub fn parts(&self) -> Vec<Item> {
         self.info().parts
     }
+    /// All descendants for this item.
     pub fn flat_parts(&self) -> Vec<(u8, Item)> {
         self.total().flat_parts
     }
-    pub fn total_price(&self) -> u32 {
+    /// Overall price of this item including parts + this items individual price.
+    pub fn total_price(&self) -> f32 {
         self.total().total_price
     }
-    pub fn price(&self) -> u32 {
+    /// Price of *just* this item, not including its parts.
+    pub fn price(&self) -> f32 {
         self.info().price
     }
     pub fn ancestors(&self) -> Vec<Item> {

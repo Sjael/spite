@@ -15,8 +15,29 @@ use crate::{
 pub struct Inventory(pub [Option<Item>; 6]);
 
 impl Inventory {
+    /// Iterator over all items in this inventory.
     pub fn items(&self) -> impl Iterator<Item = Item> + '_ {
         self.iter().cloned().filter_map(|x| x)
+    }
+
+    /// Take the first instance of this item from the inventory.
+    pub fn take(&mut self, item: Item) -> bool {
+        if let Some(index) = self.iter().position(|old| *old == Some(item)) {
+            self[index] = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Insert this item into the first available slot.
+    pub fn insert(&mut self, item: Item) -> bool {
+        if let Some(index) = self.iter().position(|old| *old == None) {
+            self[index] = Some(item);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -42,7 +63,7 @@ fn update_inventory_ui(
     let Some(local) = local_entity.0 else { return };
     for (inv, entity) in query.iter() {
         if entity != local {
-            continue
+            continue;
         }
         for (slot_e, index) in &slot_query {
             commands.entity(slot_e).despawn_descendants();

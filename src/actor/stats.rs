@@ -167,21 +167,17 @@ pub fn calculate_health_change(
 
         let (prots, pen) = if event.damage_type == DamageType::Physical {
             (
-                *defender_stats
-                    .get(&Stat::PhysicalProtection.as_tag())
-                    .unwrap_or(&100.0),
-                *attacker_stats
-                    .get(&Stat::PhysicalPenetration.as_tag())
-                    .unwrap_or(&0.0),
+                defender_stats
+                    .get(Stat::PhysicalProtection),
+                attacker_stats
+                    .get(Stat::PhysicalPenetration),
             )
         } else if event.damage_type == DamageType::Magical {
             (
-                *defender_stats
-                    .get(&Stat::MagicalProtection.as_tag())
-                    .unwrap_or(&100.0),
-                *attacker_stats
-                    .get(&Stat::MagicalPenetration.as_tag())
-                    .unwrap_or(&0.0),
+                defender_stats
+                    .get(Stat::MagicalProtection),
+                attacker_stats
+                    .get(Stat::MagicalPenetration),
             )
         } else {
             (0.0, 0.0)
@@ -212,7 +208,7 @@ pub fn apply_health_change(
 ) {
     for event in health_mitigated_events.iter() {
         let Ok(mut defender_stats) = health_query.get_mut(event.defender) else { continue };
-        let health = defender_stats.entry(Stat::Health.as_tag()).or_default();
+        let health = defender_stats.get_mut(Stat::Health);
         /*
         if event.change > 0 {
             println!("healing is {:?}", event.change);
@@ -226,11 +222,11 @@ pub fn apply_health_change(
 }
 pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
     for mut attributes in query.iter_mut() {
-        let regen = *attributes.get(&Stat::HealthRegen.as_tag()).unwrap_or(&0.0);
-        let max = *attributes.get(&Stat::HealthMax.as_tag()).unwrap_or(&100.0);
-        let health = attributes.entry(Stat::Health.as_tag()).or_insert(1.0);
+        let regen = attributes.get(Stat::HealthRegen);
+        let max = attributes.get(Stat::HealthMax);
+        let health = attributes.get_mut(Stat::Health);
         if *health <= 0.0 {
-            continue
+            continue;
         }
         let result = *health + (regen * time.delta_seconds());
         *health = result.clamp(0.0, max);
@@ -239,15 +235,12 @@ pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
 
 pub fn regen_resource(mut query: Query<&mut Attributes>, time: Res<Time>) {
     for mut attributes in query.iter_mut() {
-        let regen = *attributes
-            .get(&Stat::CharacterResourceRegen.as_tag())
-            .unwrap_or(&0.0);
-        let max = *attributes
-            .get(&Stat::CharacterResourceMax.as_tag())
-            .unwrap_or(&100.0);
+        let regen = attributes
+            .get(Stat::CharacterResourceRegen);
+        let max = attributes
+            .get(Stat::CharacterResourceMax);
         let resource = attributes
-            .entry(Stat::CharacterResource.as_tag())
-            .or_default();
+            .get_mut(Stat::CharacterResource);
         let result = *resource + (regen * time.delta_seconds());
         *resource = result.clamp(0.0, max);
     }
@@ -268,8 +261,36 @@ Health = 50.0 + 1.0;
 fetch Max<Health>, fetch Health
 Health = 51.0.max(100.0) == 51.0;
  */
-#[derive(Component, Debug, Clone, Deref, DerefMut)]
+#[derive(Component, Debug, Clone)]
 pub struct Attributes(HashMap<AttributeTag, f32>);
+
+impl Attributes {
+    pub fn get(&self, tag: impl Into<AttributeTag>) -> f32 {
+        self.0.get(&tag.into()).cloned().unwrap_or(0.0)
+    }
+
+    pub fn get_mut(&mut self, tag: impl Into<AttributeTag>) -> &mut f32 {
+        self.0.entry(tag.into()).or_insert(0.0)
+    }
+
+    pub fn insert(&mut self, tag: impl Into<AttributeTag>, amount: f32) {
+        *self.get_mut(tag) = amount;
+    }
+
+    pub fn add_stats(&mut self, changes: impl Iterator<Item = (impl Into<AttributeTag>, f32)>) {
+        for (stat, change) in changes {
+            let current = self.get_mut(stat);
+            *current += change;
+        }
+    }
+
+    pub fn remove_stats(&mut self, changes: impl Iterator<Item = (impl Into<AttributeTag>, f32)>) {
+        for (stat, change) in changes {
+            let current = self.get_mut(stat);
+            *current -= change;
+        }
+    }
+}
 
 impl Default for Attributes {
     fn default() -> Self {
@@ -296,15 +317,15 @@ pub fn calculate_attributes(mut attributes: Query<&mut Attributes, Changed<Attri
     for mut attributes in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before
         // Mul<Base<Health>>
-        let mut tags = attributes.keys().cloned().collect::<Vec<_>>();
+        let mut tags = attributes.0.keys().cloned().collect::<Vec<_>>();
         tags.sort_by(|a, b| a.ordering().cmp(&b.ordering()));
 
         for tag in tags {
             match tag.clone() {
                 AttributeTag::Modifier { modifier, target } => {
-                    let modifier_attr = attributes.entry(tag).or_default().clone();
+                    let modifier_attr = attributes.get(tag);
                     //let level = *attributes.clone().get(&Stat::Level.into()).unwrap_or(&1.0);\
-                    let target_attr = attributes.entry(*target).or_default();
+                    let target_attr = attributes.get_mut(*target);
 
                     let modified = match modifier {
                         Modifier::Base => modifier_attr,

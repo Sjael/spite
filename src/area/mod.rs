@@ -8,9 +8,10 @@ use std::{
 
 use crate::{
     ability::{
-        bundles::Caster, Ability, AbilityTooltip, AreaLifetime, DamageType, FilteredTargets,
-        FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
-        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks, UniqueTargetsHit, AreaTimeline, DeployAreaStage,
+        bundles::Caster, Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType,
+        DeployAreaStage, FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo,
+        Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
+        UniqueTargetsHit,
     },
     actor::{
         buff::{BuffInfo, BuffTargets},
@@ -140,7 +141,7 @@ fn area_apply_tags(
             let on_same_team = sensor_team.0 == target_team.0;
             if let Some(ref unique_targets_hit) = unique_targets_hit {
                 if unique_targets_hit.already_hit.contains(target_entity) {
-                    continue
+                    continue;
                 }
             }
 
@@ -220,7 +221,7 @@ fn area_apply_tags(
                 if let Some(ref mut max_hits) = max_targets_hit {
                     max_hits.current += 1;
                     if max_hits.current >= max_hits.max {
-                        return
+                        return;
                     }
                 }
             }
@@ -258,12 +259,14 @@ fn area_queue_targets(
         sensor_query.iter_mut()
     {
         targets_hittable.list = Vec::new();
-        if timeline.stage != DeployAreaStage::Firing { continue }
+        if timeline.stage != DeployAreaStage::Firing {
+            continue;
+        }
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
                 TickBehavior::Static(ref static_timer) => {
                     if !static_timer.finished() {
-                        continue
+                        continue;
                     }
                     if let Some(filtered_targets) = filtered_targets {
                         targets_hittable.list = filtered_targets.list.clone();
@@ -275,7 +278,7 @@ fn area_queue_targets(
                     for target_entity in targets_in_area.list.iter() {
                         if let Some(filtered_targets) = filtered_targets {
                             if !filtered_targets.list.contains(target_entity) {
-                                continue
+                                continue;
                             }
                         }
                         let hasnt_been_hit_or_interval_over =
@@ -311,7 +314,7 @@ fn filter_targets(
     {
         if targets_in_area.list.is_empty() {
             filtered_targets.list = Vec::new();
-            continue
+            continue;
         }
         let mut targets_thru_filter: Vec<Entity> = Vec::new();
         match target_filter.target_selection {
@@ -406,13 +409,13 @@ fn catch_collisions(
                 } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
                     (sensor, collider1)
                 } else {
-                    continue
+                    continue;
                 };
 
                 if let Ok(target) = targets_query.get(potential) {
                     (sensor, target, true)
                 } else {
-                    continue
+                    continue;
                 }
             }
             &CollisionEvent::Stopped(collider1, collider2, _flags) => {
@@ -421,13 +424,13 @@ fn catch_collisions(
                 } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
                     (sensor, collider1)
                 } else {
-                    continue
+                    continue;
                 };
 
                 if let Ok(target) = targets_query.get(potential) {
                     (sensor, target, false)
                 } else {
-                    continue
+                    continue;
                 }
             }
         };
@@ -482,10 +485,10 @@ fn tick_timeline(
             let new_stage = timeline.stage.get_next_stage();
             let new_time = timeline.blueprint.get(&new_stage).unwrap_or(&0.0).clone();
             timeline.timer = Timer::new(Duration::from_secs_f32(new_time), TimerMode::Once);
-            if timeline.stage == Recovery{
+            if timeline.stage == Recovery {
                 commands.entity(entity).despawn_recursive();
             }
-        }  
+        }
     }
 }
 
@@ -513,10 +516,14 @@ fn tick_hit_timers(
         Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline,) in &mut area_timers {
-        // only tick area timers if has timeline and is firing 
-        if let Some(timeline) = timeline{
-            if timeline.stage != DeployAreaStage::Firing{ continue }
+    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline) in
+        &mut area_timers
+    {
+        // only tick area timers if has timeline and is firing
+        if let Some(timeline) = timeline {
+            if timeline.stage != DeployAreaStage::Firing {
+                continue;
+            }
         }
         match *tick_behavior {
             TickBehavior::Individual(ref mut individual_timers) => {
