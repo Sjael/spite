@@ -65,7 +65,7 @@ fn update_inventory_ui(
     let Some(local) = local_entity.0 else { return };
     for (inv, entity) in query.iter() {
         if entity != local {
-            continue
+            continue;
         }
         for (slot_e, index) in &slot_query {
             commands.entity(slot_e).despawn_descendants();

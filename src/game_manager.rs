@@ -411,14 +411,14 @@ fn check_deaths(
     for (guy, damagelog, actortype, attributes) in the_damned.iter() {
         let hp = attributes.get(Stat::Health);
         if hp > 0.0 {
-            continue
+            continue;
         }
         let mut killers = Vec::new();
         for instance in damagelog.list.iter().rev() {
             if Instant::now().duration_since(instance.when)
                 > Duration::from_secs(TIME_FOR_KILL_CREDIT)
             {
-                break
+                break;
             }
             //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
             killers.push(instance.attacker);
@@ -470,12 +470,12 @@ fn despawn_dead(
 
         let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity)
         else {
-            return
+            return;
         };
 
         for (index, awardee) in event.killers.iter().enumerate() {
             let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else {
-                continue
+                continue;
             };
 
             if let Some(bounty) = bounty {
@@ -486,7 +486,7 @@ fn despawn_dead(
             }
 
             if !is_dead_player {
-                continue
+                continue;
             }
             if let ActorType::Player(killer) = awardee_actor {
                 let killer_scoreboard = scoreboard.0.entry(*killer).or_default();

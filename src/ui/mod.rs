@@ -249,17 +249,17 @@ fn drag_holdable(
     let Ok(window) = windows.get_single() else { return };
     let Some(cursor_pos) = window.cursor_position() else { return };
     if !mouse.pressed(MouseButton::Left) {
-        return
+        return;
     }
     for (handle_entity, interaction, handle_parent) in &handle_query {
         if *interaction != Interaction::Pressed {
-            continue
+            continue;
         }
         for entity in [handle_entity, handle_parent.get()] {
             let Ok((mut style, parent, node, gt, draggable, mut z_index)) =
                 draggable_query.get_mut(entity)
             else {
-                continue
+                continue;
             };
             if mouse.just_pressed(MouseButton::Left) {
                 if let Ok((parent_node, parent_gt, mut ztracker)) = parent_query.get(parent.get()) {
@@ -309,8 +309,8 @@ fn drag_holdable(
             style.left = Val::Px(left_position);
             style.top = Val::Px(top_position);
             style.position_type = PositionType::Absolute;
-            return // so we dont have to FocusPolicy::Block, can just return
-                   // once we found something to drag
+            return; // so we dont have to FocusPolicy::Block, can just return
+                    // once we found something to drag
         }
     }
 }
@@ -350,13 +350,13 @@ fn drop_holdable(
     let Some(_) = window.cursor_position() else { return };
     if mouse.just_released(MouseButton::Left) {
         let Ok((mut style, parent, mut zindex)) = drag_query.get_mut(holding_entity.item) else {
-            return
+            return;
         };
 
         for (drop_entity, interaction, mut style, mut bg, children, slot_num) in &mut slot_query {
             *bg = Color::GRAY.into();
             if *interaction == Interaction::None {
-                continue
+                continue;
             }
             commands.entity(holding_entity.item).set_parent(drop_entity);
             if let Some(children) = children {
@@ -407,7 +407,7 @@ fn load_tooltip(
     fonts: Res<Fonts>,
 ) {
     let Ok((mut tooltip, mut vis, children, tooltip_entity)) = tooltip.get_single_mut() else {
-        return
+        return;
     };
     let mut hovered_info: Option<AbilityTooltip> = None;
     for (hovering_entity, ability_info, interaction) in &hoverables {
@@ -420,7 +420,7 @@ fn load_tooltip(
             Interaction::Hovered | Interaction::Pressed => {
                 if let Some(last_hovered) = tooltip.0 {
                     if last_hovered == hovering_entity {
-                        return
+                        return;
                     }
                 }
                 tooltip.0 = Some(hovering_entity.clone());
@@ -541,7 +541,7 @@ pub fn button_actions(
 ) {
     for (button_action, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
-            continue
+            continue;
         }
         match button_action {
             ButtonAction::Play => {
@@ -646,7 +646,7 @@ fn show_floating_health_bars(
         let direction_from_hp_bar = Quat::from_euler(EulerRot::XYZ, dir.x, dir.y, dir.z);
         for (mut vis, bar_holder) in &mut health_bars {
             if bar_holder.0 != healthy_entity {
-                continue
+                continue;
             }
             if player_transform.rotation.dot(direction_from_hp_bar) > 0.0 {
                 *vis = Visibility::Visible;
@@ -671,12 +671,12 @@ fn follow_in_3d(
             last_seen.translation
         } else {
             commands.entity(entity).despawn_recursive();
-            continue
+            continue;
         };
 
         let Some(viewport) = camera.world_to_viewport(camera_transform, transform + Vec3::Y * 2.0)
         else {
-            continue
+            continue;
         };
         style.left = Val::Px(viewport.x);
         style.top = Val::Px(viewport.y);

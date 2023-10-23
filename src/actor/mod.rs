@@ -231,7 +231,7 @@ fn setup_player(mut spawn_events: EventWriter<InitSpawnEvent>, local_player: Res
 pub fn actor_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), With<Player>>) {
     for (mut player_transform, inputs, cc_map) in players.iter_mut() {
         if cc_map.map.contains_key(&CCType::Stun) {
-            continue
+            continue;
         }
         player_transform.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
     }
@@ -240,7 +240,7 @@ pub fn actor_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), W
 pub fn actor_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput, &CCMap)>) {
     for (attributes, mut velocity, player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
-            continue
+            continue;
         }
         let speed = attributes.get(Stat::Speed);
         let mut direction = Vec3::new(0.0, 0.0, 0.0);
@@ -275,10 +275,10 @@ pub fn cast_ability(
     for event in attempt_cast_event.iter() {
         let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else { continue };
         if ccmap.map.contains_key(&CCType::Silence) || ccmap.map.contains_key(&CCType::Stun) {
-            continue
+            continue;
         } // play erro sound for silenced
         if cooldowns.map.contains_key(&event.ability) {
-            continue
+            continue;
         } // play error sound for on CD
         hovered.0 = None;
         cast_event.send(CastEvent {
@@ -454,7 +454,7 @@ fn update_damage_logs(
             defender_log.list.push(damage_instance.clone());
             if defender_log.sums.contains_key(&damage_instance.sensor) {
                 let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {
-                    continue
+                    continue;
                 };
                 hits.add_damage(damage_instance.clone());
                 log_hit_events.send(LogHit::new(
@@ -479,11 +479,11 @@ fn update_damage_logs(
             attacker_log.list.push(damage_instance.clone());
             if attacker_log.sums.contains_key(&damage_instance.sensor) {
                 let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {
-                    continue
+                    continue;
                 };
                 if targets_hit.contains_key(&damage_instance.defender) {
                     let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {
-                        continue
+                        continue;
                     };
                     hits.add_damage(damage_instance.clone());
                     log_hit_events.send(LogHit::new(
