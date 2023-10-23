@@ -1,7 +1,7 @@
 use crate::actor::{
-    buff::{BuffInfo, BuffTargets, BuffType},
+    buff::BuffInfo,
     crowd_control::{CCInfo, CCType},
-    stats::{Attributes, Stat},
+    stats::Stat,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};

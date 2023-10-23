@@ -1,3 +1,5 @@
+//! Preload assets via collections
+
 use std::collections::HashMap;
 
 use bevy::prelude::*;

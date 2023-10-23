@@ -19,6 +19,7 @@ use crate::{
     },
     area::homing::Homing,
     inventory::Inventory,
+    prelude::*,
     ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
     GameState,
 };
@@ -39,7 +40,7 @@ impl Plugin for GameManagerPlugin {
         app.insert_resource(Scoreboard::default());
 
         app.register_type::<Bounty>();
-        app.add_state::<CharacterState>();
+        app.add_state::<ActorState>();
 
         app.add_event::<DeathEvent>();
         app.add_event::<AbilityFireEvent>();
@@ -90,13 +91,6 @@ impl Default for TeamRoster {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
-pub enum CharacterState {
-    Alive,
-    #[default]
-    Dead,
-}
-
 #[derive(Default)]
 pub enum GameMode {
     #[default]
@@ -117,26 +111,6 @@ pub struct GameModeDetails {
 pub struct Respawn {
     actortype: ActorType,
     timer: Timer,
-}
-
-// how long things take to respawn
-pub struct RespawnTimeDefaults {
-    camps: HashMap<ActorType, u32>,
-    player_base: f32,
-    player_scale_level: f32,
-    player_scale_minutes: f32,
-}
-
-impl Default for RespawnTimeDefaults {
-    fn default() -> Self {
-        let camps = HashMap::from([(ActorType::RedBuff, 240), (ActorType::BlueBuff, 120)]);
-        Self {
-            camps,
-            player_base: 3.0,
-            player_scale_level: 2.0,
-            player_scale_minutes: 0.75,
-        }
-    }
 }
 
 pub enum Spawnpoint {
@@ -247,7 +221,9 @@ fn place_homing_ability(
     caster: Query<(&GlobalTransform, &Team)>,
 ) {
     for event in cast_events.iter() {
-        let Ok((caster_transform, team)) = caster.get(event.caster) else { return };
+        let Ok((caster_transform, team)) = caster.get(event.caster) else {
+            return;
+        };
 
         let spawned = event
             .ability
@@ -280,9 +256,13 @@ fn place_ability(
     reticle: Query<&GlobalTransform, With<Reticle>>,
     procmaps: Query<&ProcMap>,
 ) {
-    let Ok(reticle_transform) = reticle.get_single() else { return };
+    let Ok(reticle_transform) = reticle.get_single() else {
+        return;
+    };
     for event in cast_events.iter() {
-        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else { return };
+        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else {
+            return;
+        };
 
         // Get ability-specific components
         let spawned;
@@ -326,7 +306,7 @@ fn handle_respawning(
     mut gamemodedetails: ResMut<GameModeDetails>,
     mut spawn_events: EventWriter<InitSpawnEvent>,
     mut respawn_events: EventWriter<RespawnEvent>,
-    mut character_state_next: ResMut<NextState<CharacterState>>,
+    mut character_state_next: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
 ) {
     //let theredeemed = commands.spawn(()).id();
@@ -341,7 +321,7 @@ fn handle_respawning(
                 actor: respawn.actortype.clone(),
             });
             if respawn.actortype == ActorType::Player(*local_player) {
-                character_state_next.set(CharacterState::Alive);
+                character_state_next.set(ActorState::Alive);
             }
         }
         !respawn.timer.finished()
@@ -354,7 +334,9 @@ fn show_respawn_ui(
     mut spawn_events: EventReader<RespawnEvent>,
     local_player: Res<Player>,
 ) {
-    let Ok(mut vis) = death_timer.get_single_mut() else { return };
+    let Ok(mut vis) = death_timer.get_single_mut() else {
+        return;
+    };
     for event in spawn_events.iter() {
         if event.actor == ActorType::Player(*local_player) {
             *vis = Visibility::Hidden;
@@ -372,9 +354,13 @@ fn tick_respawn_ui(
     gamemodedetails: ResMut<GameModeDetails>,
     local_entity: Res<PlayerEntity>,
 ) {
-    let Ok(mut respawn_text) = death_timer.get_single_mut() else { return };
+    let Ok(mut respawn_text) = death_timer.get_single_mut() else {
+        return;
+    };
     let Some(local) = local_entity.0 else { return };
-    let Some(respawn) = gamemodedetails.respawns.get(&local) else { return };
+    let Some(respawn) = gamemodedetails.respawns.get(&local) else {
+        return;
+    };
     let new_text =
         (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
     respawn_text.sections[1].value = new_text.to_string();
@@ -439,7 +425,7 @@ fn despawn_dead(
         (
             &mut Transform,
             &mut Visibility,
-            &mut CharacterState,
+            &mut ActorState,
             Option<&Bounty>,
         ),
         With<ActorType>,
@@ -447,7 +433,7 @@ fn despawn_dead(
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
-    mut character_state_next: ResMut<NextState<CharacterState>>,
+    mut character_state_next: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
     mut scoreboard: ResMut<Scoreboard>,
 ) {
@@ -456,7 +442,7 @@ fn despawn_dead(
         match event.actor {
             ActorType::Player(player) => {
                 if player == *local_player {
-                    character_state_next.set(CharacterState::Dead);
+                    character_state_next.set(ActorState::Dead);
                     let Ok(ui) = ui.get_single() else { continue };
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }
@@ -499,7 +485,7 @@ fn despawn_dead(
         }
 
         //commands.entity(event.entity).despawn_recursive();
-        *state = CharacterState::Dead;
+        *state = ActorState::Dead;
         *transform = Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),

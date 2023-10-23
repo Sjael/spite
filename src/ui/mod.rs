@@ -6,16 +6,12 @@ use crate::{
     ability::AbilityTooltip,
     actor::{
         player::Player,
-        stats::{AttributeTag, Attributes, Stat},
+        stats::{Attributes, Stat},
         view::{PlayerCam, Spectating},
         HasHealthBar,
     },
-    assets::{Fonts, Icons, Images, Items},
-    game_manager::{
-        ActorType, DeathEvent, GameModeDetails, InGameSet, Scoreboard, Team, TeamRoster, TEAM_1,
-    },
-    inventory::*,
-    item::{Item, ITEM_DB},
+    assets::{Fonts, Icons, Images},
+    game_manager::{DeathEvent, GameModeDetails, InGameSet, Scoreboard, Team, TeamRoster, TEAM_1},
     ui::{
         hud_editor::*, ingame_menu::*, main_menu::*, mouse::*, spectating::*, store::*, styles::*,
         ui_bundles::*,
@@ -164,7 +160,9 @@ fn populate_scoreboard(
     scoreboard: Query<Entity, Added<ScoreboardUI>>,
     fonts: Res<Fonts>,
 ) {
-    let Ok(scoreboard_ui) = scoreboard.get_single() else { return }; // else spawn scoreboard?
+    let Ok(scoreboard_ui) = scoreboard.get_single() else {
+        return;
+    }; // else spawn scoreboard?
     commands.entity(scoreboard_ui).despawn_descendants();
     for (team, players) in roster.teams.iter() {
         let mut color = Color::rgba(0.3, 0.15, 0.1, 0.95);
@@ -246,8 +244,12 @@ fn drag_holdable(
     mouse: Res<Input<MouseButton>>,
     mut holding: ResMut<CursorHolding>,
 ) {
-    let Ok(window) = windows.get_single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else { return };
+    let Ok(window) = windows.get_single() else {
+        return;
+    };
+    let Some(cursor_pos) = window.cursor_position() else {
+        return;
+    };
     if !mouse.pressed(MouseButton::Left) {
         return;
     }
@@ -345,9 +347,15 @@ fn drop_holdable(
     >,
     mut drag_query: Query<(&mut Style, &Parent, &mut ZIndex), Without<DropSlot>>,
 ) {
-    let Some(holding_entity) = holding.0 else { return };
-    let Ok(window) = windows.get_single() else { return };
-    let Some(_) = window.cursor_position() else { return };
+    let Some(holding_entity) = holding.0 else {
+        return;
+    };
+    let Ok(window) = windows.get_single() else {
+        return;
+    };
+    let Some(_) = window.cursor_position() else {
+        return;
+    };
     if mouse.just_released(MouseButton::Left) {
         let Ok((mut style, parent, mut zindex)) = drag_query.get_mut(holding_entity.item) else {
             return;
@@ -384,7 +392,9 @@ fn move_tooltip(
     mut tooltip: Query<&mut Style, With<Tooltip>>,
     mut move_events: EventReader<CursorMoved>,
 ) {
-    let Ok(mut style) = tooltip.get_single_mut() else { return };
+    let Ok(mut style) = tooltip.get_single_mut() else {
+        return;
+    };
     if let Some(cursor_move) = move_events.iter().next() {
         style.left = Val::Px(cursor_move.position.x);
         style.bottom = Val::Px(cursor_move.position.y);
@@ -395,7 +405,9 @@ fn hide_tooltip(
     // for when you close a menu when hovering, otherwise tooltip stays
     mut tooltip: Query<&mut Visibility, With<Tooltip>>,
 ) {
-    let Ok(mut vis) = tooltip.get_single_mut() else { return };
+    let Ok(mut vis) = tooltip.get_single_mut() else {
+        return;
+    };
     *vis = Visibility::Hidden;
 }
 
@@ -453,7 +465,9 @@ fn update_kda(
     local_player: Res<Player>,
 ) {
     if scoreboard.is_changed() {
-        let Ok(mut kda_text) = kda_query.get_single_mut() else { return };
+        let Ok(mut kda_text) = kda_query.get_single_mut() else {
+            return;
+        };
         for (player, info) in scoreboard.0.iter() {
             if *player == *local_player {
                 kda_text.sections[0].value = format!(
@@ -471,7 +485,9 @@ pub fn killfeed_update(
     killfeed_query: Query<Entity, With<Killfeed>>,
 ) {
     for death in death_events.iter() {
-        let Ok(killfeed) = killfeed_query.get_single() else { return };
+        let Ok(killfeed) = killfeed_query.get_single() else {
+            return;
+        };
         let notification = commands.spawn(kill_notification()).id();
         commands.entity(killfeed).push_children(&[notification]);
     }
@@ -509,7 +525,9 @@ fn tick_clock_ui(
 ) {
     // Shouldnt do abs calculations every tick probably just 1/s, increment the
     // seconds, increment minute if above 60
-    let Ok(mut text) = clock.get_single_mut() else { return };
+    let Ok(mut text) = clock.get_single_mut() else {
+        return;
+    };
     let elapsed = time.elapsed().as_secs() as i32;
     let adjusted = game_details.start_timer + elapsed;
     let mut sign = "";
@@ -599,7 +617,9 @@ pub fn minimap_track(
     mut arrow_query: Query<&mut Style, With<MinimapPlayerIcon>>,
     trackables: Query<&GlobalTransform, With<Trackable>>,
 ) {
-    let Ok(mut style) = arrow_query.get_single_mut() else { return };
+    let Ok(mut style) = arrow_query.get_single_mut() else {
+        return;
+    };
     for tracking in trackables.iter() {
         let (player_left, player_top) = (tracking.translation().x, tracking.translation().z);
         style.left = Val::Px(player_left);
@@ -640,7 +660,9 @@ fn show_floating_health_bars(
     children_query: Query<&Children>,
     spectating: Res<Spectating>,
 ) {
-    let Ok((player_transform, team)) = query.get(spectating.0) else { return };
+    let Ok((player_transform, team)) = query.get(spectating.0) else {
+        return;
+    };
     for (attributes, target_transform, other_team, healthy_entity) in &healthy {
         let dir = (target_transform.translation - player_transform.translation).normalize();
         let direction_from_hp_bar = Quat::from_euler(EulerRot::XYZ, dir.x, dir.y, dir.z);
@@ -663,7 +685,9 @@ fn follow_in_3d(
     leader_query: Query<&GlobalTransform>,
     camera_query: Query<(&Camera, &GlobalTransform), With<PlayerCam>>,
 ) {
-    let Ok((camera, camera_transform)) = camera_query.get_single() else { return };
+    let Ok((camera, camera_transform)) = camera_query.get_single() else {
+        return;
+    };
     for (mut style, following, entity) in follwer_query.iter_mut() {
         let transform = if let Ok(gt) = leader_query.get(following.leader) {
             gt.translation()

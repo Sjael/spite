@@ -3,9 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use crate::{
     ability::{rank::Rank, Ability, DamageType},
     actor::view::{Spectatable, SpectateEvent, Spectating},
-    game_manager::{
-        AbilityFireEvent, ActorType, Bounty, CharacterState, InGameSet, PLAYER_GROUPING, TEAM_1,
-    },
+    game_manager::{AbilityFireEvent, Bounty, InGameSet, PLAYER_GROUPING, TEAM_1},
     input::{copy_action_state, SlotBundle},
     inventory::Inventory,
     ui::{
@@ -20,6 +18,7 @@ use bevy_rapier3d::prelude::*;
 use self::{
     buff::{BuffMap, BuffPlugin},
     crowd_control::{CCMap, CCPlugin, CCType},
+    minion::MinionPlugin,
     player::*,
     stats::{Attributes, HealthMitigatedEvent, Stat, StatsPlugin},
 };
@@ -86,6 +85,24 @@ impl Plugin for CharacterPlugin {
     }
 }
 
+pub struct ActorInfo {
+    pub entity: Entity,
+    pub actor: ActorType,
+}
+
+#[derive(Component, Clone, Hash, PartialEq, Eq)]
+pub enum ActorType {
+    Player(Player),
+    Minion,
+}
+
+#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+pub enum ActorState {
+    Alive,
+    #[default]
+    Dead,
+}
+
 #[derive(Component)]
 pub struct HasHealthBar;
 
@@ -107,7 +124,7 @@ fn init_player(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut spawn_events: EventReader<InitSpawnEvent>,
     mut spectate_events: EventWriter<SpectateEvent>,
-    mut next_state: ResMut<NextState<CharacterState>>,
+    mut next_state: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
     mut local_entity: ResMut<PlayerEntity>,
 ) {
@@ -118,7 +135,7 @@ fn init_player(
         };
         let spawning_id = player.id.clone();
         info!("spawning player {}", spawning_id);
-        next_state.set(CharacterState::Alive);
+        next_state.set(ActorState::Alive);
         // reset the rotation so you dont spawn looking the other way
 
         let mut material = StandardMaterial::default();
@@ -141,7 +158,7 @@ fn init_player(
                 event.actor.clone(), // ActorType
                 player,              // Player
                 Name::new(format!("Player {}", spawning_id.to_string())),
-                CharacterState::Alive,
+                ActorState::Alive,
                 (
                     // physics
                     Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
@@ -201,14 +218,16 @@ fn init_player(
 
 fn respawn_entity(
     mut respawn_events: EventReader<RespawnEvent>,
-    mut the_damned: Query<(&mut Visibility, &mut CharacterState)>,
+    mut the_damned: Query<(&mut Visibility, &mut ActorState)>,
     local_player: Res<Player>,
     mut spectate_events: EventWriter<SpectateEvent>,
 ) {
     for event in respawn_events.iter() {
-        let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else { continue };
+        let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else {
+            continue;
+        };
         *vis = Visibility::Visible;
-        *state = CharacterState::Alive;
+        *state = ActorState::Alive;
         if event.actor == ActorType::Player(*local_player) {
             spectate_events.send(SpectateEvent {
                 entity: event.entity,
@@ -273,7 +292,9 @@ pub fn cast_ability(
     mut cast_event: EventWriter<CastEvent>,
 ) {
     for event in attempt_cast_event.iter() {
-        let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else { continue };
+        let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else {
+            continue;
+        };
         if ccmap.map.contains_key(&CCType::Silence) || ccmap.map.contains_key(&CCType::Stun) {
             continue;
         } // play erro sound for silenced
@@ -313,7 +334,9 @@ fn start_ability_windup(
     mut cast_events: EventReader<CastEvent>,
 ) {
     for event in cast_events.iter() {
-        let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else { continue };
+        let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else {
+            continue;
+        };
         let windup = event.ability.get_actor_times();
         winduptimer.0 = Timer::new(
             Duration::from_millis((windup * 1000.) as u64),
@@ -346,7 +369,9 @@ fn trigger_cooldown(
     mut query: Query<(&mut CooldownMap, &Attributes)>,
 ) {
     for event in cast_events.iter() {
-        let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else { continue };
+        let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else {
+            continue;
+        };
         let cdr = 1.0 - (attributes.get(Stat::CooldownReduction) / 100.0);
 
         cooldowns.map.insert(

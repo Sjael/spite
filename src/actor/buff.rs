@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use super::stats::{AttributeTag, Attributes, Stat};
-use crate::{area::BuffEvent, game_manager::InGameSet, GameState};
+use crate::{area::BuffEvent, game_manager::InGameSet};
 use bevy::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug, Reflect, Eq, PartialEq)]
@@ -112,7 +112,9 @@ pub fn apply_buffs(
             let buff_id = format!("{}_{}_{}", caster, ability, event.info.stat.to_string());
             let mut added_stack = false;
             if buffs.map.contains_key(&buff_id) {
-                let Some(applied) = buffs.map.get_mut(&buff_id) else { continue };
+                let Some(applied) = buffs.map.get_mut(&buff_id) else {
+                    continue;
+                };
                 if applied.info.max_stacks > applied.stacks {
                     applied.stacks += 1;
                     added_stack = true;

@@ -54,7 +54,9 @@ pub fn free_mouse(
     let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else {
         return;
     };
-    let Ok(mut window) = windows.get_single_mut() else { return };
+    let Ok(mut window) = windows.get_single_mut() else {
+        return;
+    };
     if mouse_state.is_changed() {
         if *mouse_state == MouseState::Locked && window_is_focused && !editor_active {
             window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
@@ -108,8 +110,12 @@ pub fn menu_toggle(
     mut next_tab_state: ResMut<NextState<TabMenu>>,
     mut next_store_state: ResMut<NextState<StoreMenu>>,
 ) {
-    let Ok(mut store_vis) = store.get_single_mut() else { return };
-    let Ok(mut panel_vis) = tab_panel.get_single_mut() else { return };
+    let Ok(mut store_vis) = store.get_single_mut() else {
+        return;
+    };
+    let Ok(mut panel_vis) = tab_panel.get_single_mut() else {
+        return;
+    };
     use Visibility::*;
     if kb.just_pressed(KeyCode::R) {
         if *panel_vis == Visible {

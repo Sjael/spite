@@ -5,7 +5,7 @@ use strum_macros::EnumIter;
 //use fixed::types::I40F24;
 use crate::area::HealthChangeEvent;
 //use crate::buff::BuffMap;
-use crate::{game_manager::InGameSet, GameState};
+use crate::game_manager::InGameSet;
 use std::{fmt::Display, time::Instant};
 
 // Use enum as stat instead of unit structs?
@@ -158,7 +158,9 @@ pub fn calculate_health_change(
     attribute_query: Query<&Attributes>,
 ) {
     for event in health_events.iter() {
-        let Ok(defender_stats) = attribute_query.get(event.defender) else { continue };
+        let Ok(defender_stats) = attribute_query.get(event.defender) else {
+            continue;
+        };
         let attacker_stats = if let Ok(attacker_stats) = attribute_query.get(event.attacker) {
             attacker_stats.clone()
         } else {
@@ -203,7 +205,9 @@ pub fn apply_health_change(
     mut health_query: Query<&mut Attributes>,
 ) {
     for event in health_mitigated_events.iter() {
-        let Ok(mut defender_stats) = health_query.get_mut(event.defender) else { continue };
+        let Ok(mut defender_stats) = health_query.get_mut(event.defender) else {
+            continue;
+        };
         let health = defender_stats.get_mut(Stat::Health);
         /*
         if event.change > 0 {

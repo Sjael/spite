@@ -76,7 +76,9 @@ pub fn scale_ui(
             if interaction != &Interaction::Hovered {
                 continue;
             }
-            let Ok(mut transform) = editables.get_mut(parent.get()) else { continue };
+            let Ok(mut transform) = editables.get_mut(parent.get()) else {
+                continue;
+            };
             if event.y > 0.0 {
                 transform.scale += Vec3::splat(0.05);
             } else {

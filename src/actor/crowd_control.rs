@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::{area::CCEvent, assets::Icons, game_manager::InGameSet, GameState};
+use crate::{area::CCEvent, assets::Icons, game_manager::InGameSet};
 
 #[derive(Debug, Clone, Reflect, Copy)]
 pub struct CCInfo {
@@ -62,7 +62,9 @@ impl Plugin for CCPlugin {
 
 pub fn apply_ccs(mut targets_query: Query<&mut CCMap>, mut cc_events: EventReader<CCEvent>) {
     for event in cc_events.iter() {
-        let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else { continue };
+        let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else {
+            continue;
+        };
         ccs.map.insert(
             event.ccinfo.cctype,
             Timer::new(

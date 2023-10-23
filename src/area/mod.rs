@@ -132,7 +132,9 @@ fn area_apply_tags(
         let ability = ability.unwrap_or(&Ability::BasicAttack);
         let damage_type = damage_type.unwrap_or(&DamageType::True);
         for target_entity in targets_hittable.list.iter() {
-            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else { continue };
+            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else {
+                continue;
+            };
             let caster = if let Some(caster) = caster {
                 caster.0
             } else {
@@ -323,7 +325,9 @@ fn filter_targets(
 
                 let mut closest_targets: Vec<(f32, Entity)> = Vec::new();
                 for target_entity in targets_in_area.list.iter() {
-                    let Ok(target_transform) = target_query.get(*target_entity) else { continue };
+                    let Ok(target_transform) = target_query.get(*target_entity) else {
+                        continue;
+                    };
                     let relative_translation =
                         target_transform.translation() - sensor_transform.translation();
                     closest_targets.push((relative_translation.length(), *target_entity));
@@ -338,7 +342,9 @@ fn filter_targets(
             }
             TargetSelection::Random => {
                 // only make random selection when the targets change, instead of every frame
-                let Ok(_) = changed_sensors.get(sensor_entity) else { continue };
+                let Ok(_) = changed_sensors.get(sensor_entity) else {
+                    continue;
+                };
                 // can hit the same target twice lol, should remove from array and gen again but
                 // idc
                 let mut rng = rand::thread_rng();

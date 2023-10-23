@@ -1,5 +1,4 @@
-use bevy::{ecs::system::Command, prelude::*};
-use bevy_rapier3d::rapier::prelude::ChannelEventCollector;
+use bevy::prelude::*;
 
 use crate::{
     ability::TargetsInArea,
@@ -9,7 +8,7 @@ use crate::{
     },
     area::{AreaOverlapEvent, AreaOverlapType},
     assets::Items,
-    game_manager::{Fountain, GameModeDetails},
+    game_manager::Fountain,
     inventory::Inventory,
     item::Item,
 };
@@ -99,7 +98,9 @@ pub fn click_category(
         for mut color in &mut button_query {
             *color = NORMAL_BUTTON.into();
         }
-        let Ok(mut color) = button_query.get_mut(entity) else { continue };
+        let Ok(mut color) = button_query.get_mut(entity) else {
+            continue;
+        };
         if !categories_toggled.0.contains(&category.0) {
             categories_toggled.0 = vec![category.0.clone()];
             *color = PRESSED_BUTTON.into();
@@ -129,7 +130,9 @@ fn update_discounts(
         }
     }
     for (mut text, discounted_item) in query.p0().iter_mut() {
-        let Ok(inv) = inventories.get(local) else { continue };
+        let Ok(inv) = inventories.get(local) else {
+            continue;
+        };
         discount_style(discounted_item.0.clone(), &inv, &mut text);
     }
 }
@@ -172,7 +175,9 @@ pub fn inspect_item(
             continue;
         } // already inspecting item
 
-        let Ok((tree_entity, tree_children)) = tree_holder.get_single() else { return };
+        let Ok((tree_entity, tree_children)) = tree_holder.get_single() else {
+            return;
+        };
         item_inspected.0 = Some(item.clone());
         if let Some(children) = tree_children {
             for child in children.iter() {
@@ -182,7 +187,9 @@ pub fn inspect_item(
         let tree = spawn_tree(&mut commands, item.clone(), &items);
         commands.entity(tree_entity).push_children(&[tree]);
 
-        let Ok((parents_entity, parents_children)) = parents_holder.get_single() else { return };
+        let Ok((parents_entity, parents_children)) = parents_holder.get_single() else {
+            return;
+        };
         if let Some(children) = parents_children {
             for child in children.iter() {
                 commands.entity(*child).despawn_recursive();
@@ -312,7 +319,9 @@ fn try_undo_store(
 ) {
     for event in undo_events.iter() {
         info!("undo event");
-        let Ok(mut store_history) = buyers.get_mut(event.entity) else { continue };
+        let Ok(mut store_history) = buyers.get_mut(event.entity) else {
+            continue;
+        };
         info!("has history: {:?}", store_history);
 
         if let Some(mut last) = store_history.pop_last() {
@@ -328,13 +337,19 @@ fn leave_store(
     mut area_events: EventReader<AreaOverlapEvent>,
     sensors: Query<&TargetsInArea, With<Fountain>>,
 ) {
-    let Some(event) = area_events.iter().next() else { return };
+    let Some(event) = area_events.iter().next() else {
+        return;
+    };
     let Some(local) = local_entity.0 else { return };
     if event.target != local || event.overlap == AreaOverlapType::Entered {
         return;
     }
-    let Ok(_) = sensors.get(event.sensor) else { return };
-    let Ok(mut buffer) = buyers.get_mut(local) else { return };
+    let Ok(_) = sensors.get(event.sensor) else {
+        return;
+    };
+    let Ok(mut buffer) = buyers.get_mut(local) else {
+        return;
+    };
 
     buffer.clear();
 }

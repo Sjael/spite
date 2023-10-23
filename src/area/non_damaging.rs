@@ -40,8 +40,12 @@ pub fn focus_objective_health(
     mut area_events: EventReader<AreaOverlapEvent>,
 ) {
     for event in area_events.iter() {
-        let Ok(parent) = query.get(event.sensor) else { continue };
-        let Ok(player) = players.get(event.target) else { continue };
+        let Ok(parent) = query.get(event.sensor) else {
+            continue;
+        };
+        let Ok(player) = players.get(event.target) else {
+            continue;
+        };
         if *player == *local_player {
             if event.overlap == AreaOverlapType::Entered {
                 focused_health_entity.0 = Some(parent.get());

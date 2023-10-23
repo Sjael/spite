@@ -69,7 +69,9 @@ fn update_inventory_ui(
         }
         for (slot_e, index) in &slot_query {
             commands.entity(slot_e).despawn_descendants();
-            let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else { continue };
+            let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else {
+                continue;
+            };
             let new_item = commands.spawn(item_image_build(&items, item.clone())).id();
             commands.entity(new_item).set_parent(slot_e);
         }

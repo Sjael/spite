@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use bevy::{asset::ChangeWatcher, prelude::*};
+use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
 use inventory::InventoryPlugin;
-use std::time::Duration;
 
 use ability::shape::load_ability_shape;
 use actor::{view::ViewPlugin, CharacterPlugin};
@@ -11,58 +13,99 @@ use assets::GameAssetPlugin;
 use bevy_tweening::TweeningPlugin;
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
-use ui::UiPlugin;
+use ui::{spectating::spawn_spectator_camera, UiPlugin};
 
-pub fn app_plugins_both(app: &mut App) {
-    let default_res = (1500.0, 600.0);
+pub mod ability;
+pub mod actor;
+pub mod area;
+pub mod assets;
+pub mod debug;
+pub mod game_manager;
+pub mod input;
+pub mod inventory;
+pub mod item;
+pub mod map;
+pub mod ui;
 
-    //Basic
-    app.add_plugins(
-        DefaultPlugins
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Sacred Aurora".to_string(),
-                    resolution: default_res.into(),
-                    present_mode: bevy::window::PresentMode::Immediate,
+pub mod prelude {
+    pub use crate::{
+        //ability::{},
+        actor::{
+            stats::{AttributeTag, Attributes, Modifier, Stat},
+            view::Spectatable,
+            ActorState, ActorType,
+        },
+        area::*,
+        assets::{Icons, Models, Scenes},
+        game_manager::{
+            InGameSet, ABILITY_GROUPING, CAMERA_GROUPING, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1,
+            TEAM_2, TEAM_3, TEAM_NEUTRAL, TERRAIN_GROUPING,
+        },
+        inventory::Inventory,
+        item::Item,
+    };
+    pub use bevy::prelude::*;
+    pub use bevy_rapier3d::prelude::*;
+    pub use oxidized_navigation::NavMeshAffector;
+}
+
+pub struct GamePlugin;
+impl Plugin for GamePlugin {
+    fn build(&self, app: &mut App) {
+        let default_res = (1500.0, 600.0);
+
+        //Basic
+        app.add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Sacred Aurora".to_string(),
+                        resolution: default_res.into(),
+                        present_mode: bevy::window::PresentMode::Immediate,
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    watch_for_changes: ChangeWatcher::with_delay(Duration::from_millis(200)),
                     ..default()
                 }),
+        );
+
+        //Resources + States
+        app.insert_resource(GameTimer::default())
+            .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
+            .add_state::<GameState>();
+
+        app.add_plugins((
+            EditorPlugin::default(),
+            RapierPhysicsPlugin::<NoUserData>::default(),
+            RapierDebugRenderPlugin {
+                enabled: true,
+                style: Default::default(),
+                //mode: DebugRenderMode::COLLIDER_SHAPES,
                 ..default()
-            })
-            .set(AssetPlugin {
-                watch_for_changes: ChangeWatcher::with_delay(Duration::from_millis(200)),
-                ..default()
-            }),
-    );
+            },
+            TweeningPlugin,
+            InventoryPlugin,
+            DebugTexturePlugin,
+        ));
 
-    //Resources + States
-    app.insert_resource(GameTimer::default())
-        .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
-        .add_state::<GameState>();
+        app.add_systems(PostUpdate, crate::debug::physics_mesh::init_physics_meshes);
+        app.add_systems(Startup, spawn_spectator_camera);
 
-    app.add_plugins((
-        EditorPlugin::default(),
-        RapierPhysicsPlugin::<NoUserData>::default(),
-        RapierDebugRenderPlugin {
-            enabled: true,
-            style: Default::default(),
-            //mode: DebugRenderMode::COLLIDER_SHAPES,
-            ..default()
-        },
-        TweeningPlugin,
-        InventoryPlugin,
-    ));
-
-    app.add_plugins((
-        GameAssetPlugin,
-        GameManagerPlugin,
-        ViewPlugin,
-        UiPlugin,
-        CharacterPlugin,
-        AreaPlugin,
-        InputPlugin,
-    ))
-    .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
-    .add_systems(Update, tick_game);
+        app.add_plugins((
+            GameAssetPlugin,
+            GameManagerPlugin,
+            ViewPlugin,
+            UiPlugin,
+            CharacterPlugin,
+            AreaPlugin,
+            InputPlugin,
+        ))
+        .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
+        .add_systems(Update, tick_game);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -94,13 +137,3 @@ pub fn tick_game(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
 pub fn on_gametick(game_timer: Res<GameTimer>) -> bool {
     game_timer.just_finished()
 }
-
-pub mod ability;
-pub mod actor;
-pub mod area;
-pub mod assets;
-pub mod game_manager;
-pub mod input;
-pub mod inventory;
-pub mod item;
-pub mod ui;

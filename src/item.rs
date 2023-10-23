@@ -1,9 +1,8 @@
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use derive_more::Display;
-
 use bevy::prelude::*;
+use derive_more::Display;
+use lazy_static::lazy_static;
 
 use crate::{actor::stats::Stat, assets::Items, inventory::Inventory};
 
@@ -128,12 +127,12 @@ lazy_static! {
     // Creates both the total cost of the item, and the total list of components for easy subtraction of discounts
     pub static ref ITEM_TOTALS: HashMap<Item, ItemTotal> = {
         let mut map = HashMap::new();
-        for (item, info) in ITEM_DB.clone().into_iter(){
-            if !map.contains_key(&item){
+        for (item, info) in ITEM_DB.clone().into_iter() {
+            if !map.contains_key(&item) {
                 map.insert(item.clone(), item.calculate_total());
             }
 
-            for part in info.parts{
+            for part in info.parts {
                 let part_info: &mut ItemTotal = map.entry(part.clone()).or_insert(part.calculate_total());
                 if part_info.ancestors.contains(&item){ continue }
                 part_info.ancestors.push(item.clone());
@@ -155,7 +154,7 @@ impl Item {
             Polynomicon => images.polynomicon.clone(),
             DruidStone => images.druid_stone.clone(),
             Deathbringer => images.witchblade.clone(),
-            _ => images.hidden_dagger.clone(),
+            //_ => images.hidden_dagger.clone(),
         };
         image.into()
     }
@@ -164,14 +163,12 @@ impl Item {
     /// items.
     pub fn common_parts(&self, items: impl Iterator<Item = Item>) -> Vec<Item> {
         let mut all_parts = self.flat_parts();
+
+        // Sort by nested-ness
         all_parts.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-        let bong = items.collect::<Vec<_>>();
-        let bing = bong.iter().rev().cloned().collect::<Vec<_>>();
-        let mut items = bing;
-
+        let mut items = items.collect::<Vec<_>>();
         let mut common = Vec::new();
-
         while all_parts.len() > 0 {
             let (_, component) = all_parts.remove(0);
 

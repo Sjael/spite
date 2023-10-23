@@ -10,9 +10,9 @@ use bevy::{
 use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 
 use crate::{
-    game_manager::{CharacterState, InGameSet, CAMERA_GROUPING},
+    actor::ActorState,
+    game_manager::{InGameSet, CAMERA_GROUPING},
     ui::SpectatingSet,
-    GameState,
 };
 
 use super::player::PlayerInput;
@@ -30,7 +30,7 @@ impl Plugin for ViewPlugin {
             Update,
             (
                 spawn_camera_gimbal,
-                swap_cameras.run_if(in_state(CharacterState::Dead)),
+                swap_cameras.run_if(in_state(ActorState::Dead)),
                 spectate_entity,
             )
                 .in_set(SpectatingSet),
@@ -68,8 +68,12 @@ pub fn camera_swivel_and_tilt(
     mut outer_gimbals: Query<&mut Transform, (With<OuterGimbal>, Without<InnerGimbal>)>,
     local_input: ResMut<PlayerInput>,
 ) {
-    let Ok(mut outer_transform) = outer_gimbals.get_single_mut() else { return };
-    let Ok(mut inner_transform) = inner_gimbals.get_single_mut() else { return };
+    let Ok(mut outer_transform) = outer_gimbals.get_single_mut() else {
+        return;
+    };
+    let Ok(mut inner_transform) = inner_gimbals.get_single_mut() else {
+        return;
+    };
     outer_transform.rotation = Quat::from_axis_angle(Vec3::Y, local_input.yaw as f32).into();
     inner_transform.rotation = Quat::from_axis_angle(Vec3::X, local_input.pitch as f32).into();
 }
@@ -127,7 +131,9 @@ fn follow_entity(
     leaders: Query<&GlobalTransform>,
 ) {
     for (mut transform, follow_entity) in &mut followers {
-        let Ok(leader_transform) = leaders.get(follow_entity.0) else { continue };
+        let Ok(leader_transform) = leaders.get(follow_entity.0) else {
+            continue;
+        };
         transform.translation = leader_transform.translation();
     }
 }
@@ -137,7 +143,9 @@ fn spectate_entity(
     mut gimbal_query: Query<&mut FollowEntity, With<OuterGimbal>>,
     mut spectating: ResMut<Spectating>,
 ) {
-    let Ok(mut follow_entity) = gimbal_query.get_single_mut() else { return };
+    let Ok(mut follow_entity) = gimbal_query.get_single_mut() else {
+        return;
+    };
     for new_spectate in spectate_events.iter() {
         follow_entity.0 = new_spectate.entity;
         spectating.0 = new_spectate.entity;
@@ -155,7 +163,9 @@ fn spawn_camera_gimbal(
     if let Ok(_) = gimbal_query.get_single() {
         return;
     }
-    let Some(spectated) = spectate_events.iter().next() else { return };
+    let Some(spectated) = spectate_events.iter().next() else {
+        return;
+    };
 
     spectating.0 = spectated.entity;
 

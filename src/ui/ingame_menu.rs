@@ -61,7 +61,9 @@ pub fn toggle_ingame_menu(
     mut ingame_menu: Query<&mut Visibility, With<InGameMenuUi>>,
     state: Res<State<InGameMenu>>,
 ) {
-    let Ok(mut vis) = ingame_menu.get_single_mut() else { return };
+    let Ok(mut vis) = ingame_menu.get_single_mut() else {
+        return;
+    };
     if *state == InGameMenu::Closed {
         *vis = Visibility::Hidden;
     } else {

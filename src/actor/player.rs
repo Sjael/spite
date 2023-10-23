@@ -5,8 +5,8 @@ use std::{collections::HashMap, f32::consts::PI, fmt::Debug};
 
 use crate::{
     ability::{bundles::Targetter, Ability},
+    actor::ActorType,
     assets::MaterialPresets,
-    game_manager::ActorType,
     input::MouseSensitivity,
     ui::mouse::MouseState,
 };
@@ -107,8 +107,12 @@ pub fn show_targetter(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (hovered, cooldowns) in &query {
-        let Ok(reticle_entity) = reticles.get_single() else { continue };
-        let Ok(gimbal_entity) = gimbals.get_single() else { continue };
+        let Ok(reticle_entity) = reticles.get_single() else {
+            continue;
+        };
+        let Ok(gimbal_entity) = gimbals.get_single() else {
+            continue;
+        };
         for (targetter_entity, old_ability) in &targetters {
             if let Some(hovered_ability) = hovered.0 {
                 if hovered_ability == *old_ability {
@@ -117,7 +121,9 @@ pub fn show_targetter(
             }
             commands.entity(targetter_entity).despawn_recursive();
         }
-        let Some(hovered_ability) = hovered.0 else { continue };
+        let Some(hovered_ability) = hovered.0 else {
+            continue;
+        };
 
         let mut handle = presets
             .0
@@ -149,10 +155,16 @@ pub fn change_targetter_color(
     mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
     presets: Res<MaterialPresets>,
 ) {
-    let Some(castable) = presets.0.get("blue") else { return };
-    let Some(on_cooldown) = presets.0.get("white") else { return };
+    let Some(castable) = presets.0.get("blue") else {
+        return;
+    };
+    let Some(on_cooldown) = presets.0.get("white") else {
+        return;
+    };
     for (hovered, cooldowns) in &query {
-        let Some(hovered_ability) = hovered.0 else { continue };
+        let Some(hovered_ability) = hovered.0 else {
+            continue;
+        };
         let color;
         if cooldowns.map.contains_key(&hovered_ability) {
             color = on_cooldown.clone();
@@ -173,7 +185,9 @@ pub fn normal_casting(
     mut cast_event: EventWriter<InputCastEvent>,
 ) {
     for (input, mut hovered, player) in &mut query {
-        let Some(hovered_ability) = hovered.0 else { continue };
+        let Some(hovered_ability) = hovered.0 else {
+            continue;
+        };
         if input.left_click() {
             cast_event.send(InputCastEvent {
                 caster: player,
