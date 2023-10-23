@@ -37,7 +37,7 @@ pub struct ItemTotal {
     /// Total cost of this item, including parts.
     pub total_price: f32,
     /// Flattened parts related to this item.
-    /// 
+    ///
     /// First part of the tuple is the "nested"-ness of the item.
     pub flat_parts: Vec<(u8, Item)>,
     pub ancestors: Vec<Item>,

@@ -240,11 +240,7 @@ fn try_buy_item(
             // remove components
             for item in event.item.common_parts(inventory.items()) {
                 if inventory.take(item) {
-                    attributes.remove_stats(
-                        item.info()
-                            .stats
-                            .into_iter()
-                    );
+                    attributes.remove_stats(item.info().stats.into_iter());
                 }
             }
 

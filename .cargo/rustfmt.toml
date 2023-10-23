@@ -1,4 +1,4 @@
 
 single_line_let_else_max_width = 100
-trailing_semicolon = false
+#trailing_semicolon = false
 imports_granularity = "Crate"

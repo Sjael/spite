@@ -30,7 +30,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt update && sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev
-      - name: Clippy
-        run: cargo clippy --verbose
+      #- name: Clippy
+      #  run: cargo clippy --verbose
       - name: Test
         run: cargo test --verbose

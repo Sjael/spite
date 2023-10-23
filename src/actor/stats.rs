@@ -167,17 +167,13 @@ pub fn calculate_health_change(
 
         let (prots, pen) = if event.damage_type == DamageType::Physical {
             (
-                defender_stats
-                    .get(Stat::PhysicalProtection),
-                attacker_stats
-                    .get(Stat::PhysicalPenetration),
+                defender_stats.get(Stat::PhysicalProtection),
+                attacker_stats.get(Stat::PhysicalPenetration),
             )
         } else if event.damage_type == DamageType::Magical {
             (
-                defender_stats
-                    .get(Stat::MagicalProtection),
-                attacker_stats
-                    .get(Stat::MagicalPenetration),
+                defender_stats.get(Stat::MagicalProtection),
+                attacker_stats.get(Stat::MagicalPenetration),
             )
         } else {
             (0.0, 0.0)
@@ -235,12 +231,9 @@ pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
 
 pub fn regen_resource(mut query: Query<&mut Attributes>, time: Res<Time>) {
     for mut attributes in query.iter_mut() {
-        let regen = attributes
-            .get(Stat::CharacterResourceRegen);
-        let max = attributes
-            .get(Stat::CharacterResourceMax);
-        let resource = attributes
-            .get_mut(Stat::CharacterResource);
+        let regen = attributes.get(Stat::CharacterResourceRegen);
+        let max = attributes.get(Stat::CharacterResourceMax);
+        let resource = attributes.get_mut(Stat::CharacterResource);
         let result = *resource + (regen * time.delta_seconds());
         *resource = result.clamp(0.0, max);
     }

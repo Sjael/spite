@@ -152,8 +152,7 @@ fn init_player(
                 let mut attributes = Attributes::default();
                 attributes.insert(Stat::Health, 33.0);
                 attributes.insert(Stat::Speed, 6.0);
-                attributes
-                    .insert(Stat::CharacterResource, 33.0);
+                attributes.insert(Stat::CharacterResource, 33.0);
                 attributes
             })
             .insert((
@@ -336,10 +335,7 @@ fn trigger_cooldown(
 ) {
     for event in cast_events.iter() {
         let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else { continue };
-        let cdr = 1.0
-            - (attributes
-                .get(Stat::CooldownReduction)
-                / 100.0);
+        let cdr = 1.0 - (attributes.get(Stat::CooldownReduction) / 100.0);
 
         cooldowns.map.insert(
             event.ability.clone(),

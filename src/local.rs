@@ -101,10 +101,8 @@ pub fn setup_map(
             {
                 let mut attributes = Attributes::default();
                 attributes.insert(Stat::Health, 33.0);
-                attributes
-                    .insert(Stat::MagicalProtection, 60.0);
-                attributes
-                    .insert(Stat::PhysicalProtection, 60.0);
+                attributes.insert(Stat::MagicalProtection, 60.0);
+                attributes.insert(Stat::PhysicalProtection, 60.0);
                 attributes
             },
             Tower,
