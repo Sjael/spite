@@ -141,7 +141,7 @@ fn area_apply_tags(
             let on_same_team = sensor_team.0 == target_team.0;
             if let Some(ref unique_targets_hit) = unique_targets_hit {
                 if unique_targets_hit.already_hit.contains(target_entity) {
-                    continue;
+                    continue
                 }
             }
 
@@ -221,7 +221,7 @@ fn area_apply_tags(
                 if let Some(ref mut max_hits) = max_targets_hit {
                     max_hits.current += 1;
                     if max_hits.current >= max_hits.max {
-                        return;
+                        return
                     }
                 }
             }
@@ -260,13 +260,13 @@ fn area_queue_targets(
     {
         targets_hittable.list = Vec::new();
         if timeline.stage != DeployAreaStage::Firing {
-            continue;
+            continue
         }
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
                 TickBehavior::Static(ref static_timer) => {
                     if !static_timer.finished() {
-                        continue;
+                        continue
                     }
                     if let Some(filtered_targets) = filtered_targets {
                         targets_hittable.list = filtered_targets.list.clone();
@@ -278,7 +278,7 @@ fn area_queue_targets(
                     for target_entity in targets_in_area.list.iter() {
                         if let Some(filtered_targets) = filtered_targets {
                             if !filtered_targets.list.contains(target_entity) {
-                                continue;
+                                continue
                             }
                         }
                         let hasnt_been_hit_or_interval_over =
@@ -314,7 +314,7 @@ fn filter_targets(
     {
         if targets_in_area.list.is_empty() {
             filtered_targets.list = Vec::new();
-            continue;
+            continue
         }
         let mut targets_thru_filter: Vec<Entity> = Vec::new();
         match target_filter.target_selection {
@@ -409,13 +409,13 @@ fn catch_collisions(
                 } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
                     (sensor, collider1)
                 } else {
-                    continue;
+                    continue
                 };
 
                 if let Ok(target) = targets_query.get(potential) {
                     (sensor, target, true)
                 } else {
-                    continue;
+                    continue
                 }
             }
             &CollisionEvent::Stopped(collider1, collider2, _flags) => {
@@ -424,13 +424,13 @@ fn catch_collisions(
                 } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
                     (sensor, collider1)
                 } else {
-                    continue;
+                    continue
                 };
 
                 if let Ok(target) = targets_query.get(potential) {
                     (sensor, target, false)
                 } else {
-                    continue;
+                    continue
                 }
             }
         };
@@ -522,7 +522,7 @@ fn tick_hit_timers(
         // only tick area timers if has timeline and is firing
         if let Some(timeline) = timeline {
             if timeline.stage != DeployAreaStage::Firing {
-                continue;
+                continue
             }
         }
         match *tick_behavior {

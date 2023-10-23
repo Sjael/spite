@@ -404,13 +404,13 @@ pub fn toggle_cast_bar(
     let Ok(mut vis) = bar.get_single_mut() else { return };
     for event in cast_events.iter() {
         if event.caster != spectating.0 {
-            continue;
+            continue
         }
         *vis = Visibility::Visible;
     }
     for event in fire_events.iter() {
         if event.caster != spectating.0 {
-            continue;
+            continue
         }
         *vis = Visibility::Hidden;
     }
@@ -467,11 +467,11 @@ pub fn update_buff_stacks(
 ) {
     for stack_change in stack_events.iter() {
         if stack_change.target != spectating.0 {
-            continue;
+            continue
         }
         for (buff_ui_entity, buff_id, mut despawn_timer) in buff_holders.iter_mut() {
             if buff_id.id != stack_change.id {
-                continue;
+                continue
             }
             despawn_timer.0.reset();
             for descendant in children_query.iter_descendants(buff_ui_entity) {
@@ -481,8 +481,8 @@ pub fn update_buff_stacks(
                     *vis = Visibility::Visible;
                 }
             }
-            break; // return cus we found the buff, dont return cus we want to go
-                   // to next event
+            break // return cus we found the buff, dont return cus we want to go
+                  // to next event
         }
     }
 }
@@ -499,7 +499,7 @@ pub fn add_buffs(
 ) {
     for event in buff_events.iter() {
         if event.target != spectating.0 {
-            continue;
+            continue
         }
         let Ok(_) = targets_query.get(event.target) else { continue };
         let is_buff = event.bufftype == BuffType::Buff;
@@ -557,7 +557,7 @@ pub fn spawn_floating_damage(
 ) {
     for damage_instance in damage_events.iter() {
         if damage_instance.attacker != spectating.0 && damage_instance.defender != spectating.0 {
-            continue;
+            continue
         }
         let Ok(damaged) = damaged_query.get(damage_instance.defender) else { continue };
         let mut color = Color::WHITE;
@@ -611,14 +611,14 @@ pub fn update_damage_log_ui(
         let (log_ui, other_party, direction) = match event.log_direction {
             LogSide::Incoming => {
                 if spectating.0 != event.defender {
-                    continue;
+                    continue
                 }
                 let Ok(incoming_ui) = incoming_ui.get_single() else { continue };
                 (incoming_ui, event.attacker, "from".to_string())
             }
             LogSide::Outgoing => {
                 if spectating.0 != event.attacker {
-                    continue;
+                    continue
                 }
                 let Ok(outgoing_ui) = outgoing_ui.get_single() else { continue };
                 (outgoing_ui, event.defender, "to".to_string())
@@ -689,7 +689,7 @@ pub fn update_damage_log_ui(
         } else {
             for (log_ui_entity, log_id, mut despawn_timer) in log_holders.iter_mut() {
                 if event.sensor != log_id.0 {
-                    continue;
+                    continue
                 }
                 despawn_timer.0.reset();
 
@@ -697,11 +697,11 @@ pub fn update_damage_log_ui(
                     let Ok((mut text, mut number, entry_text, log_id)) =
                         entry_text.get_mut(descendant)
                     else {
-                        continue;
+                        continue
                     };
 
                     if other_party != log_id.0 {
-                        continue;
+                        continue
                     }
                     let added;
                     match entry_text {

@@ -222,7 +222,7 @@ pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
         let max = attributes.get(Stat::HealthMax);
         let health = attributes.get_mut(Stat::Health);
         if *health <= 0.0 {
-            continue;
+            continue
         }
         let result = *health + (regen * time.delta_seconds());
         *health = result.clamp(0.0, max);

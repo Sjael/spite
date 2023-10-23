@@ -53,7 +53,7 @@ pub fn copy_action_state(
             if slot == Slot::LeftClick
                 && (*mouse_is_free == MouseState::Free || hovered.0.is_some())
             {
-                continue;
+                continue
             }
             if let Some(&matching_ability) = slot_ability_map.get(&slot) {
                 // Even copies information about how long the buttons have been pressed or

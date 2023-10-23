@@ -67,19 +67,19 @@ pub fn sort_items(
     categories_toggled: Res<CategorySorted>,
 ) {
     if !categories_toggled.is_changed() {
-        return;
+        return
     }
     for (attributes, mut style) in item_query.iter_mut() {
         style.display = Display::default();
         if categories_toggled.0.is_empty() {
-            continue;
+            continue
         }
         if attributes
             .0
             .iter()
             .any(|stat| categories_toggled.0.contains(stat))
         {
-            continue;
+            continue
         }
         style.display = Display::None;
     }
@@ -95,7 +95,7 @@ pub fn click_category(
 ) {
     for (category, interaction, entity) in &interaction_query {
         if *interaction != Interaction::Pressed {
-            continue;
+            continue
         };
         for mut color in &mut button_query {
             *color = NORMAL_BUTTON.into();
@@ -107,7 +107,7 @@ pub fn click_category(
         } else {
             categories_toggled.0 = Vec::new();
         }
-        return;
+        return
     }
 }
 
@@ -123,7 +123,7 @@ fn update_discounts(
     let Some(local) = player_entity.0 else { return };
     for (inv, entity) in changed_inventories.iter() {
         if entity != local {
-            continue;
+            continue
         }
         for (mut text, discounted_item) in query.p1().iter_mut() {
             discount_style(discounted_item.0.clone(), &inv, &mut text);
@@ -167,10 +167,10 @@ pub fn inspect_item(
 ) {
     for (item, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
-            continue;
+            continue
         }
         if item_inspected.0 == Some(item.clone()) {
-            continue;
+            continue
         } // already inspecting item
 
         let Ok((tree_entity, tree_children)) = tree_holder.get_single() else { return };
@@ -231,7 +231,7 @@ fn try_buy_item(
 ) {
     for event in events.iter() {
         if event.direction != TransactionType::Buy {
-            continue;
+            continue
         }
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else { continue };
         let wallet = attributes.get(Stat::Gold);
@@ -265,7 +265,7 @@ fn try_sell_item(
 ) {
     for event in events.iter() {
         if event.direction != TransactionType::Sell {
-            continue;
+            continue
         }
         let Ok((mut attributes, mut inventory)) = buyers.get_mut(event.player) else { continue };
 
@@ -308,7 +308,7 @@ fn leave_store(
     let Some(event) = area_events.iter().next() else { return };
     let Some(local) = local_entity.0 else { return };
     if event.target != local || event.overlap == AreaOverlapType::Entered {
-        return;
+        return
     }
     let Ok(_) = sensors.get(event.sensor) else { return };
     let Ok(inv) = buyers.get(local) else { return };

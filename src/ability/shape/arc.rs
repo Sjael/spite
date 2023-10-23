@@ -91,7 +91,7 @@ impl Arc {
                     extruded
                         .indices
                         .push([0, total_points * 2 - 1, total_points]);
-                    continue;
+                    continue
                 }
             }
             extruded

@@ -52,7 +52,7 @@ pub fn free_mouse(
 ) {
     let editor_active = editor.map(|state| state.active()).unwrap_or(false);
     let Ok(window_is_focused) = windows.get_single().and_then(|window| Ok(window.focused)) else {
-        return;
+        return
     };
     let Ok(mut window) = windows.get_single_mut() else { return };
     if mouse_state.is_changed() {

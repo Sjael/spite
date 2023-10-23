@@ -179,7 +179,7 @@ impl Item {
                 items.remove(item_index);
             } else {
                 // Don't remove subparts
-                continue;
+                continue
             };
 
             common.push(component);

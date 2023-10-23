@@ -87,7 +87,7 @@ fn swap_cameras(
     }
     let length = objects.map.len() as isize;
     if length == 0 {
-        return;
+        return
     }
     let mut index = objects.current % length;
     if index < 0 {
@@ -100,7 +100,7 @@ fn swap_cameras(
     let spectate_new = objects.map.get(index as usize);
     if let Some(spectate_new) = spectate_new {
         if spectating.0 == *spectate_new {
-            return;
+            return
         }
         spectate_events.send(SpectateEvent {
             entity: *spectate_new,
@@ -153,7 +153,7 @@ fn spawn_camera_gimbal(
     gimbal_query: Query<Entity, With<OuterGimbal>>,
 ) {
     if let Ok(_) = gimbal_query.get_single() {
-        return;
+        return
     }
     let Some(spectated) = spectate_events.iter().next() else { return };
 
