@@ -18,7 +18,6 @@ use bevy_rapier3d::prelude::*;
 use self::{
     buff::{BuffMap, BuffPlugin},
     crowd_control::{CCMap, CCPlugin, CCType},
-    minion::MinionPlugin,
     player::*,
     stats::{Attributes, HealthMitigatedEvent, Stat, StatsPlugin},
 };

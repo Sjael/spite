@@ -373,18 +373,6 @@ pub struct DeathEvent {
     pub killers: Vec<Entity>,
 }
 
-pub struct ActorInfo {
-    pub entity: Entity,
-    pub actor: ActorType,
-}
-
-#[derive(Component, Clone, Hash, PartialEq, Eq)]
-pub enum ActorType {
-    BlueBuff,
-    RedBuff,
-    Player(Player),
-}
-
 fn check_deaths(
     the_damned: Query<
         (Entity, &IncomingDamageLog, &ActorType, &Attributes),

@@ -216,7 +216,7 @@ impl FireballInfo {
 
     pub fn hover_bundle() -> impl Bundle {
         let radius = 1.0;
-        let angle = 360.;
+        //let angle = 360.;
 
         let length = radius * 2.0;
 

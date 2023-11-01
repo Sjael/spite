@@ -50,7 +50,34 @@ pub fn setup_arena(
         GROUND_GROUPING,
         Collider::cuboid(50.0, 0.1, 50.0),
         Name::new("Plane"),
-        NavMeshAffector,
+    ));
+
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform {
+                translation: Vec3::new(-5.0, 0.0, 0.0),
+                ..default()
+            },
+            ..default()
+        },
+        RigidBody::Fixed,
+        GROUND_GROUPING,
+        Collider::cuboid(1.0, 2.0, 5.0),
+        Name::new("Left Wall"),
+    ));
+
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform {
+                translation: Vec3::new(5.0, 0.0, 0.0),
+                ..default()
+            },
+            ..default()
+        },
+        RigidBody::Fixed,
+        GROUND_GROUPING,
+        Collider::cuboid(1.0, 2.0, 5.0),
+        Name::new("Right Wall"),
     ));
 
     let tower = commands
@@ -87,7 +114,6 @@ pub fn setup_arena(
                 not_looking_range: 13.0,
                 looking_range: 20.0,
             },
-            NavMeshAffector,
         ))
         .id();
 

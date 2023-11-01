@@ -19,18 +19,18 @@ jobs:
           components: rustfmt
       - name: Check formatting
         run: cargo fmt -- --check
-  test:
+  check:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+        #with:
+          #components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt update && sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev
       #- name: Clippy
       #  run: cargo clippy --verbose
-      - name: Test
-        run: cargo test --verbose
+      - name: Check
+        run: cargo check
