@@ -41,7 +41,7 @@ pub fn setup_arena(
             })),
             //material: materials.add(icons.basic_attack.clone().into()),
             transform: Transform {
-                translation: Vec3::new(0.0, 0.0, 0.0),
+                translation: Vec3::new(0.0, -0.1, 0.0),
                 ..default()
             },
             ..default()
@@ -50,34 +50,37 @@ pub fn setup_arena(
         GROUND_GROUPING,
         Collider::cuboid(50.0, 0.1, 50.0),
         Name::new("Plane"),
+        NavMeshAffector,
     ));
 
     commands.spawn((
         SpatialBundle {
             transform: Transform {
-                translation: Vec3::new(-5.0, 0.0, 0.0),
+                translation: Vec3::new(-5.0, 1.0, 0.0),
                 ..default()
             },
             ..default()
         },
         RigidBody::Fixed,
         GROUND_GROUPING,
-        Collider::cuboid(1.0, 2.0, 5.0),
+        Collider::round_cuboid(1.0, 2.0, 5.0, 0.1),
         Name::new("Left Wall"),
+        NavMeshAffector,
     ));
 
     commands.spawn((
         SpatialBundle {
             transform: Transform {
-                translation: Vec3::new(5.0, 0.0, 0.0),
+                translation: Vec3::new(5.0, 1.0, 0.0),
                 ..default()
             },
             ..default()
         },
         RigidBody::Fixed,
         GROUND_GROUPING,
-        Collider::cuboid(1.0, 2.0, 5.0),
+        Collider::round_cuboid(1.0, 2.0, 5.0, 0.1),
         Name::new("Right Wall"),
+        NavMeshAffector,
     ));
 
     let tower = commands
@@ -102,9 +105,10 @@ pub fn setup_arena(
             ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             {
                 let mut attributes = Attributes::default();
-                attributes.insert(Stat::Health, 33.0);
-                attributes.insert(Stat::MagicalProtection, 60.0);
-                attributes.insert(Stat::PhysicalProtection, 60.0);
+                attributes
+                    .set(Stat::Health, 33.0)
+                    .set(Stat::MagicalProtection, 60.0)
+                    .set(Stat::PhysicalProtection, 60.0);
                 attributes
             },
             Tower,

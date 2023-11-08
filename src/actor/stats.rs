@@ -1,5 +1,5 @@
 use crate::ability::{Ability, DamageType};
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::{HashMap, HashSet}};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 //use fixed::types::I40F24;
@@ -12,18 +12,23 @@ use std::{fmt::Display, time::Instant};
 //
 //
 #[derive(Reflect, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
+#[reflect(Debug, Default, PartialEq)]
 pub enum Stat {
+    // Temporal
     Xp,
     Level,
-    Speed,
-    #[default]
+    Gold,
     Health,
+    CharacterResource,
+
+    // modifiers
     HealthRegen,
     HealthMax,
-    CharacterResource,
     CharacterResourceRegen,
     CharacterResourceMax,
-    Gold,
+
+    // 
+    Speed,
     PhysicalPower,
     MagicalPower,
     PhysicalProtection,
@@ -94,6 +99,7 @@ impl From<Stat> for AttributeTag {
 }
 
 #[derive(Reflect, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[reflect(Debug, Default, PartialEq)]
 pub enum Modifier {
     #[default]
     Add,
@@ -258,20 +264,39 @@ Health = 50.0 + 1.0;
 fetch Max<Health>, fetch Health
 Health = 51.0.max(100.0) == 51.0;
  */
-#[derive(Component, Debug, Clone)]
-pub struct Attributes(HashMap<AttributeTag, f32>);
+#[derive(Component, Debug, Clone, Reflect)]
+pub struct Attributes {
+    dirty: HashSet<AttributeTag>,
+    attrs: HashMap<AttributeTag, f32>,
+}
 
 impl Attributes {
     pub fn get(&self, tag: impl Into<AttributeTag>) -> f32 {
-        self.0.get(&tag.into()).cloned().unwrap_or(0.0)
+        self.attrs.get(&tag.into()).cloned().unwrap_or(0.0)
     }
 
     pub fn get_mut(&mut self, tag: impl Into<AttributeTag>) -> &mut f32 {
-        self.0.entry(tag.into()).or_insert(0.0)
+        let tag = tag.into();
+        self.dirty.insert(tag.clone());
+        self.attrs.entry(tag).or_insert(0.0)
     }
 
-    pub fn insert(&mut self, tag: impl Into<AttributeTag>, amount: f32) {
+    pub fn set(&mut self, tag: impl Into<AttributeTag>, amount: f32) -> &mut Self {
+        let tag = tag.into();
         *self.get_mut(tag) = amount;
+        self
+    }
+
+    pub fn set_base(&mut self, tag: impl Into<AttributeTag>, amount: f32) -> &mut Self {
+        let tag = tag.into();
+        *self.get_mut(tag.clone()) = amount;
+        let base_tag = AttributeTag::Modifier {
+            modifier: Modifier::Base,
+            target: Box::new(tag),
+        };
+        info!("{:?}: {:?}", base_tag, amount);
+        *self.get_mut(base_tag) = amount;
+        self
     }
 
     pub fn add_stats(&mut self, changes: impl Iterator<Item = (impl Into<AttributeTag>, f32)>) {
@@ -306,7 +331,11 @@ impl Default for Attributes {
                 stat.get_base(),
             );
         }
-        Self(map)
+
+        Self {
+            dirty: default(),
+            attrs: map,
+        }
     }
 }
 
@@ -314,7 +343,7 @@ pub fn calculate_attributes(mut attributes: Query<&mut Attributes, Changed<Attri
     for mut attributes in &mut attributes {
         // sort by deepest modifier, so we process Mul<Add<Mul<Base<Health>>>> before
         // Mul<Base<Health>>
-        let mut tags = attributes.0.keys().cloned().collect::<Vec<_>>();
+        let mut tags = attributes.attrs.keys().cloned().collect::<Vec<_>>();
         tags.sort_by(|a, b| a.ordering().cmp(&b.ordering()));
 
         for tag in tags {
@@ -324,18 +353,18 @@ pub fn calculate_attributes(mut attributes: Query<&mut Attributes, Changed<Attri
                     //let level = *attributes.clone().get(&Stat::Level.into()).unwrap_or(&1.0);\
                     let target_attr = attributes.get_mut(*target);
 
-                    let modified = match modifier {
+                    let new = match modifier {
                         Modifier::Base => modifier_attr,
                         //Modifier::Scale => *target_attr + level * modifier_attr,
                         Modifier::Add => *target_attr + modifier_attr,
                         Modifier::Sub => *target_attr - modifier_attr,
-                        Modifier::Mul => *target_attr * (1.0 + modifier_attr / 100.0),
+                        Modifier::Mul => *target_attr * modifier_attr,
                         Modifier::Div => *target_attr / modifier_attr,
                         Modifier::Min => target_attr.max(modifier_attr),
                         Modifier::Max => target_attr.min(modifier_attr),
                     };
 
-                    *target_attr = modified;
+                    *target_attr = new;
                 }
                 AttributeTag::Stat(_) => (),
             }
@@ -343,7 +372,8 @@ pub fn calculate_attributes(mut attributes: Query<&mut Attributes, Changed<Attri
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Reflect)]
+#[reflect(Debug, Default, PartialEq)]
 pub enum AttributeTag {
     Modifier {
         modifier: Modifier,
@@ -356,6 +386,17 @@ pub enum AttributeTag {
 impl Default for AttributeTag {
     fn default() -> Self {
         Stat::Health.into()
+    }
+}
+
+impl std::fmt::Debug for AttributeTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            AttributeTag::Modifier { modifier, target } => {
+                write!(f, "{:?} {:?}", modifier, *target)
+            }
+            AttributeTag::Stat(stat) => write!(f, "{:?}", stat),
+        }
     }
 }
 

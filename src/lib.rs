@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{asset::ChangeWatcher, prelude::*};
-//use bevy_debug_texture::DebugTexturePlugin;
+use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
 use inventory::InventoryPlugin;
@@ -46,7 +46,7 @@ pub mod prelude {
     };
     pub use bevy::prelude::*;
     pub use bevy_rapier3d::prelude::*;
-    //pub use oxidized_navigation::NavMeshAffector;
+    pub use oxidized_navigation::NavMeshAffector;
 }
 
 pub struct GamePlugin;
@@ -88,6 +88,7 @@ impl Plugin for GamePlugin {
             },
             TweeningPlugin,
             InventoryPlugin,
+            DebugTexturePlugin,
         ));
 
         app.add_systems(PostUpdate, crate::debug::physics_mesh::init_physics_meshes);

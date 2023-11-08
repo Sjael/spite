@@ -15,7 +15,7 @@ use crate::{
         player::{Player, PlayerEntity},
         stats::{Attributes, Stat},
         view::Reticle,
-        AbilityRanks, IncomingDamageLog, InitSpawnEvent, RespawnEvent,
+        AbilityRanks, IncomingDamageLog, RespawnEvent,
     },
     area::homing::Homing,
     inventory::Inventory,
@@ -120,31 +120,6 @@ pub enum Spawnpoint {
     Order,
 }
 
-impl Spawnpoint {
-    fn transform(&self) -> Transform {
-        match self {
-            Spawnpoint::RedBuff => Transform {
-                translation: Vec3::new(0.0, 0.5, -6.0),
-                ..default()
-            },
-            Spawnpoint::BlueBuff => Transform {
-                translation: Vec3::new(0.0, 0.5, 6.0),
-                ..default()
-            },
-            Spawnpoint::Chaos => Transform {
-                translation: Vec3::new(-10.0, 0.5, 0.0),
-                rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 + std::f32::consts::PI),
-                ..default()
-            },
-            Spawnpoint::Order => Transform {
-                translation: Vec3::new(10.0, 0.5, 0.0),
-                rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
-                ..default()
-            },
-        }
-    }
-}
-
 impl Default for GameModeDetails {
     fn default() -> Self {
         Self {
@@ -183,7 +158,6 @@ pub struct Scoreboard(pub HashMap<Player, PlayerInfo>);
 pub struct PlayerInfo {
     pub kda: KDA,
     pub inv: Inventory,
-    stats: Attributes,
     pub logs: LoggedNumbers,
     // account_name: String,
     // account_icon: Image,
@@ -260,7 +234,7 @@ fn place_ability(
         return;
     };
     for event in cast_events.iter() {
-        let Ok((caster_transform, team, ranks)) = caster.get(event.caster) else {
+        let Ok((caster_transform, team, _ranks)) = caster.get(event.caster) else {
             return;
         };
 
@@ -284,8 +258,8 @@ fn place_ability(
             Caster(event.caster),
         ));
 
-        let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
-        let scaling = rank.current as u32 * event.ability.get_scaling();
+        //let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
+        //let scaling = rank.current as u32 * event.ability.get_scaling();
 
         // Apply special proc components
         if let Ok(procmap) = procmaps.get(event.caster) {
@@ -304,7 +278,6 @@ fn place_ability(
 fn handle_respawning(
     time: Res<Time>,
     mut gamemodedetails: ResMut<GameModeDetails>,
-    mut spawn_events: EventWriter<InitSpawnEvent>,
     mut respawn_events: EventWriter<RespawnEvent>,
     mut character_state_next: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
@@ -378,15 +351,14 @@ fn check_deaths(
         (Entity, &IncomingDamageLog, &ActorType, &Attributes),
         Changed<IncomingDamageLog>,
     >,
-    the_guilty: Query<&ActorType>,
     mut death_events: EventWriter<DeathEvent>,
 ) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
     for (guy, damagelog, actortype, attributes) in the_damned.iter() {
-        let hp = attributes.get(Stat::Health);
-        if hp > 0.0 {
+        if attributes.get(Stat::Health) > 0.0 {
             continue;
         }
+
         let mut killers = Vec::new();
         for instance in damagelog.list.iter().rev() {
             if Instant::now().duration_since(instance.when)

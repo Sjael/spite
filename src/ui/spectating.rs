@@ -154,16 +154,16 @@ pub fn add_player_ui(
                                         .insert(PersonalKDA);
                                 });
                                 parent.spawn(build_ui()).with_children(|parent| {
-                                    parent.spawn(build_slot(1)).with_children(|parent| {
+                                    parent.spawn(build_slot(1)).with_children(|_parent| {
                                         //parent.spawn(item_image_build(&items,
                                         // Item::Arondight));
                                     });
-                                    parent.spawn(build_slot(2)).with_children(|parent| {
+                                    parent.spawn(build_slot(2)).with_children(|_parent| {
                                         //parent.spawn(item_image_build(&items,
                                         // Item::HiddenDagger));
                                     });
                                     parent.spawn(build_slot(3));
-                                    parent.spawn(build_slot(4)).with_children(|parent| {
+                                    parent.spawn(build_slot(4)).with_children(|_parent| {
                                         //parent.spawn(item_image_build(&items,
                                         // Item::SoulReaver));
                                     });
@@ -715,7 +715,7 @@ pub fn update_damage_log_ui(
         if event.log_type == LogType::Add {
             let mut image: Handle<Image> = images.default.clone();
             let mut name = "".to_string();
-            if let Ok((is_tower, is_player, attacker_name, team)) = entities.get(other_party) {
+            if let Ok((is_tower, is_player, attacker_name, _team)) = entities.get(other_party) {
                 if is_tower.is_some() {
                     image = images.enemy_tower.clone();
                 } else if is_player.is_some() {

@@ -68,22 +68,25 @@ impl Default for SpatialAbilityBundle {
 //
 
 pub struct FrostboltInfo {
+    /*
     name: Name,
     id: Ability,
-
     shape: AbilityShape,
+    */
     pub transform: Transform,
 }
 
 impl Default for FrostboltInfo {
     fn default() -> Self {
         Self {
+            /*
             name: Name::new("Frostbolt"),
             id: Ability::Frostbolt,
             shape: AbilityShape::Rectangle {
                 length: 0.8,
                 width: 0.5,
             },
+            */
             transform: Transform::default(),
         }
     }
@@ -165,22 +168,26 @@ impl FrostboltInfo {
 //
 
 pub struct FireballInfo {
+    /*
     name: Name,
     id: Ability,
 
     shape: AbilityShape,
+    */
     pub transform: Transform,
 }
 
 impl Default for FireballInfo {
     fn default() -> Self {
         Self {
+            /*
             name: Name::new("Fireball"),
             id: Ability::Fireball,
             shape: AbilityShape::Arc {
                 radius: 1.,
                 angle: 360.,
             },
+            */
             transform: Transform::default(),
         }
     }
@@ -314,18 +321,22 @@ impl BombInfo {
 //
 
 pub struct DefaultAbilityInfo {
+    /*
     name: Name,
     id: Ability,
     shape: AbilityShape,
+    */
     pub transform: Transform,
 }
 
 impl Default for DefaultAbilityInfo {
     fn default() -> Self {
         Self {
+            /*
             name: Name::new("DefaultAbility"),
             id: Ability::BasicAttack,
             shape: AbilityShape::default(),
+            */
             transform: Transform::default(),
         }
     }

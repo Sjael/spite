@@ -137,12 +137,6 @@ fn update_discounts(
     }
 }
 
-pub fn update_inventory(
-    mut changed_inventories: Query<(&Inventory, &mut Attributes), Changed<Inventory>>,
-) {
-    for (inv, mut attributes) in changed_inventories.iter_mut() {}
-}
-
 fn discount_style(item: Item, inv: &Inventory, text: &mut Text) {
     let price = item.total_price();
     let discount = item.discounted_price(&inv.clone());

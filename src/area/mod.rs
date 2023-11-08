@@ -120,10 +120,10 @@ fn area_apply_tags(
         tags,
         damage_type,
         caster,
-        parent,
+        _parent,
         interval,
         mut max_targets_hit,
-        mut tick_behavior,
+        tick_behavior,
         mut unique_targets_hit,
         ability,
     ) in &mut sensor_query
@@ -522,8 +522,7 @@ fn tick_hit_timers(
         Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline) in
-        &mut area_timers
+    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in &mut area_timers
     {
         // only tick area timers if has timeline and is firing
         if let Some(timeline) = timeline {

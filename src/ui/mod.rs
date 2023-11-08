@@ -11,7 +11,7 @@ use crate::{
         HasHealthBar,
     },
     assets::{Fonts, Icons, Images},
-    game_manager::{DeathEvent, GameModeDetails, InGameSet, Scoreboard, Team, TeamRoster, TEAM_1},
+    game_manager::{DeathEvent, GameModeDetails, InGameSet, Scoreboard, TeamRoster, TEAM_1},
     ui::{
         hud_editor::*, ingame_menu::*, main_menu::*, mouse::*, spectating::*, store::*, styles::*,
         ui_bundles::*,
@@ -264,7 +264,8 @@ fn drag_holdable(
                 continue;
             };
             if mouse.just_pressed(MouseButton::Left) {
-                if let Ok((parent_node, parent_gt, mut ztracker)) = parent_query.get(parent.get()) {
+                if let Ok((parent_node, parent_gt, mut _ztracker)) = parent_query.get(parent.get())
+                {
                     parent_offset.x = parent_gt.translation().x - parent_node.size().x / 2.0;
                     parent_offset.y = parent_gt.translation().y - parent_node.size().y / 2.0;
                     *max_offset = parent_node.size() - node.size();
@@ -274,8 +275,8 @@ fn drag_holdable(
                 if let Ok(build_number) = build_slot_query.get(parent.get()) {
                     holding.0 = Some(HeldItem {
                         item: entity,
-                        slot: build_number.0,
-                    });
+                        _slot: build_number.0,
+                    })
                 }
                 if handle_entity == entity {
                     *z_index = ZIndex::Global(7);
@@ -326,7 +327,7 @@ pub struct CursorHolding(Option<HeldItem>);
 #[derive(Copy, Clone)]
 struct HeldItem {
     item: Entity,
-    slot: u32,
+    _slot: u32,
 }
 
 fn drop_holdable(
@@ -361,7 +362,7 @@ fn drop_holdable(
             return;
         };
 
-        for (drop_entity, interaction, mut style, mut bg, children, slot_num) in &mut slot_query {
+        for (drop_entity, interaction, mut _style, mut bg, children, _slot_num) in &mut slot_query {
             *bg = Color::GRAY.into();
             if *interaction == Interaction::None {
                 continue;
@@ -378,7 +379,7 @@ fn drop_holdable(
         *zindex = ZIndex::default();
         holding.0 = None;
     } else {
-        for (drop_entity, interaction, mut style, mut bg, _, _) in &mut slot_query {
+        for (_drop_entity, interaction, mut _style, mut bg, _, _) in &mut slot_query {
             if *interaction == Interaction::None {
                 *bg = Color::GRAY.into();
             } else {
@@ -459,9 +460,8 @@ fn load_tooltip(
 
 fn update_kda(
     mut kda_query: Query<&mut Text, With<PersonalKDA>>,
-    mut scoreboard_kda_query: Query<&mut Text, (With<KDAText>, Without<PersonalKDA>)>,
+    //mut scoreboard_kda_query: Query<&mut Text, (With<KDAText>, Without<PersonalKDA>)>,
     scoreboard: Res<Scoreboard>,
-    mut death_events: EventReader<DeathEvent>,
     local_player: Res<Player>,
 ) {
     if scoreboard.is_changed() {
@@ -484,7 +484,7 @@ pub fn killfeed_update(
     mut death_events: EventReader<DeathEvent>,
     killfeed_query: Query<Entity, With<Killfeed>>,
 ) {
-    for death in death_events.iter() {
+    for _death in death_events.iter() {
         let Ok(killfeed) = killfeed_query.get_single() else {
             return;
         };
@@ -652,6 +652,7 @@ pub fn spawn_floating_health_bars(
     }
 }
 
+/*
 fn show_floating_health_bars(
     mut commands: Commands,
     query: Query<(&Transform, &Team)>,
@@ -678,6 +679,7 @@ fn show_floating_health_bars(
         }
     }
 }
+*/
 
 fn follow_in_3d(
     mut commands: Commands,

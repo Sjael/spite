@@ -210,14 +210,14 @@ trait AbilityFactory {
 
 #[derive(Debug, Default, Clone)]
 pub struct AbilityBuilder {
-    base_ability: Ability,
+    //base_ability: Ability,
     scaling: Option<u32>,
 }
 
 impl AbilityBuilder {
-    pub fn new(ability: Ability) -> AbilityBuilder {
+    pub fn new(_ability: Ability) -> AbilityBuilder {
         Self {
-            base_ability: ability,
+            //base_ability: ability,
             scaling: None,
         }
     }

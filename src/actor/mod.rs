@@ -13,17 +13,23 @@ use crate::{
     GameState,
 };
 use bevy::prelude::*;
+use bevy_mod_wanderlust::{
+    Controller, ControllerBundle, ControllerInput, Float, Movement, Spring, SpringStrength,
+};
 use bevy_rapier3d::prelude::*;
+use oxidized_navigation::NavMeshAffector;
 
 use self::{
     buff::{BuffMap, BuffPlugin},
     crowd_control::{CCMap, CCPlugin, CCType},
+    minion::MinionPlugin,
     player::*,
-    stats::{Attributes, HealthMitigatedEvent, Stat, StatsPlugin},
+    stats::{AttributeTag, Attributes, HealthMitigatedEvent, Modifier, Stat, StatsPlugin},
 };
 
 pub mod buff;
 pub mod crowd_control;
+pub mod minion;
 pub mod player;
 pub mod stats;
 pub mod view;
@@ -33,17 +39,22 @@ impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut App) {
         //Resources
         app.insert_resource(PlayerInput::default());
-        app.register_type::<PlayerInput>();
-        app.register_type::<CooldownMap>();
-        app.register_type::<HoveredAbility>();
-        app.add_event::<InputCastEvent>();
-        app.add_event::<CastEvent>();
-        app.add_event::<InitSpawnEvent>();
-        app.add_event::<RespawnEvent>();
-        app.add_event::<LogHit>();
+        app.register_type::<PlayerInput>()
+            .register_type::<CooldownMap>()
+            .register_type::<HoveredAbility>()
+            .register_type::<Attributes>()
+            .register_type::<Stat>()
+            .register_type::<Modifier>()
+            .register_type::<AttributeTag>();
+
+        app.add_event::<InputCastEvent>()
+            .add_event::<CastEvent>()
+            .add_event::<InitSpawnEvent>()
+            .add_event::<RespawnEvent>()
+            .add_event::<LogHit>();
 
         //Plugins
-        app.add_plugins((StatsPlugin, BuffPlugin, CCPlugin));
+        app.add_plugins((StatsPlugin, BuffPlugin, CCPlugin, MinionPlugin));
 
         //Systems
         app.add_systems(OnEnter(GameState::InGame), setup_player);
@@ -77,7 +88,7 @@ impl Plugin for CharacterPlugin {
         // Process transforms always after inputs, and translations after rotations
         app.add_systems(
             PostUpdate,
-            (actor_swivel, actor_movement)
+            (player_swivel, player_movement)
                 .chain()
                 .in_set(InGameSet::Post),
         );
@@ -120,12 +131,10 @@ pub struct RespawnEvent {
 fn init_player(
     mut commands: Commands,
     mut _meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut spawn_events: EventReader<InitSpawnEvent>,
     mut spectate_events: EventWriter<SpectateEvent>,
     mut next_state: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
-    mut local_entity: ResMut<PlayerEntity>,
 ) {
     for event in spawn_events.iter() {
         let player = match event.actor {
@@ -137,51 +146,50 @@ fn init_player(
         next_state.set(ActorState::Alive);
         // reset the rotation so you dont spawn looking the other way
 
-        let mut material = StandardMaterial::default();
-        material.base_color = Color::hex("208000").unwrap().into();
-        material.perceptual_roughness = 0.97;
-        material.reflectance = 0.0;
-        let green = materials.add(material);
-
         let player_entity = commands
-            .spawn((
-                SpatialBundle::from_transform(event.transform.clone()),
-                _meshes.add(
-                    shape::Capsule {
-                        radius: 0.4,
-                        ..default()
-                    }
-                    .into(),
-                ),
-                green.clone(),
+            .spawn(SpatialBundle::from_transform(event.transform.clone()))
+            .insert((
                 event.actor.clone(), // ActorType
                 player,              // Player
                 Name::new(format!("Player {}", spawning_id.to_string())),
                 ActorState::Alive,
-                (
-                    // physics
-                    Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
-                    ActiveEvents::COLLISION_EVENTS,
-                    RigidBody::Dynamic,
-                    Friction::coefficient(2.0),
-                    LockedAxes::ROTATION_LOCKED,
-                    Velocity::default(),
-                    PLAYER_GROUPING,
-                ),
-                (
-                    // Inventory/store
-                    Inventory::default(),
-                    StoreHistory::default(),
-                    StoreBuffer::default(),
-                ),
+            ))
+            .insert(ControllerBundle {
+                controller: Controller {
+                    float: Float {
+                        spring: Spring {
+                            strength: SpringStrength::AngularFrequency(25.0),
+                            damping: 0.8,
+                        },
+                        ..default()
+                    },
+                    ..default()
+                },
+                ..default()
+            })
+            .insert((
+                // physics
+                Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
+                ActiveEvents::COLLISION_EVENTS,
+                RigidBody::Dynamic,
+                LockedAxes::ROTATION_LOCKED,
+                Velocity::default(),
+                PLAYER_GROUPING,
+            ))
+            .insert((
+                // Inventory/store
+                Inventory::default(),
+                StoreHistory::default(),
+                StoreBuffer::default(),
             ))
             .insert({
-                let mut attributes = Attributes::default();
-                attributes.insert(Stat::Health, 33.0);
-                attributes.insert(Stat::Speed, 6.0);
-                attributes.insert(Stat::CharacterResource, 33.0);
-                attributes.insert(Stat::Gold, 20_000.0);
-                attributes
+                let mut attrs = Attributes::default();
+                attrs
+                    .set(Stat::Health, 33.0)
+                    .set_base(Stat::Speed, 16.0)
+                    .set(Stat::CharacterResource, 33.0)
+                    .set(Stat::Gold, 20_000.0);
+                attrs
             })
             .insert((
                 TEAM_1,
@@ -200,6 +208,7 @@ fn init_player(
                 SlotBundle::new(), // Has all the keybinding -> action logic
                 HoveredAbility::default(),
             ))
+            .insert(NavMeshAffector)
             .id();
 
         let player_is_owned = event.actor == ActorType::Player(*local_player); // make it check if you are that player
@@ -246,7 +255,7 @@ fn setup_player(mut spawn_events: EventWriter<InitSpawnEvent>, local_player: Res
     });
 }
 
-pub fn actor_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), With<Player>>) {
+pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), With<Player>>) {
     for (mut player_transform, inputs, cc_map) in players.iter_mut() {
         if cc_map.map.contains_key(&CCType::Stun) {
             continue;
@@ -255,11 +264,21 @@ pub fn actor_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), W
     }
 }
 
-pub fn actor_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput, &CCMap)>) {
-    for (attributes, mut velocity, player_input, cc_map) in query.iter_mut() {
+pub fn player_movement(
+    mut query: Query<(
+        &Attributes,
+        &mut ControllerInput,
+        &mut Movement,
+        &PlayerInput,
+        &CCMap,
+    )>,
+) {
+    for (attributes, mut controller, mut movement, player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
+            controller.movement = Vec3::ZERO;
             continue;
         }
+
         let speed = attributes.get(Stat::Speed);
         let mut direction = Vec3::new(0.0, 0.0, 0.0);
         if player_input.left() {
@@ -279,9 +298,8 @@ pub fn actor_movement(mut query: Query<(&Attributes, &mut Velocity, &PlayerInput
         let movement_vector =
             Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
 
-        // don't effect the y direction since you can't move in that direction.
-        velocity.linvel.x = movement_vector.x;
-        velocity.linvel.z = movement_vector.z;
+        controller.movement = movement_vector;
+        movement.max_speed = speed;
     }
 }
 
