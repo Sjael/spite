@@ -46,7 +46,7 @@ pub fn setup_arena(
             ..default()
         },
         RigidBody::Static,
-        GROUND_LAYER,
+        CollisionLayers::GROUND,
         Collider::cuboid(10.0, 0.1, 10.0),
         Name::new("Plane"),
         NavMeshAffector,
@@ -61,7 +61,7 @@ pub fn setup_arena(
             ..default()
         },
         RigidBody::Static,
-        GROUND_LAYER,
+        CollisionLayers::WALL,
         Collider::cuboid(1.0, 2.0, 5.0),
         Name::new("Left Wall"),
         NavMeshAffector,
@@ -76,7 +76,7 @@ pub fn setup_arena(
             ..default()
         },
         RigidBody::Static,
-        GROUND_LAYER,
+        CollisionLayers::WALL,
         Collider::cuboid(1.0, 2.0, 5.0),
         Name::new("Right Wall"),
         NavMeshAffector,
@@ -99,7 +99,7 @@ pub fn setup_arena(
             materials.add(StandardMaterial::from(Color::RED)),
             Collider::capsule(1.0, 0.7),
             RigidBody::Static,
-            WALL_LAYER,
+            CollisionLayers::WALL,
             TEAM_NEUTRAL,
             {
                 let mut attributes = Attributes::default();
@@ -166,8 +166,8 @@ pub fn setup_arena(
             Collider::capsule(1.0, 0.5),
             RigidBody::Dynamic,
             Friction::new(2.0),
-            LockedAxes::ROTATION_LOCKED,
-            PLAYER_LAYER,
+            LockedAxes::ACTOR,
+            CollisionLayers::PLAYER,
             TEAM_2,
             CCMap::default(),
             BuffMap::default(),

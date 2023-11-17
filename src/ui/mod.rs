@@ -34,8 +34,7 @@ impl Plugin for UiPlugin {
             .add_state::<InGameMenu>()
             .add_state::<EditingHUD>();
 
-        app.add_event::<ResetUiEvent>()
-            .add_event::<MenuEvent>();
+        app.add_event::<ResetUiEvent>().add_event::<MenuEvent>();
 
         app.insert_resource(FocusedHealthEntity(None))
             .insert_resource(CursorHolding(None));

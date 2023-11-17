@@ -46,21 +46,33 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<FireHomingEvent>();
 
         app.configure_sets(
-            Update,
-            InGameSet::Update.run_if(in_state(GameState::InGame)),
+            PreUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)),
         );
+
         app.configure_sets(
-            PreUpdate,
-            InGameSet::Pre.run_if(in_state(GameState::InGame)),
+            Update, InGameSet::Update.run_if(in_state(GameState::InGame)),
         );
+
         app.configure_sets(
-            PostUpdate,
-            InGameSet::Pre.run_if(in_state(GameState::InGame)),
+            PostUpdate, InGameSet::Post.run_if(in_state(GameState::InGame)),
+        );
+
+        app.configure_sets(
+            FixedUpdate,
+            (
+                InGameSet::Pre,
+                InGameSet::Update,
+                InGameSet::Post,
+            )
+            .chain()
+            .run_if(in_state(GameState::InGame))
+            .before(PhysicsSet::Prepare)
+            .before(PhysicsSet::Sync)
         );
 
         app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
         app.add_systems(
-            Update,
+            FixedUpdate,
             (
                 spool_gold,
                 increment_bounty,
@@ -289,9 +301,7 @@ fn handle_respawning(
                 entity: redeemed.clone(),
                 actor: respawn.actortype.clone(),
             });
-            if respawn.actortype == ActorType::Player(*local_player) {
-
-            }
+            if respawn.actortype == ActorType::Player(*local_player) {}
         }
         !respawn.timer.finished()
     });
@@ -513,37 +523,6 @@ pub const TEAM_NEUTRAL: Team = Team(TeamMask::from_bits_truncate(
     TeamMask::NEUTRALS.bits() | TeamMask::ALL.bits(),
 ));
 pub const TEAM_ALL: Team = Team(TeamMask::from_bits_truncate(TeamMask::ALL.bits()));
-
-#[derive(PhysicsLayer)]
-pub enum Layer {
-    Player,
-    Ability,
-    Ground,
-    Wall,
-    Fluff,
-}
-
-// Collision Grouping Flags
-pub const PLAYER_LAYER: CollisionLayers =
-    //CollisionLayers::new([Layer::Player], [Layer::Player, Layer::Wall, Layer::Ground]);
-    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
-    CollisionLayers::from_bits(u32::MAX, u32::MAX);
-
-pub const GROUND_LAYER: CollisionLayers =
-    //CollisionLayers::new([Layer::Ground], [Layer::Player, Layer::Wall, Layer::Ground]);
-    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
-    CollisionLayers::from_bits(u32::MAX, u32::MAX);
-pub const WALL_LAYER: CollisionLayers =
-    //CollisionLayers::new([Layer::Wall], [Layer::Player, Layer::Wall, Layer::Ground]);
-    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
-    CollisionLayers::from_bits(u32::MAX, u32::MAX);
-pub const ABILITY_LAYER: CollisionLayers =
-/*CollisionLayers::new(
-    [Layer::Ability],
-    [Layer::Player, Layer::Wall, Layer::Ground, Layer::Ability],
-);*/
-    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
-    CollisionLayers::from_bits(u32::MAX, u32::MAX);
 
 #[derive(Component)]
 pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);

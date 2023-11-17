@@ -54,7 +54,7 @@ pub struct CCPlugin;
 impl Plugin for CCPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            PreUpdate,
+            FixedUpdate,
             (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre),
         );
     }

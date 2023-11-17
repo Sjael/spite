@@ -7,12 +7,7 @@ use bevy::{
     transform::TransformSystem,
 };
 
-use crate::{
-    actor::ActorState,
-    game_manager::{InGameSet},
-    prelude::*,
-    ui::SpectatingSet,
-};
+use crate::{actor::ActorState, game_manager::InGameSet, prelude::*, ui::SpectatingSet};
 
 use super::player::PlayerInput;
 
@@ -34,6 +29,8 @@ impl Plugin for ViewPlugin {
             )
                 .in_set(SpectatingSet),
         );
+        app.add_systems(FixedUpdate, follow_entity.after(PhysicsSet::Sync));
+
         app.add_systems(
             PostUpdate,
             (

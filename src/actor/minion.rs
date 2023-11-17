@@ -7,8 +7,9 @@ use oxidized_navigation::{
 };
 */
 
-use crate::game_manager::{PLAYER_LAYER, TEAM_1};
+use crate::game_manager::{TEAM_1};
 use crate::prelude::*;
+use crate::actor::controller::Controller;
 
 pub struct MinionPlugin;
 impl Plugin for MinionPlugin {
@@ -41,8 +42,8 @@ impl Plugin for MinionPlugin {
         */
         //app.add_plugins(WanderlustPlugin::default());
 
-        app.add_systems(PreUpdate, (spawn_single_minion, spawn_minion).chain());
-        app.add_systems(Update, (minion_follow_path, minion_update_progress).chain());
+        app.add_systems(FixedUpdate, (spawn_single_minion, spawn_minion).chain().in_set(InGameSet::Pre));
+        app.add_systems(FixedUpdate, (minion_follow_path, minion_update_progress).chain().in_set(InGameSet::Update));
         //app.add_systems(Update, (toggle_nav_mesh_system, run_blocking_pathfinding));
     }
 }
@@ -127,7 +128,7 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
                 },
                 ..default()
             })
-            //.insert(Collider::capsule_y(0.5, 0.5))
+            .insert(Collider::capsule(0.5, 0.3))
             .id();
 
         let steps = 8;
@@ -164,6 +165,10 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
             )))
             .insert(Name::new("Minion"))
             //.insert(ControllerBundle { ..default() })
+            .insert(Controller {
+                max_speed: 1.0,
+                ..default()
+            })
             .insert((
                 defined_path,
                 //circle_patrol,
@@ -174,11 +179,7 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
             ))
             .insert(
                 // physics
-                (
-                    RigidBody::Dynamic,
-                    LockedAxes::ROTATION_LOCKED,
-                    PLAYER_LAYER,
-                ),
+                (RigidBody::Dynamic, LockedAxes::ACTOR, CollisionLayers::PLAYER),
             )
             .add_child(minion_collider)
             .insert({
@@ -241,8 +242,7 @@ pub struct MinionControl {
 pub fn minion_follow_path(
     mut minions: Query<(
         &GlobalTransform,
-        //&mut ControllerInput,
-        //&mut Movement,
+        &mut Controller,
         &MinionPath,
         &MinionProgress,
         &Attributes,
@@ -250,7 +250,7 @@ pub fn minion_follow_path(
 
     mut gizmos: Gizmos,
 ) {
-    for (position, /*mut control, mut movement,*/ path, progress, attributes) in &mut minions {
+    for (position, mut control, path, progress, attributes) in &mut minions {
         for points in path.points().windows(2) {
             let start = points[0];
             let end = points[1];
@@ -260,7 +260,7 @@ pub fn minion_follow_path(
         let mut position = position.translation();
         position.y = 0.0;
 
-        //control.movement = Vec3::ZERO;
+        control.direction = Vec3::ZERO;
 
         let Some(next_point) = path.points.get(progress.next) else {
             continue;
@@ -268,8 +268,8 @@ pub fn minion_follow_path(
         let difference = *next_point - position;
         let direction = difference.normalize_or_zero();
         //info!("direction: {:.1?}", direction);
-        //control.movement = direction;
-        //movement.max_speed = attributes.get(Stat::Speed);
+        control.direction = direction;
+        control.max_speed = attributes.get(Stat::Speed);
     }
 }
 

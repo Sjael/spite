@@ -3,9 +3,9 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
+use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::prelude::*;
 use inventory::InventoryPlugin;
-use bevy_tweening::TweeningPlugin;
 
 use ability::shape::load_ability_shape;
 use actor::{view::ViewPlugin, CharacterPlugin};
@@ -26,6 +26,7 @@ pub mod inventory;
 pub mod item;
 pub mod map;
 pub mod ui;
+pub mod physics;
 
 pub mod prelude {
     pub use crate::{
@@ -38,11 +39,12 @@ pub mod prelude {
         area::*,
         assets::{Icons, Models, Scenes},
         game_manager::{
-            InGameSet, ABILITY_LAYER, GROUND_LAYER, PLAYER_LAYER, TEAM_1, TEAM_2, TEAM_3,
-            TEAM_NEUTRAL, WALL_LAYER,
+            InGameSet, TEAM_1, TEAM_2, TEAM_3,
+            TEAM_NEUTRAL,
         },
         inventory::Inventory,
         item::Item,
+        physics::*,
     };
     pub use bevy::prelude::*;
     pub use bevy_xpbd_3d::prelude::*;
@@ -66,16 +68,14 @@ impl Plugin for GamePlugin {
         }));
 
         //Resources + States
+        app.insert_resource(Time::<Fixed>::from_hz(64.0));
+
         app.insert_resource(GameTimer::default())
             .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
             .add_state::<GameState>();
 
         app.add_plugins(EditorPlugin::default());
-        fn test(state: Res<State<GameState>>) {
-            //info!("game_state: {:?}", *state); 
-        }
-        app.add_systems(Update, test);
-        app.add_plugins(PhysicsPlugins::default());
+        app.add_plugins(PhysicsPlugins::new(FixedUpdate));
         app.add_plugins(TweeningPlugin);
         app.add_plugins(InventoryPlugin);
         app.add_plugins(DebugTexturePlugin);
