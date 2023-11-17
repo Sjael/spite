@@ -33,14 +33,13 @@ pub enum InGameSet {
 pub struct GameManagerPlugin;
 impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Bounty>();
+
         app.insert_resource(GameModeDetails::default());
         app.insert_resource(Player::new(1507)); // change to be whatever the server says
         app.insert_resource(PlayerEntity(None));
         app.insert_resource(TeamRoster::default());
         app.insert_resource(Scoreboard::default());
-
-        app.register_type::<Bounty>();
-        app.add_state::<ActorState>();
 
         app.add_event::<DeathEvent>();
         app.add_event::<AbilityFireEvent>();
@@ -277,7 +276,6 @@ fn handle_respawning(
     time: Res<Time>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     mut respawn_events: EventWriter<RespawnEvent>,
-    mut character_state_next: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
 ) {
     //let theredeemed = commands.spawn(()).id();
@@ -292,7 +290,7 @@ fn handle_respawning(
                 actor: respawn.actortype.clone(),
             });
             if respawn.actortype == ActorType::Player(*local_player) {
-                character_state_next.set(ActorState::Alive);
+
             }
         }
         !respawn.timer.finished()
@@ -391,7 +389,6 @@ fn despawn_dead(
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
-    mut character_state_next: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
     mut scoreboard: ResMut<Scoreboard>,
 ) {
@@ -400,7 +397,6 @@ fn despawn_dead(
         match event.actor {
             ActorType::Player(player) => {
                 if player == *local_player {
-                    character_state_next.set(ActorState::Dead);
                     let Ok(ui) = ui.get_single() else { continue };
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_debug_texture::DebugTexturePlugin;
+//use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 use inventory::InventoryPlugin;
@@ -74,7 +74,7 @@ impl Plugin for GamePlugin {
         app.add_plugins(PhysicsPlugins::default());
         app.add_plugins(TweeningPlugin);
         app.add_plugins(InventoryPlugin);
-        app.add_plugins(DebugTexturePlugin);
+        //app.add_plugins(DebugTexturePlugin);
 
         app.add_systems(PostUpdate, crate::debug::physics_mesh::init_physics_meshes);
         app.add_systems(Startup, spawn_spectator_camera);

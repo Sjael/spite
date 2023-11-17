@@ -28,17 +28,17 @@ pub struct FreeMouseSet;
 pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<MouseState>();
-        app.add_state::<TabMenu>();
-        app.add_state::<StoreMenu>();
-        app.add_state::<InGameMenu>();
-        app.add_state::<EditingHUD>();
+        app.add_state::<MouseState>()
+            .add_state::<TabMenu>()
+            .add_state::<StoreMenu>()
+            .add_state::<InGameMenu>()
+            .add_state::<EditingHUD>();
 
-        app.add_event::<ResetUiEvent>();
-        app.add_event::<MenuEvent>();
+        app.add_event::<ResetUiEvent>()
+            .add_event::<MenuEvent>();
 
-        app.insert_resource(FocusedHealthEntity(None));
-        app.insert_resource(CursorHolding(None));
+        app.insert_resource(FocusedHealthEntity(None))
+            .insert_resource(CursorHolding(None));
 
         app.add_plugins(StorePlugin);
 

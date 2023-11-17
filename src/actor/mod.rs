@@ -102,7 +102,7 @@ pub enum ActorType {
     Minion,
 }
 
-#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub enum ActorState {
     Alive,
     #[default]
@@ -129,7 +129,6 @@ fn init_player(
     mut _meshes: ResMut<Assets<Mesh>>,
     mut spawn_events: EventReader<InitSpawnEvent>,
     mut spectate_events: EventWriter<SpectateEvent>,
-    mut next_state: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
 ) {
     for event in spawn_events.read() {
@@ -139,7 +138,6 @@ fn init_player(
         };
         let spawning_id = player.id.clone();
         info!("spawning player {}", spawning_id);
-        next_state.set(ActorState::Alive);
         // reset the rotation so you dont spawn looking the other way
 
         let player_entity = commands
@@ -240,6 +238,7 @@ fn respawn_entity(
 }
 
 fn setup_player(mut spawn_events: EventWriter<InitSpawnEvent>, local_player: Res<Player>) {
+    dbg!();
     spawn_events.send(InitSpawnEvent {
         actor: ActorType::Player(local_player.clone()),
         transform: Transform {

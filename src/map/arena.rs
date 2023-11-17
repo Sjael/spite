@@ -21,6 +21,7 @@ use crate::{
 pub struct ArenaPlugin;
 impl Plugin for ArenaPlugin {
     fn build(&self, app: &mut App) {
+        dbg!();
         app.add_systems(OnEnter(GameState::InGame), setup_arena);
     }
 }
@@ -31,6 +32,7 @@ pub fn setup_arena(
     mut materials: ResMut<Assets<StandardMaterial>>,
     //models: Res<Models>,
 ) {
+    dbg!();
     //ground
     commands.spawn((
         PbrBundle {

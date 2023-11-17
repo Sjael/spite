@@ -55,6 +55,7 @@ pub fn add_player_ui(
     icons: Res<Icons>,
     items: Res<Items>,
 ) {
+    dbg!();
     let Ok(root_ui) = ui_query.get_single() else {
         return;
     };

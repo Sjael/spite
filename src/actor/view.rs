@@ -29,7 +29,7 @@ impl Plugin for ViewPlugin {
             Update,
             (
                 spawn_camera_gimbal,
-                swap_cameras.run_if(in_state(ActorState::Dead)),
+                //swap_cameras.run_if(in_state(ActorState::Dead)),
                 spectate_entity,
             )
                 .in_set(SpectatingSet),

@@ -1,9 +1,10 @@
 //! Preload assets via collections
 
-use std::collections::HashMap;
+use bevy::utils::HashMap;
 
-use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
+use crate::prelude::*;
+use crate::GameState;
 
 #[derive(AssetCollection, Resource)]
 pub struct Icons {
