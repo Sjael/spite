@@ -2,7 +2,6 @@ use bevy::{
     pbr::{NotShadowCaster, NotShadowReceiver},
     prelude::*,
 };
-use bevy_rapier3d::prelude::*;
 
 use crate::{
     ability::{
@@ -46,9 +45,9 @@ pub fn setup_arena(
             },
             ..default()
         },
-        RigidBody::Fixed,
-        GROUND_GROUPING,
-        Collider::cuboid(50.0, 0.1, 50.0),
+        RigidBody::Static,
+        GROUND_LAYER,
+        Collider::cuboid(10.0, 0.1, 10.0),
         Name::new("Plane"),
         NavMeshAffector,
     ));
@@ -61,9 +60,9 @@ pub fn setup_arena(
             },
             ..default()
         },
-        RigidBody::Fixed,
-        GROUND_GROUPING,
-        Collider::round_cuboid(1.0, 2.0, 5.0, 0.1),
+        RigidBody::Static,
+        GROUND_LAYER,
+        Collider::cuboid(1.0, 2.0, 5.0),
         Name::new("Left Wall"),
         NavMeshAffector,
     ));
@@ -76,9 +75,9 @@ pub fn setup_arena(
             },
             ..default()
         },
-        RigidBody::Fixed,
-        GROUND_GROUPING,
-        Collider::round_cuboid(1.0, 2.0, 5.0, 0.1),
+        RigidBody::Static,
+        GROUND_LAYER,
+        Collider::cuboid(1.0, 2.0, 5.0),
         Name::new("Right Wall"),
         NavMeshAffector,
     ));
@@ -98,11 +97,10 @@ pub fn setup_arena(
                 .into(),
             ),
             materials.add(StandardMaterial::from(Color::RED)),
-            Collider::capsule(Vec3::ZERO, Vec3::Y, 0.7),
-            RigidBody::Fixed,
-            TERRAIN_GROUPING,
+            Collider::capsule(1.0, 0.7),
+            RigidBody::Static,
+            WALL_LAYER,
             TEAM_NEUTRAL,
-            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             {
                 let mut attributes = Attributes::default();
                 attributes
@@ -129,8 +127,6 @@ pub fn setup_arena(
         ))
         .insert((
             Collider::cylinder(1.0, 7.),
-            ActiveEvents::COLLISION_EVENTS,
-            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             Sensor,
             TargetsInArea::default(),
             FiringInterval(2.0),
@@ -167,11 +163,11 @@ pub fn setup_arena(
                 .into(),
             ),
             materials.add(StandardMaterial::from(Color::INDIGO)),
-            Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
+            Collider::capsule(1.0, 0.5),
             RigidBody::Dynamic,
-            Friction::coefficient(2.0),
+            Friction::new(2.0),
             LockedAxes::ROTATION_LOCKED,
-            PLAYER_GROUPING,
+            PLAYER_LAYER,
             TEAM_2,
             CCMap::default(),
             BuffMap::default(),

@@ -1,11 +1,8 @@
-use bevy::{
-    math::Vec3,
-    render::{
-        mesh::{Indices, Mesh},
-        render_resource::PrimitiveTopology,
-    },
+use crate::prelude::*;
+use bevy::render::{
+    mesh::{Indices, Mesh},
+    render_resource::PrimitiveTopology,
 };
-use bevy_rapier3d::prelude::*;
 
 pub struct Rectangle {
     positions: Vec<[f32; 3]>,
@@ -93,6 +90,6 @@ impl Rectangle {
             .collect::<Vec<_>>();
 
         // TODO change to Cuboid, not ConvexHull
-        Collider::convex_hull(&vertices).unwrap()
+        Collider::convex_hull(vertices).unwrap()
     }
 }

@@ -104,7 +104,7 @@ pub fn menu_toggle(
     mut store: Query<&mut Visibility, With<StoreMain>>,
     mut tab_panel: Query<&mut Visibility, (With<TabPanel>, Without<StoreMain>)>,
     mut inner_menu_query: Query<
-        (&mut Visibility, &TabMenuType, &ComputedVisibility),
+        (&mut Visibility, &TabMenuType, &ViewVisibility),
         (Without<TabPanel>, Without<StoreMain>),
     >,
     mut next_tab_state: ResMut<NextState<TabMenu>>,
@@ -147,7 +147,7 @@ pub fn menu_toggle(
         }
         for (mut tab_vis, tabtype, computed_tab_vis) in &mut inner_menu_query {
             if *tabtype == tab_panel_opened {
-                if computed_tab_vis.is_visible() && *panel_vis == Visible {
+                if computed_tab_vis.get() && *panel_vis == Visible {
                     *panel_vis = Hidden;
                     next_tab_state.set(TabMenu::Closed);
                 } else {

@@ -71,7 +71,7 @@ pub fn scale_ui(
     edit_handles: Query<(&Parent, &Interaction), With<EditingUIHandle>>,
     mut scroll_events: EventReader<MouseWheel>,
 ) {
-    for event in scroll_events.iter() {
+    for event in scroll_events.read() {
         for (parent, interaction) in edit_handles.iter() {
             if interaction != &Interaction::Hovered {
                 continue;

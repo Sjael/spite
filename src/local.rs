@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
-use bevy_fly_camera::{camera_movement_system, mouse_motion_system};
+//use bevy_fly_camera::{camera_movement_system, mouse_motion_system};
 use sacred_aurora::prelude::*;
 use winit::window::Icon;
 
@@ -11,12 +11,12 @@ fn main() {
     app.add_plugins(sacred_aurora::map::arena::ArenaPlugin);
     // Systems
     app.add_systems(Startup, set_window_icon);
-    app.add_systems(
+    /*app.add_systems(
         Update,
         (camera_movement_system, mouse_motion_system)
             .in_set(InGameSet::Update)
             .run_if(in_state(ActorState::Dead)),
-    );
+    );*/
     app.run();
 }
 

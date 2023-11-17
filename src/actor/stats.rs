@@ -1,5 +1,8 @@
 use crate::ability::{Ability, DamageType};
-use bevy::{prelude::*, utils::{HashMap, HashSet}};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 //use fixed::types::I40F24;
@@ -11,8 +14,8 @@ use std::{fmt::Display, time::Instant};
 // Use enum as stat instead of unit structs?
 //
 //
-#[derive(Reflect, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
-#[reflect(Debug, Default, PartialEq)]
+#[derive(Reflect, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
+#[reflect(Debug, PartialEq)]
 pub enum Stat {
     // Temporal
     Xp,
@@ -27,7 +30,7 @@ pub enum Stat {
     CharacterResourceRegen,
     CharacterResourceMax,
 
-    // 
+    //
     Speed,
     PhysicalPower,
     MagicalPower,
@@ -163,7 +166,7 @@ pub fn calculate_health_change(
     mut health_mitigated_events: EventWriter<HealthMitigatedEvent>,
     attribute_query: Query<&Attributes>,
 ) {
-    for event in health_events.iter() {
+    for event in health_events.read() {
         let Ok(defender_stats) = attribute_query.get(event.defender) else {
             continue;
         };
@@ -210,7 +213,7 @@ pub fn apply_health_change(
     mut health_mitigated_events: EventReader<HealthMitigatedEvent>,
     mut health_query: Query<&mut Attributes>,
 ) {
-    for event in health_mitigated_events.iter() {
+    for event in health_mitigated_events.read() {
         let Ok(mut defender_stats) = health_query.get_mut(event.defender) else {
             continue;
         };

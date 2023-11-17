@@ -26,7 +26,7 @@ pub fn player_mouse_input(
         return;
     } // if mouse is free, dont turn character
     let mut cumulative_delta = Vec2::ZERO;
-    for ev in ev_mouse.iter() {
+    for ev in ev_mouse.read() {
         cumulative_delta += ev.delta;
     }
     player_input.pitch -= sensitivity.0 * cumulative_delta.y / 180.0;

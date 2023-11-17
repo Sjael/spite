@@ -4,14 +4,13 @@ use bevy::{
         fxaa::Fxaa,
         tonemapping::{DebandDither, Tonemapping},
     },
-    prelude::*,
     transform::TransformSystem,
 };
-use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 
 use crate::{
     actor::ActorState,
-    game_manager::{InGameSet, CAMERA_GROUPING},
+    game_manager::{InGameSet},
+    prelude::*,
     ui::SpectatingSet,
 };
 
@@ -25,12 +24,12 @@ impl Plugin for ViewPlugin {
         app.add_event::<SpectateEvent>();
         app.add_event::<PossessEvent>();
 
-        app.add_systems(FixedUpdate, (avoid_intersecting,));
+        //app.add_systems(FixedUpdate, (avoid_intersecting,));
         app.add_systems(
             Update,
             (
                 spawn_camera_gimbal,
-                swap_cameras.run_if(in_state(ActorState::Dead)),
+                //swap_cameras.run_if(in_state(ActorState::Dead)),
                 spectate_entity,
             )
                 .in_set(SpectatingSet),
@@ -53,7 +52,7 @@ fn update_spectatable(
     added_spectatables: Query<Entity, Added<Spectatable>>,
     mut removed_spectatables: RemovedComponents<Spectatable>,
 ) {
-    for removing in &mut removed_spectatables {
+    for removing in removed_spectatables.read() {
         if let Some(index) = objects.map.iter().position(|entity| *entity == removing) {
             objects.map.remove(index);
         }
@@ -146,7 +145,7 @@ fn spectate_entity(
     let Ok(mut follow_entity) = gimbal_query.get_single_mut() else {
         return;
     };
-    for new_spectate in spectate_events.iter() {
+    for new_spectate in spectate_events.read() {
         follow_entity.0 = new_spectate.entity;
         spectating.0 = new_spectate.entity;
     }
@@ -163,7 +162,7 @@ fn spawn_camera_gimbal(
     if let Ok(_) = gimbal_query.get_single() {
         return;
     }
-    let Some(spectated) = spectate_events.iter().next() else {
+    let Some(spectated) = spectate_events.read().next() else {
         return;
     };
 
@@ -262,6 +261,7 @@ fn spawn_camera_gimbal(
         .push_children(&[inner_gimbal, reticle]);
 }
 
+/*
 pub fn avoid_intersecting(
     rapier_context: Res<RapierContext>,
     all_global_transforms: Query<&GlobalTransform>,
@@ -269,7 +269,7 @@ pub fn avoid_intersecting(
 ) {
     let filter = QueryFilter::only_fixed()
         .exclude_sensors()
-        .groups(CAMERA_GROUPING);
+        .groups(CollisionFilters);
     for (mut transform, parent, avoid) in &mut avoiders {
         let adjusted_transform = if let Ok(global) = all_global_transforms.get(parent.get()) {
             global.compute_transform()
@@ -291,6 +291,7 @@ pub fn avoid_intersecting(
         transform.translation = avoid.dir * toi + (normal * avoid.buffer);
     }
 }
+*/
 
 #[derive(Component, Debug)]
 pub struct Reticle {

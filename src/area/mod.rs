@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{Sensor, *};
 use rand::Rng;
 use std::{
     cmp::Ordering,
@@ -18,6 +17,7 @@ use crate::{
         crowd_control::CCInfo,
     },
     game_manager::{FireHomingEvent, Team},
+    prelude::*,
 };
 use homing::track_homing;
 
@@ -401,13 +401,15 @@ pub struct AreaOverlapEvent {
     pub overlap: AreaOverlapType,
 }
 
+fn catch_collisions() {}
+/*
 fn catch_collisions(
     targets_query: Query<Entity, Without<Sensor>>,
     mut sensor_query: Query<(Entity, &mut TargetsInArea), With<Sensor>>,
     mut collision_events: EventReader<CollisionEvent>,
     mut area_events: EventWriter<AreaOverlapEvent>,
 ) {
-    for collision_event in collision_events.iter() {
+    for collision_event in collision_events.read() {
         let ((area_entity, mut targets_in_area), target_entity, colliding) = match collision_event {
             &CollisionEvent::Started(collider1, collider2, _flags) => {
                 let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(collider1) {
@@ -463,6 +465,7 @@ fn catch_collisions(
         }
     }
 }
+ */
 
 fn tick_lifetime(
     mut commands: Commands,

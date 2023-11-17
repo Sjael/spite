@@ -28,17 +28,17 @@ pub struct FreeMouseSet;
 pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<MouseState>();
-        app.add_state::<TabMenu>();
-        app.add_state::<StoreMenu>();
-        app.add_state::<InGameMenu>();
-        app.add_state::<EditingHUD>();
+        app.add_state::<MouseState>()
+            .add_state::<TabMenu>()
+            .add_state::<StoreMenu>()
+            .add_state::<InGameMenu>()
+            .add_state::<EditingHUD>();
 
-        app.add_event::<ResetUiEvent>();
-        app.add_event::<MenuEvent>();
+        app.add_event::<ResetUiEvent>()
+            .add_event::<MenuEvent>();
 
-        app.insert_resource(FocusedHealthEntity(None));
-        app.insert_resource(CursorHolding(None));
+        app.insert_resource(FocusedHealthEntity(None))
+            .insert_resource(CursorHolding(None));
 
         app.add_plugins(StorePlugin);
 
@@ -53,13 +53,13 @@ impl Plugin for UiPlugin {
 
         app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
 
-        app.configure_set(
+        app.configure_sets(
             Update,
             SpectatingSet
                 .run_if(resource_exists::<Spectating>())
                 .run_if(in_state(GameState::InGame)),
         );
-        app.configure_set(
+        app.configure_sets(
             Update,
             FreeMouseSet
                 .run_if(in_state(MouseState::Free))
@@ -396,7 +396,7 @@ fn move_tooltip(
     let Ok(mut style) = tooltip.get_single_mut() else {
         return;
     };
-    if let Some(cursor_move) = move_events.iter().next() {
+    if let Some(cursor_move) = move_events.read().next() {
         style.left = Val::Px(cursor_move.position.x);
         style.bottom = Val::Px(cursor_move.position.y);
     }
@@ -484,7 +484,7 @@ pub fn killfeed_update(
     mut death_events: EventReader<DeathEvent>,
     killfeed_query: Query<Entity, With<Killfeed>>,
 ) {
-    for _death in death_events.iter() {
+    for _death in death_events.read() {
         let Ok(killfeed) = killfeed_query.get_single() else {
             return;
         };
@@ -494,7 +494,7 @@ pub fn killfeed_update(
 }
 
 fn kill_notif_cleanup(mut commands: Commands, mut tween_events: EventReader<TweenCompleted>) {
-    for ev in tween_events.iter() {
+    for ev in tween_events.read() {
         use TweenEvents::*;
         match TweenEvents::try_from(ev.user_data) {
             Ok(KillNotifEnded) => {
