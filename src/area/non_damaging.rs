@@ -1,7 +1,6 @@
-use bevy::prelude::*;
-use bevy_rapier3d::prelude::{ActiveCollisionTypes, Collider, Sensor};
-
-use crate::{ability::TargetsInArea, actor::player::Player, ui::spectating::FocusedHealthEntity};
+use crate::{
+    ability::TargetsInArea, actor::player::Player, prelude::*, ui::spectating::FocusedHealthEntity,
+};
 
 use super::{AreaOverlapEvent, AreaOverlapType};
 
@@ -25,7 +24,6 @@ pub fn add_health_bar_detect_colliders(
                 HealthBarDetect,
                 Sensor,
                 Name::new("health bar detection range"),
-                ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
                 TargetsInArea::default(),
             ));
         });
@@ -39,7 +37,7 @@ pub fn focus_objective_health(
     mut focused_health_entity: ResMut<FocusedHealthEntity>,
     mut area_events: EventReader<AreaOverlapEvent>,
 ) {
-    for event in area_events.iter() {
+    for event in area_events.read() {
         let Ok(parent) = query.get(event.sensor) else {
             continue;
         };

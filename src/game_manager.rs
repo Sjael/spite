@@ -4,7 +4,7 @@ use std::{
 };
 
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
+use bevy_xpbd_3d::prelude::*;
 
 use crate::{
     ability::{
@@ -46,15 +46,15 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
 
-        app.configure_set(
+        app.configure_sets(
             Update,
             InGameSet::Update.run_if(in_state(GameState::InGame)),
         );
-        app.configure_set(
+        app.configure_sets(
             PreUpdate,
             InGameSet::Pre.run_if(in_state(GameState::InGame)),
         );
-        app.configure_set(
+        app.configure_sets(
             PostUpdate,
             InGameSet::Pre.run_if(in_state(GameState::InGame)),
         );
@@ -194,7 +194,7 @@ fn place_homing_ability(
     mut cast_events: EventReader<FireHomingEvent>,
     caster: Query<(&GlobalTransform, &Team)>,
 ) {
-    for event in cast_events.iter() {
+    for event in cast_events.read() {
         let Ok((caster_transform, team)) = caster.get(event.caster) else {
             return;
         };
@@ -213,8 +213,6 @@ fn place_homing_ability(
 
         // if has a shape
         commands.entity(spawned).insert((
-            ActiveEvents::COLLISION_EVENTS,
-            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
             TargetsHittable::default(),
             MaxTargetsHit::new(1),
@@ -233,7 +231,7 @@ fn place_ability(
     let Ok(reticle_transform) = reticle.get_single() else {
         return;
     };
-    for event in cast_events.iter() {
+    for event in cast_events.read() {
         let Ok((caster_transform, team, _ranks)) = caster.get(event.caster) else {
             return;
         };
@@ -310,12 +308,12 @@ fn show_respawn_ui(
     let Ok(mut vis) = death_timer.get_single_mut() else {
         return;
     };
-    for event in spawn_events.iter() {
+    for event in spawn_events.read() {
         if event.actor == ActorType::Player(*local_player) {
             *vis = Visibility::Hidden;
         }
     }
-    for event in death_events.iter() {
+    for event in death_events.read() {
         if event.actor == ActorType::Player(*local_player) {
             *vis = Visibility::Visible;
         }
@@ -397,7 +395,7 @@ fn despawn_dead(
     local_player: Res<Player>,
     mut scoreboard: ResMut<Scoreboard>,
 ) {
-    for event in death_events.iter() {
+    for event in death_events.read() {
         let mut is_dead_player = false;
         match event.actor {
             ActorType::Player(player) => {
@@ -520,44 +518,32 @@ pub const TEAM_NEUTRAL: Team = Team(TeamMask::from_bits_truncate(
 ));
 pub const TEAM_ALL: Team = Team(TeamMask::from_bits_truncate(TeamMask::ALL.bits()));
 
-// Collision Grouping Flags
-bitflags::bitflags! {
-    pub struct Groups: u32 {
-        const PLAYER = 1 << 0;
-        const TERRAIN = 1 << 1;
-        const ABILITY = 1 << 2;
-        const GROUND = 1 << 3;
-        const FLUFF = 1 << 4;
-
-        const PLAYER_FILTER = Groups::PLAYER.bits() | Groups::TERRAIN.bits()| Groups::GROUND.bits();
-        const TERRAIN_FILTER = Groups::PLAYER.bits() ;
-        // Make this interact with Terrain and other Abilities when we want cool interactions or no pen walls
-        const ABILITY_FILTER = Groups::PLAYER.bits();
-        const GROUND_FILTER = Groups::GROUND.bits() | Groups::PLAYER.bits();
-        const CAMERA_FILTER = Groups::GROUND.bits();
-    }
+#[derive(PhysicsLayer)]
+pub enum Layer {
+    Player,
+    Ability,
+    Ground,
+    Wall,
+    Fluff,
 }
 
-pub const PLAYER_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::PLAYER.bits()),
-    Group::from_bits_truncate(Groups::PLAYER_FILTER.bits()),
-);
-pub const TERRAIN_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::TERRAIN.bits()),
-    Group::from_bits_truncate(Groups::TERRAIN_FILTER.bits()),
-);
-pub const ABILITY_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::ABILITY.bits()),
-    Group::from_bits_truncate(Groups::ABILITY_FILTER.bits()),
-);
-pub const GROUND_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::GROUND.bits()),
-    Group::from_bits_truncate(Groups::GROUND_FILTER.bits()),
-);
-pub const CAMERA_GROUPING: CollisionGroups = CollisionGroups::new(
-    Group::from_bits_truncate(Groups::GROUND.bits()),
-    Group::from_bits_truncate(Groups::CAMERA_FILTER.bits()),
-);
+// Collision Grouping Flags
+pub const PLAYER_LAYER: CollisionLayers =
+    //CollisionLayers::new([Layer::Player], [Layer::Player, Layer::Wall, Layer::Ground]);
+    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+
+pub const GROUND_LAYER: CollisionLayers =
+    //CollisionLayers::new([Layer::Ground], [Layer::Player, Layer::Wall, Layer::Ground]);
+    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+pub const WALL_LAYER: CollisionLayers =
+    //CollisionLayers::new([Layer::Wall], [Layer::Player, Layer::Wall, Layer::Ground]);
+    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+pub const ABILITY_LAYER: CollisionLayers =
+/*CollisionLayers::new(
+    [Layer::Ability],
+    [Layer::Player, Layer::Wall, Layer::Ground, Layer::Ability],
+);*/
+    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
 
 #[derive(Component)]
 pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);

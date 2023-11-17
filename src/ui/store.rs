@@ -27,6 +27,7 @@ impl Plugin for StorePlugin {
         app.add_event::<StoreEvent>();
         app.add_event::<UndoPressEvent>();
 
+        /*
         app.add_systems(
             Update,
             (
@@ -41,6 +42,7 @@ impl Plugin for StorePlugin {
             )
                 .in_set(SpectatingSet),
         );
+        */
     }
 }
 
@@ -233,7 +235,7 @@ fn try_buy_item(
         &mut StoreHistory,
     )>,
 ) {
-    for event in events.iter() {
+    for event in events.read() {
         if event.direction != TransactionType::Buy {
             continue;
         }
@@ -278,7 +280,7 @@ fn try_sell_item(
         &mut StoreHistory,
     )>,
 ) {
-    for event in events.iter() {
+    for event in events.read() {
         if event.direction != TransactionType::Sell {
             continue;
         }
@@ -311,7 +313,7 @@ fn try_undo_store(
     mut store_events: EventWriter<StoreEvent>,
     mut buyers: Query<&mut StoreHistory>,
 ) {
-    for event in undo_events.iter() {
+    for event in undo_events.read() {
         info!("undo event");
         let Ok(mut store_history) = buyers.get_mut(event.entity) else {
             continue;
@@ -331,7 +333,7 @@ fn leave_store(
     mut area_events: EventReader<AreaOverlapEvent>,
     sensors: Query<&TargetsInArea, With<Fountain>>,
 ) {
-    let Some(event) = area_events.iter().next() else {
+    let Some(event) = area_events.read().next() else {
         return;
     };
     let Some(local) = local_entity.0 else { return };

@@ -3,20 +3,16 @@ use std::{collections::HashMap, time::Duration};
 use crate::{
     ability::{rank::Rank, Ability, DamageType},
     actor::view::{Spectatable, SpectateEvent, Spectating},
-    game_manager::{AbilityFireEvent, Bounty, InGameSet, PLAYER_GROUPING, TEAM_1},
+    game_manager::{AbilityFireEvent, Bounty, InGameSet, PLAYER_LAYER, TEAM_1},
     input::{copy_action_state, SlotBundle},
     inventory::Inventory,
+    prelude::*,
     ui::{
         store::{StoreBuffer, StoreHistory},
         Trackable,
     },
     GameState,
 };
-use bevy::prelude::*;
-use bevy_mod_wanderlust::{
-    Controller, ControllerBundle, ControllerInput, Float, Movement, Spring, SpringStrength,
-};
-use bevy_rapier3d::prelude::*;
 use oxidized_navigation::NavMeshAffector;
 
 use self::{
@@ -136,7 +132,7 @@ fn init_player(
     mut next_state: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
 ) {
-    for event in spawn_events.iter() {
+    for event in spawn_events.read() {
         let player = match event.actor {
             ActorType::Player(player) => player,
             _ => continue,
@@ -154,7 +150,7 @@ fn init_player(
                 Name::new(format!("Player {}", spawning_id.to_string())),
                 ActorState::Alive,
             ))
-            .insert(ControllerBundle {
+            /*.insert(ControllerBundle {
                 controller: Controller {
                     float: Float {
                         spring: Spring {
@@ -167,14 +163,13 @@ fn init_player(
                 },
                 ..default()
             })
+            */
             .insert((
                 // physics
-                Collider::capsule(Vec3::ZERO, Vec3::Y, 0.5),
-                ActiveEvents::COLLISION_EVENTS,
+                Collider::capsule(1.0, 0.5),
                 RigidBody::Dynamic,
                 LockedAxes::ROTATION_LOCKED,
-                Velocity::default(),
-                PLAYER_GROUPING,
+                PLAYER_LAYER,
             ))
             .insert((
                 // Inventory/store
@@ -208,7 +203,7 @@ fn init_player(
                 SlotBundle::new(), // Has all the keybinding -> action logic
                 HoveredAbility::default(),
             ))
-            .insert(NavMeshAffector)
+            //.insert(NavMeshAffector)
             .id();
 
         let player_is_owned = event.actor == ActorType::Player(*local_player); // make it check if you are that player
@@ -230,7 +225,7 @@ fn respawn_entity(
     local_player: Res<Player>,
     mut spectate_events: EventWriter<SpectateEvent>,
 ) {
-    for event in respawn_events.iter() {
+    for event in respawn_events.read() {
         let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else {
             continue;
         };
@@ -267,15 +262,15 @@ pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), 
 pub fn player_movement(
     mut query: Query<(
         &Attributes,
-        &mut ControllerInput,
-        &mut Movement,
+        //&mut ControllerInput,
+        //&mut Movement,
         &PlayerInput,
         &CCMap,
     )>,
 ) {
-    for (attributes, mut controller, mut movement, player_input, cc_map) in query.iter_mut() {
+    for (attributes, /*mut controller, mut movement,*/ player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
-            controller.movement = Vec3::ZERO;
+            //controller.movement = Vec3::ZERO;
             continue;
         }
 
@@ -298,8 +293,8 @@ pub fn player_movement(
         let movement_vector =
             Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
 
-        controller.movement = movement_vector;
-        movement.max_speed = speed;
+        //controller.movement = movement_vector;
+        //movement.max_speed = speed;
     }
 }
 
@@ -308,7 +303,7 @@ pub fn cast_ability(
     mut attempt_cast_event: EventReader<InputCastEvent>,
     mut cast_event: EventWriter<CastEvent>,
 ) {
-    for event in attempt_cast_event.iter() {
+    for event in attempt_cast_event.read() {
         let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else {
             continue;
         };
@@ -350,7 +345,7 @@ fn start_ability_windup(
     mut players: Query<(&mut WindupTimer, &mut Casting)>,
     mut cast_events: EventReader<CastEvent>,
 ) {
-    for event in cast_events.iter() {
+    for event in cast_events.read() {
         let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else {
             continue;
         };
@@ -385,7 +380,7 @@ fn trigger_cooldown(
     mut cast_events: EventReader<AbilityFireEvent>,
     mut query: Query<(&mut CooldownMap, &Attributes)>,
 ) {
-    for event in cast_events.iter() {
+    for event in cast_events.read() {
         let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else {
             continue;
         };
@@ -491,7 +486,7 @@ fn update_damage_logs(
     mut outgoing_logs: Query<&mut OutgoingDamageLog>,
     mut log_hit_events: EventWriter<LogHit>,
 ) {
-    for damage_instance in damage_events.iter() {
+    for damage_instance in damage_events.read() {
         if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
             defender_log.list.push(damage_instance.clone());
             if defender_log.sums.contains_key(&damage_instance.sensor) {

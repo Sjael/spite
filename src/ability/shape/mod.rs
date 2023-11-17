@@ -2,13 +2,10 @@ pub mod arc;
 pub mod rectangle;
 
 pub use arc::*;
-use bevy_rapier3d::prelude::{ActiveCollisionTypes, ActiveEvents, Collider};
 pub use rectangle::*;
 use serde::{Deserialize, Serialize};
 
-use bevy::prelude::*;
-
-use crate::assets::MaterialPresets;
+use crate::{assets::MaterialPresets, prelude::*};
 
 use super::{bundles::Targetter, TargetsHittable, TargetsInArea};
 
@@ -54,11 +51,8 @@ pub fn load_ability_shape(
         let (mesh, collider_shape) = shape.clone().load();
         commands.entity(entity).insert((
             meshes.add(mesh),
-            Visibility::default(),
-            ComputedVisibility::default(),
+            VisibilityBundle::default(),
             collider_shape,
-            ActiveEvents::COLLISION_EVENTS,
-            ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             TargetsInArea::default(),
         ));
         let new_material = presets

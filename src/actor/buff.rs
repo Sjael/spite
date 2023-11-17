@@ -100,7 +100,7 @@ pub fn apply_buffs(
     mut stack_events: EventWriter<BuffStackEvent>,
     mut add_events: EventWriter<BuffAddEvent>,
 ) {
-    for event in buff_events.iter() {
+    for event in buff_events.read() {
         if let Ok((mut buffs, mut attributes)) = targets_query.get_mut(event.target) {
             let ability = format!(
                 "{}v{}",

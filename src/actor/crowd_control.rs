@@ -61,7 +61,7 @@ impl Plugin for CCPlugin {
 }
 
 pub fn apply_ccs(mut targets_query: Query<&mut CCMap>, mut cc_events: EventReader<CCEvent>) {
-    for event in cc_events.iter() {
+    for event in cc_events.read() {
         let Ok(mut ccs) = targets_query.get_mut(event.target_entity) else {
             continue;
         };

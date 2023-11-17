@@ -1,16 +1,16 @@
 use std::time::Duration;
 
-use bevy::{asset::ChangeWatcher, prelude::*};
+use bevy::prelude::*;
 use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
-use bevy_rapier3d::prelude::*;
+use bevy_xpbd_3d::prelude::*;
 use inventory::InventoryPlugin;
+use bevy_tweening::TweeningPlugin;
 
 use ability::shape::load_ability_shape;
 use actor::{view::ViewPlugin, CharacterPlugin};
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
-use bevy_tweening::TweeningPlugin;
 use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use ui::{spectating::spawn_spectator_camera, UiPlugin};
@@ -38,14 +38,14 @@ pub mod prelude {
         area::*,
         assets::{Icons, Models, Scenes},
         game_manager::{
-            InGameSet, ABILITY_GROUPING, CAMERA_GROUPING, GROUND_GROUPING, PLAYER_GROUPING, TEAM_1,
-            TEAM_2, TEAM_3, TEAM_NEUTRAL, TERRAIN_GROUPING,
+            InGameSet, ABILITY_LAYER, GROUND_LAYER, PLAYER_LAYER, TEAM_1, TEAM_2, TEAM_3,
+            TEAM_NEUTRAL, WALL_LAYER,
         },
         inventory::Inventory,
         item::Item,
     };
     pub use bevy::prelude::*;
-    pub use bevy_rapier3d::prelude::*;
+    pub use bevy_xpbd_3d::prelude::*;
     pub use oxidized_navigation::NavMeshAffector;
 }
 
@@ -55,41 +55,26 @@ impl Plugin for GamePlugin {
         let default_res = (1500.0, 600.0);
 
         //Basic
-        app.add_plugins(
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Sacred Aurora".to_string(),
-                        resolution: default_res.into(),
-                        present_mode: bevy::window::PresentMode::Immediate,
-                        ..default()
-                    }),
-                    ..default()
-                })
-                .set(AssetPlugin {
-                    watch_for_changes: ChangeWatcher::with_delay(Duration::from_millis(200)),
-                    ..default()
-                }),
-        );
+        app.add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Sacred Aurora".to_string(),
+                resolution: default_res.into(),
+                present_mode: bevy::window::PresentMode::Immediate,
+                ..default()
+            }),
+            ..default()
+        }));
 
         //Resources + States
         app.insert_resource(GameTimer::default())
             .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
             .add_state::<GameState>();
 
-        app.add_plugins((
-            EditorPlugin::default(),
-            RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin {
-                enabled: true,
-                style: Default::default(),
-                //mode: DebugRenderMode::COLLIDER_SHAPES,
-                ..default()
-            },
-            TweeningPlugin,
-            InventoryPlugin,
-            DebugTexturePlugin,
-        ));
+        app.add_plugins(EditorPlugin::default());
+        app.add_plugins(PhysicsPlugins::default());
+        app.add_plugins(TweeningPlugin);
+        app.add_plugins(InventoryPlugin);
+        app.add_plugins(DebugTexturePlugin);
 
         app.add_systems(PostUpdate, crate::debug::physics_mesh::init_physics_meshes);
         app.add_systems(Startup, spawn_spectator_camera);

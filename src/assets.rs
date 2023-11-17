@@ -5,8 +5,6 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 
-use crate::GameState;
-
 #[derive(AssetCollection, Resource)]
 pub struct Icons {
     #[asset(path = "icons/frostbolt.png")]
@@ -88,6 +86,7 @@ pub struct MaterialPresets(pub HashMap<String, Handle<StandardMaterial>>);
 pub struct GameAssetPlugin;
 impl Plugin for GameAssetPlugin {
     fn build(&self, app: &mut App) {
+        /*
         app.add_loading_state(
             LoadingState::new(GameState::Loading).continue_to_state(GameState::MainMenu),
         )
@@ -97,6 +96,7 @@ impl Plugin for GameAssetPlugin {
         .add_collection_to_loading_state::<_, Scenes>(GameState::Loading)
         .add_collection_to_loading_state::<_, Models>(GameState::Loading)
         .add_collection_to_loading_state::<_, Items>(GameState::Loading);
+        */
 
         app.add_systems(Startup, load_presets);
     }

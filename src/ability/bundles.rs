@@ -1,10 +1,11 @@
-use crate::actor::{
-    buff::BuffInfo,
-    crowd_control::{CCInfo, CCType},
-    stats::Stat,
+use crate::{
+    actor::{
+        buff::BuffInfo,
+        crowd_control::{CCInfo, CCType},
+        stats::Stat,
+    },
+    prelude::*,
 };
-use bevy::prelude::*;
-use bevy_rapier3d::prelude::{ActiveEvents, RigidBody, Sensor, Velocity};
 
 use super::{shape::AbilityShape, DamageType, *};
 
@@ -43,7 +44,6 @@ pub struct SpatialAbilityBundle {
     pub global_transform: GlobalTransform,
     pub shape: AbilityShape,
     pub sensor: Sensor,
-    pub events: ActiveEvents,
     pub tick_behavior: TickBehavior,
     pub targetsinarea: TargetsInArea,
     pub targetstoeffect: TargetsHittable,
@@ -57,7 +57,6 @@ impl Default for SpatialAbilityBundle {
             id: Ability::BasicAttack,
             name: Name::new("Basic Attack"),
             sensor: Sensor,
-            events: ActiveEvents::COLLISION_EVENTS,
             ..default()
         }
     }
@@ -105,11 +104,8 @@ impl FrostboltInfo {
                 width: 0.5,
             },
             SpatialBundle::from_transform(transform.clone()),
-            Velocity {
-                linvel: direction * speed,
-                ..default()
-            },
-            RigidBody::KinematicVelocityBased,
+            LinearVelocity(direction * speed),
+            RigidBody::Kinematic,
             Sensor,
             DamageType::Physical,
             AreaLifetime { seconds: 1.0 },
@@ -206,11 +202,8 @@ impl FireballInfo {
                 angle: 360.,
             },
             SpatialBundle::from_transform(transform.clone()),
-            RigidBody::KinematicVelocityBased,
-            Velocity {
-                linvel: direction * speed,
-                ..default()
-            },
+            RigidBody::Kinematic,
+            LinearVelocity(direction * speed),
             Sensor,
             DamageType::Magical,
             UniqueTargetsHit::default(),
@@ -267,11 +260,8 @@ impl BombInfo {
                 angle: 360.,
             },
             SpatialBundle::from_transform(transform.clone()),
-            RigidBody::KinematicVelocityBased,
-            Velocity {
-                linvel: direction * speed,
-                ..default()
-            },
+            RigidBody::Kinematic,
+            LinearVelocity(direction * speed),
             Sensor,
             Ticks::Unlimited,
             DamageType::Magical,
@@ -356,11 +346,8 @@ impl DefaultAbilityInfo {
             AbilityShape::default(),
             SpatialBundle::from_transform(transform.clone()),
             DamageType::Physical,
-            RigidBody::KinematicVelocityBased,
-            Velocity {
-                linvel: direction * speed,
-                ..default()
-            },
+            RigidBody::Kinematic,
+            LinearVelocity(direction * speed),
             Sensor,
             MaxTargetsHit::new(1),
             AreaLifetime { seconds: 2.0 },

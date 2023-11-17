@@ -1,13 +1,13 @@
-use bevy::prelude::*;
-use bevy_mod_wanderlust::{ControllerBundle, ControllerInput, Movement, WanderlustPlugin};
-use bevy_rapier3d::prelude::*;
+//use bevy_mod_wanderlust::{ControllerBundle, ControllerInput, Movement, WanderlustPlugin};
+/*
 use oxidized_navigation::{
     debug_draw::{DrawNavMesh, DrawPath, OxidizedNavigationDebugDrawPlugin},
     query::find_path,
     NavMesh, NavMeshSettings, OxidizedNavigationPlugin,
 };
+*/
 
-use crate::game_manager::{PLAYER_GROUPING, TEAM_1};
+use crate::game_manager::{PLAYER_LAYER, TEAM_1};
 use crate::prelude::*;
 
 pub struct MinionPlugin;
@@ -18,31 +18,32 @@ impl Plugin for MinionPlugin {
             .register_type::<MinionProgress>();
         app.add_event::<SpawnMinionEvent>();
 
-        app.add_plugins((
-            OxidizedNavigationPlugin::<Collider>::new(NavMeshSettings {
-                cell_width: 0.5,
-                cell_height: 0.5,
-                tile_width: 100,
-                world_half_extents: 250.0,
-                world_bottom_bound: -100.0,
-                max_traversable_slope_radians: (40.0_f32 - 0.1).to_radians(),
-                walkable_height: 20,
-                walkable_radius: 1,
-                step_height: 3,
-                min_region_area: 100,
-                merge_region_area: 500,
-                max_contour_simplification_error: 1.5,
-                max_edge_length: 80,
-                max_tile_generation_tasks: Some(1),
-            }),
-            OxidizedNavigationDebugDrawPlugin,
-        ));
-
-        app.add_plugins(WanderlustPlugin::default());
+        /*
+               app.add_plugins((
+                   OxidizedNavigationPlugin::<Collider>::new(NavMeshSettings {
+                       cell_width: 0.5,
+                       cell_height: 0.5,
+                       tile_width: 100,
+                       world_half_extents: 250.0,
+                       world_bottom_bound: -100.0,
+                       max_traversable_slope_radians: (40.0_f32 - 0.1).to_radians(),
+                       walkable_height: 20,
+                       walkable_radius: 1,
+                       step_height: 3,
+                       min_region_area: 100,
+                       merge_region_area: 500,
+                       max_contour_simplification_error: 1.5,
+                       max_edge_length: 80,
+                       max_tile_generation_tasks: Some(1),
+                   }),
+                   OxidizedNavigationDebugDrawPlugin,
+               ));
+        */
+        //app.add_plugins(WanderlustPlugin::default());
 
         app.add_systems(PreUpdate, (spawn_single_minion, spawn_minion).chain());
         app.add_systems(Update, (minion_follow_path, minion_update_progress).chain());
-        app.add_systems(Update, (toggle_nav_mesh_system, run_blocking_pathfinding));
+        //app.add_systems(Update, (toggle_nav_mesh_system, run_blocking_pathfinding));
     }
 }
 
@@ -50,11 +51,13 @@ impl Plugin for MinionPlugin {
 //  Toggle drawing Nav-mesh.
 //  Press M to toggle drawing the navmesh.
 //
+/*
 fn toggle_nav_mesh_system(keys: Res<Input<KeyCode>>, mut show_navmesh: ResMut<DrawNavMesh>) {
     if keys.just_pressed(KeyCode::M) {
         show_navmesh.0 = !show_navmesh.0;
     }
 }
+*/
 
 fn spawn_single_minion(keys: Res<Input<KeyCode>>, mut events: EventWriter<SpawnMinionEvent>) {
     if keys.just_pressed(KeyCode::Semicolon) {
@@ -70,6 +73,7 @@ fn spawn_single_minion(keys: Res<Input<KeyCode>>, mut events: EventWriter<SpawnM
 //
 //  Running pathfinding in a system.
 //
+/*
 fn run_blocking_pathfinding(
     mut commands: Commands,
     keys: Res<Input<KeyCode>>,
@@ -106,6 +110,7 @@ fn run_blocking_pathfinding(
         }
     }
 }
+*/
 
 #[derive(Event, Copy, Clone)]
 pub struct SpawnMinionEvent {
@@ -113,7 +118,7 @@ pub struct SpawnMinionEvent {
 }
 
 pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionEvent>) {
-    for spawn in spawns.iter() {
+    for spawn in spawns.read() {
         let minion_collider = commands
             .spawn(SpatialBundle {
                 transform: Transform {
@@ -158,7 +163,7 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
                 spawn.location,
             )))
             .insert(Name::new("Minion"))
-            .insert(ControllerBundle { ..default() })
+            //.insert(ControllerBundle { ..default() })
             .insert((
                 defined_path,
                 //circle_patrol,
@@ -170,18 +175,17 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
             .insert(
                 // physics
                 (
-                    ActiveEvents::COLLISION_EVENTS,
                     RigidBody::Dynamic,
                     LockedAxes::ROTATION_LOCKED,
-                    Velocity::default(),
-                    ExternalImpulse::default(),
-                    PLAYER_GROUPING,
+                    PLAYER_LAYER,
                 ),
             )
             .add_child(minion_collider)
             .insert({
                 let mut attrs = Attributes::default();
-                attrs.set_base(Stat::Health, 50.0).set_base(Stat::Speed, 3.0);
+                attrs
+                    .set_base(Stat::Health, 50.0)
+                    .set_base(Stat::Speed, 3.0);
                 attrs
             })
             .insert((
@@ -237,8 +241,8 @@ pub struct MinionControl {
 pub fn minion_follow_path(
     mut minions: Query<(
         &GlobalTransform,
-        &mut ControllerInput,
-        &mut Movement,
+        //&mut ControllerInput,
+        //&mut Movement,
         &MinionPath,
         &MinionProgress,
         &Attributes,
@@ -246,7 +250,7 @@ pub fn minion_follow_path(
 
     mut gizmos: Gizmos,
 ) {
-    for (position, mut control, mut movement, path, progress, attributes) in &mut minions {
+    for (position, /*mut control, mut movement,*/ path, progress, attributes) in &mut minions {
         for points in path.points().windows(2) {
             let start = points[0];
             let end = points[1];
@@ -256,7 +260,7 @@ pub fn minion_follow_path(
         let mut position = position.translation();
         position.y = 0.0;
 
-        control.movement = Vec3::ZERO;
+        //control.movement = Vec3::ZERO;
 
         let Some(next_point) = path.points.get(progress.next) else {
             continue;
@@ -264,8 +268,8 @@ pub fn minion_follow_path(
         let difference = *next_point - position;
         let direction = difference.normalize_or_zero();
         //info!("direction: {:.1?}", direction);
-        control.movement = direction;
-        movement.max_speed = attributes.get(Stat::Speed);
+        //control.movement = direction;
+        //movement.max_speed = attributes.get(Stat::Speed);
     }
 }
 

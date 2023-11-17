@@ -1,12 +1,9 @@
-use bevy::{
-    math::Vec3,
-    render::{
-        mesh::{Indices, Mesh},
-        render_resource::PrimitiveTopology,
-    },
+use bevy::render::{
+    mesh::{Indices, Mesh},
+    render_resource::PrimitiveTopology,
 };
 
-use bevy_rapier3d::prelude::*;
+use crate::prelude::*;
 
 pub struct Arc {
     positions: Vec<[f32; 3]>,
@@ -175,6 +172,6 @@ impl Arc {
             .map(|position| Vec3::from(*position))
             .collect::<Vec<_>>();
 
-        Collider::convex_hull(&vertices).unwrap()
+        Collider::convex_hull(vertices).unwrap()
     }
 }

@@ -457,13 +457,13 @@ pub fn toggle_cast_bar(
     let Ok(mut vis) = bar.get_single_mut() else {
         return;
     };
-    for event in cast_events.iter() {
+    for event in cast_events.read() {
         if event.caster != spectating.0 {
             continue;
         }
         *vis = Visibility::Visible;
     }
-    for event in fire_events.iter() {
+    for event in fire_events.read() {
         if event.caster != spectating.0 {
             continue;
         }
@@ -528,7 +528,7 @@ pub fn update_buff_stacks(
     children_query: Query<&Children>,
     mut stacks: Query<(&mut Text, &mut Visibility), With<BuffStackNumber>>,
 ) {
-    for stack_change in stack_events.iter() {
+    for stack_change in stack_events.read() {
         if stack_change.target != spectating.0 {
             continue;
         }
@@ -562,7 +562,7 @@ pub fn add_buffs(
     fonts: Res<Fonts>,
     icons: Res<Icons>,
 ) {
-    for event in buff_events.iter() {
+    for event in buff_events.read() {
         if event.target != spectating.0 {
             continue;
         }
@@ -634,7 +634,7 @@ pub fn spawn_floating_damage(
     damaged_query: Query<Entity>,
     fonts: Res<Fonts>,
 ) {
-    for damage_instance in damage_events.iter() {
+    for damage_instance in damage_events.read() {
         if damage_instance.attacker != spectating.0 && damage_instance.defender != spectating.0 {
             continue;
         }
@@ -662,7 +662,7 @@ pub fn floating_damage_cleanup(
     mut tween_events: EventReader<TweenCompleted>,
     parents: Query<&Parent>,
 ) {
-    for ev in tween_events.iter() {
+    for ev in tween_events.read() {
         use TweenEvents::*;
         match TweenEvents::try_from(ev.user_data) {
             Ok(FloatingDamageEnded) => {
@@ -690,7 +690,7 @@ pub fn update_damage_log_ui(
     children_query: Query<&Children>,
     mut entry_text: Query<(&mut Text, &mut StoredNumber, &EntryText, &DamageLogId)>,
 ) {
-    for event in damage_events.iter() {
+    for event in damage_events.read() {
         let (log_ui, other_party, direction) = match event.log_direction {
             LogSide::Incoming => {
                 if spectating.0 != event.defender {

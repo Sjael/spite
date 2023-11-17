@@ -7,24 +7,21 @@ edition = "2021"
 opt-level = 3
 
 [dependencies]
-bevy = "0.11.0"
-bevy_rapier3d = { git = "https://github.com/dimforge/bevy_rapier", rev = "0ea000b", features = [
-    "serde-serialize",
-    "debug-render-3d",
-] }
-bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls" }
+bevy = "0.12.0"
+bevy_editor_pls = "0.6"
 bevy_fly_camera = { git = "https://github.com/sjael/bevy_fly_camera", branch = "main" }
-bevy_mod_wanderlust = { git = "https://github.com/PROMETHIA-27/bevy_mod_wanderlust" }
-leafwing-input-manager = "0.10.0"
-bevy_asset_loader = "0.17.0"
-bevy_tweening = { git = "https://github.com/Sjael/bevy_tweening", branch = "sjael" }
+leafwing-input-manager = "0.11.0"
+bevy_tweening = "0.9"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 lazy_static = "1.4.0"
-oxidized_navigation = { version = "0.7", features = ["rapier", "debug_draw"] }
-bevy_debug_texture = "0.1"
+oxidized_navigation = { version = "0.8", features = ["xpbd", "debug_draw"] }
+#bevy_debug_texture = "0.1"
+bevy_debug_texture = { path = "../bevy_debug_texture" }
+bevy_xpbd_3d = "0.3"
 # for geometric shapes as sprites
 #bevy_prototype_lyon = "0.8.0" 
+bevy_asset_loader = "0.18"
 
 # Relatively stable crates down here
 bitflags = "1.3"
@@ -42,4 +39,3 @@ name = "local"
 path = "src/local.rs"
 
 [patch.crates-io]
-bevy_rapier3d = {git = "https://github.com/dimforge/bevy_rapier", rev="0ea000b"}
