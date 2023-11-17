@@ -2,17 +2,22 @@ use std::{collections::HashMap, time::Duration};
 
 use crate::{
     ability::{rank::Rank, Ability, DamageType},
-    actor::view::{Spectatable, SpectateEvent, Spectating},
-    game_manager::{AbilityFireEvent, Bounty, InGameSet, PLAYER_LAYER, TEAM_1},
+    actor::{view::{Spectatable, SpectateEvent, Spectating}, stats::Bounty},
+    game_manager::{
+        AbilityFireEvent, InGameSet, Respawn, PLAYER_LAYER, TEAM_1,
+    },
     input::{copy_action_state, SlotBundle},
     inventory::Inventory,
     prelude::*,
     ui::{
+        scoreboard::Scoreboard,
         store::{StoreBuffer, StoreHistory},
+        ui_bundles::PlayerUI,
         Trackable,
     },
-    GameState,
+    GameState, director::GameModeDetails,
 };
+use bevy::utils::Instant;
 use oxidized_navigation::NavMeshAffector;
 
 use self::{
@@ -44,6 +49,7 @@ impl Plugin for CharacterPlugin {
             .register_type::<AttributeTag>();
 
         app.add_event::<InputCastEvent>()
+            .add_event::<DeathEvent>()
             .add_event::<CastEvent>()
             .add_event::<InitSpawnEvent>()
             .add_event::<RespawnEvent>()
@@ -54,6 +60,8 @@ impl Plugin for CharacterPlugin {
 
         //Systems
         app.add_systems(OnEnter(GameState::InGame), setup_player);
+
+        app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
         app.add_systems(
             PreUpdate,
             (
@@ -88,6 +96,7 @@ impl Plugin for CharacterPlugin {
                 .chain()
                 .in_set(InGameSet::Post),
         );
+        app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }
 
@@ -255,6 +264,129 @@ pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), 
             continue;
         }
         player_transform.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
+    }
+}
+
+#[derive(Event)]
+pub struct DeathEvent {
+    pub entity: Entity,
+    pub actor: ActorType,
+    pub killers: Vec<Entity>,
+}
+
+fn check_deaths(
+    the_damned: Query<
+        (Entity, &IncomingDamageLog, &ActorType, &Attributes),
+        Changed<IncomingDamageLog>,
+    >,
+    mut death_events: EventWriter<DeathEvent>,
+) {
+    const TIME_FOR_KILL_CREDIT: u64 = 30;
+    for (guy, damagelog, actortype, attributes) in the_damned.iter() {
+        if attributes.get(Stat::Health) > 0.0 {
+            continue;
+        }
+
+        let mut killers = Vec::new();
+        for instance in damagelog.list.iter().rev() {
+            if Instant::now().duration_since(instance.when)
+                > Duration::from_secs(TIME_FOR_KILL_CREDIT)
+            {
+                break;
+            }
+            //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
+            killers.push(instance.attacker);
+        }
+
+        death_events.send(DeathEvent {
+            entity: guy,
+            actor: actortype.clone(),
+            killers,
+        });
+    }
+}
+
+fn despawn_dead(
+    mut commands: Commands,
+    mut death_events: EventReader<DeathEvent>,
+    mut the_damned: Query<
+        (
+            &mut Transform,
+            &mut Visibility,
+            &mut ActorState,
+            Option<&Bounty>,
+        ),
+        With<ActorType>,
+    >,
+    mut attributes: Query<(&mut Attributes, &ActorType)>,
+    mut gamemodedetails: ResMut<GameModeDetails>,
+    ui: Query<Entity, With<PlayerUI>>,
+    mut character_state_next: ResMut<NextState<ActorState>>,
+    local_player: Res<Player>,
+    mut scoreboard: ResMut<Scoreboard>,
+) {
+    for event in death_events.read() {
+        let mut is_dead_player = false;
+        match event.actor {
+            ActorType::Player(player) => {
+                if player == *local_player {
+                    character_state_next.set(ActorState::Dead);
+                    let Ok(ui) = ui.get_single() else { continue };
+                    commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
+                }
+                let dead_guy = scoreboard.0.entry(player).or_default();
+                dead_guy.kda.deaths += 1;
+                is_dead_player = true;
+            }
+            _ => (),
+        }
+        let respawn_timer = 8; // change to calculate based on level and game time, or static for jg camps
+
+        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity)
+        else {
+            return;
+        };
+
+        for (index, awardee) in event.killers.iter().enumerate() {
+            let Ok((mut attributes, awardee_actor)) = attributes.get_mut(*awardee) else {
+                continue;
+            };
+
+            if let Some(bounty) = bounty {
+                let gold = attributes.get_mut(Stat::Gold);
+                *gold += bounty.gold;
+                let xp = attributes.get_mut(Stat::Xp);
+                *xp += bounty.xp;
+            }
+
+            if !is_dead_player {
+                continue;
+            }
+            if let ActorType::Player(killer) = awardee_actor {
+                let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
+                if index == 0 {
+                    killer_scoreboard.kda.kills += 1;
+                } else {
+                    killer_scoreboard.kda.assists += 1;
+                }
+            }
+        }
+
+        //commands.entity(event.entity).despawn_recursive();
+        *state = ActorState::Dead;
+        *transform = Transform {
+            translation: Vec3::new(0.0, 0.5, 0.0),
+            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+            ..default()
+        };
+        *vis = Visibility::Hidden;
+        gamemodedetails.respawns.insert(
+            event.entity.clone(),
+            Respawn {
+                actortype: event.actor.clone(),
+                timer: Timer::new(Duration::from_secs(respawn_timer), TimerMode::Once),
+            },
+        );
     }
 }
 

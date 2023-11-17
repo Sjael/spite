@@ -1,11 +1,12 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_debug_texture::DebugTexturePlugin;
+//use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
-use bevy_xpbd_3d::prelude::*;
-use inventory::InventoryPlugin;
 use bevy_tweening::TweeningPlugin;
+use bevy_xpbd_3d::prelude::*;
+use director::DirectorPlugin;
+use inventory::InventoryPlugin;
 
 use ability::shape::load_ability_shape;
 use actor::{view::ViewPlugin, CharacterPlugin};
@@ -20,6 +21,7 @@ pub mod actor;
 pub mod area;
 pub mod assets;
 pub mod debug;
+pub mod director;
 pub mod game_manager;
 pub mod input;
 pub mod inventory;
@@ -78,13 +80,14 @@ impl Plugin for GamePlugin {
         app.add_plugins(PhysicsPlugins::default());
         app.add_plugins(TweeningPlugin);
         app.add_plugins(InventoryPlugin);
-        app.add_plugins(DebugTexturePlugin);
+        //app.add_plugins(DebugTexturePlugin);
 
         app.add_systems(PostUpdate, crate::debug::physics_mesh::init_physics_meshes);
         app.add_systems(Startup, spawn_spectator_camera);
 
         app.add_plugins((
             GameAssetPlugin,
+            DirectorPlugin,
             GameManagerPlugin,
             ViewPlugin,
             UiPlugin,

@@ -118,7 +118,7 @@ impl<'a> AsMesh for TypedShape<'a> {
             TypedShape::RoundCylinder(_round_cylinder) => {}
             TypedShape::RoundCone(_round_cone) => {}
             TypedShape::RoundConvexPolyhedron(_round_convex_polyhedron) => {}
-            _ => {},
+            _ => {}
         };
 
         meshes

@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
 
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
@@ -15,13 +12,11 @@ use crate::{
         player::{Player, PlayerEntity},
         stats::{Attributes, Stat},
         view::Reticle,
-        AbilityRanks, IncomingDamageLog, RespawnEvent,
+        AbilityRanks, RespawnEvent,
     },
     area::homing::Homing,
-    inventory::Inventory,
     prelude::*,
-    ui::ui_bundles::{PlayerUI, RespawnHolder, RespawnText},
-    GameState,
+    GameState, director::GameModeDetails,
 };
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -33,6 +28,7 @@ pub enum InGameSet {
 pub struct GameManagerPlugin;
 impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
+<<<<<<< HEAD
         app.register_type::<Bounty>();
 
         app.insert_resource(GameModeDetails::default());
@@ -42,6 +38,10 @@ impl Plugin for GameManagerPlugin {
         app.insert_resource(Scoreboard::default());
 
         app.add_event::<DeathEvent>();
+=======
+        app.add_state::<ActorState>();
+
+>>>>>>> 1277a98 (cleanup gamemanager)
         app.add_event::<AbilityFireEvent>();
         app.add_event::<FireHomingEvent>();
 
@@ -58,58 +58,21 @@ impl Plugin for GameManagerPlugin {
             InGameSet::Pre.run_if(in_state(GameState::InGame)),
         );
 
-        app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
         app.add_systems(
             Update,
             (
-                spool_gold,
-                increment_bounty,
                 handle_respawning,
-                show_respawn_ui,
-                tick_respawn_ui,
                 place_ability.after(cast_ability),
                 place_homing_ability,
             )
                 .in_set(InGameSet::Update),
         );
-        app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
-}
-
-#[derive(Resource)]
-pub struct TeamRoster {
-    pub teams: HashMap<Team, Vec<Player>>,
-}
-impl Default for TeamRoster {
-    fn default() -> Self {
-        let team1 = vec![Player::new(1507), Player::new(404)];
-        let team2 = vec![Player::new(420), Player::new(1)];
-
-        let inner = HashMap::from([(TEAM_1, team1), (TEAM_2, team2)]);
-        Self { teams: inner }
-    }
-}
-
-#[derive(Default)]
-pub enum GameMode {
-    #[default]
-    Arena,
-    Tutorial,
-    Conquest,
-    Practice,
-}
-
-#[derive(Resource)]
-pub struct GameModeDetails {
-    pub mode: GameMode,
-    pub start_timer: i32,
-    pub respawns: HashMap<Entity, Respawn>,
-    pub spawn_points: HashMap<ActorType, Transform>,
 }
 
 pub struct Respawn {
-    actortype: ActorType,
-    timer: Timer,
+    pub actortype: ActorType,
+    pub timer: Timer,
 }
 
 pub enum Spawnpoint {
@@ -119,50 +82,8 @@ pub enum Spawnpoint {
     Order,
 }
 
-impl Default for GameModeDetails {
-    fn default() -> Self {
-        Self {
-            // Pre-game timer
-            start_timer: -65,
-            respawns: HashMap::new(),
-            mode: GameMode::default(),
-            spawn_points: HashMap::new(),
-        }
-    }
-}
-
 #[derive(Component)]
 pub struct Fountain;
-
-#[derive(Component, Debug, Clone, Reflect)]
-#[reflect(Component)]
-pub struct Bounty {
-    pub xp: f32,
-    pub gold: f32,
-}
-
-impl Default for Bounty {
-    fn default() -> Self {
-        Self {
-            xp: 200.0,
-            gold: 250.0,
-        }
-    }
-}
-
-#[derive(Resource, Default)]
-pub struct Scoreboard(pub HashMap<Player, PlayerInfo>);
-
-#[derive(Default)]
-pub struct PlayerInfo {
-    pub kda: KDA,
-    pub inv: Inventory,
-    pub logs: LoggedNumbers,
-    // account_name: String,
-    // account_icon: Image,
-    // ping: u32,
-    // class: GameClass,
-}
 
 pub enum GameClass {
     Rogue,
@@ -170,22 +91,6 @@ pub enum GameClass {
     Mage,
     Shaman,
     Cultist,
-}
-
-#[derive(Default)]
-pub struct KDA {
-    pub kills: u32,
-    pub deaths: u32,
-    pub assists: u32,
-}
-
-#[derive(Default)]
-pub struct LoggedNumbers {
-    pub gold_acquired: u32,
-    pub damage_dealt: u32,
-    pub damage_taken: u32,
-    pub damage_mitigated: u32,
-    pub healing_dealt: u32,
 }
 
 fn place_homing_ability(
@@ -297,6 +202,7 @@ fn handle_respawning(
     });
 }
 
+<<<<<<< HEAD
 fn show_respawn_ui(
     mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
     mut death_events: EventReader<DeathEvent>,
@@ -473,6 +379,8 @@ fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: R
     }
 }
 
+=======
+>>>>>>> 1277a98 (cleanup gamemanager)
 #[derive(Event)]
 pub struct AbilityFireEvent {
     pub caster: Entity,
