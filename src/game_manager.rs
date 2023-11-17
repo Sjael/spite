@@ -526,20 +526,24 @@ pub enum Layer {
 // Collision Grouping Flags
 pub const PLAYER_LAYER: CollisionLayers =
     //CollisionLayers::new([Layer::Player], [Layer::Player, Layer::Wall, Layer::Ground]);
-    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    CollisionLayers::from_bits(u32::MAX, u32::MAX);
 
 pub const GROUND_LAYER: CollisionLayers =
     //CollisionLayers::new([Layer::Ground], [Layer::Player, Layer::Wall, Layer::Ground]);
-    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    CollisionLayers::from_bits(u32::MAX, u32::MAX);
 pub const WALL_LAYER: CollisionLayers =
     //CollisionLayers::new([Layer::Wall], [Layer::Player, Layer::Wall, Layer::Ground]);
-    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    CollisionLayers::from_bits(u32::MAX, u32::MAX);
 pub const ABILITY_LAYER: CollisionLayers =
 /*CollisionLayers::new(
     [Layer::Ability],
     [Layer::Player, Layer::Wall, Layer::Ground, Layer::Ability],
 );*/
-    CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    //CollisionLayers::from_bits(Layer::Player as u32, Layer::Player as u32 | Layer::Wall as u32 | Layer::Ground as u32);
+    CollisionLayers::from_bits(u32::MAX, u32::MAX);
 
 #[derive(Component)]
 pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);

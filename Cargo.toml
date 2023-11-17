@@ -17,7 +17,7 @@ strum_macros = "0.25"
 lazy_static = "1.4"
 oxidized_navigation = { version = "0.8", features = ["xpbd", "debug_draw"] }
 #bevy_debug_texture = "0.1"
-#bevy_debug_texture = { path = "../bevy_debug_texture" }
+bevy_debug_texture = { path = "../bevy_debug_texture" }
 bevy_xpbd_3d = "0.3"
 # for geometric shapes as sprites
 #bevy_prototype_lyon = "0.8.0" 
