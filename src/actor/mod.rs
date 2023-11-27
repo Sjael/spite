@@ -2,10 +2,12 @@ use std::{collections::HashMap, time::Duration};
 
 use crate::{
     ability::{rank::Rank, Ability, DamageType},
-    actor::{view::{Spectatable, SpectateEvent, Spectating}, stats::Bounty},
-    game_manager::{
-        AbilityFireEvent, InGameSet, Respawn, PLAYER_LAYER, TEAM_1,
+    actor::{
+        stats::Bounty,
+        view::{Spectatable, SpectateEvent, Spectating},
     },
+    director::GameModeDetails,
+    game_manager::{AbilityFireEvent, InGameSet, PLAYER_LAYER, TEAM_1},
     input::{copy_action_state, SlotBundle},
     inventory::Inventory,
     prelude::*,
@@ -15,7 +17,7 @@ use crate::{
         ui_bundles::PlayerUI,
         Trackable,
     },
-    GameState, director::GameModeDetails,
+    GameState,
 };
 use bevy::utils::Instant;
 use oxidized_navigation::NavMeshAffector;
@@ -53,7 +55,9 @@ impl Plugin for CharacterPlugin {
             .add_event::<CastEvent>()
             .add_event::<InitSpawnEvent>()
             .add_event::<RespawnEvent>()
-            .add_event::<LogHit>();
+            .add_event::<LogHit>()
+            .add_event::<AbilityFireEvent>()
+            .add_event::<FireHomingEvent>();
 
         //Plugins
         app.add_plugins((StatsPlugin, BuffPlugin, CCPlugin, MinionPlugin));
@@ -86,6 +90,8 @@ impl Plugin for CharacterPlugin {
                 tick_windup_timer,
                 init_player,
                 update_damage_logs,
+                place_ability.after(cast_ability),
+                place_homing_ability,
             )
                 .in_set(InGameSet::Update),
         );
@@ -111,7 +117,15 @@ pub enum ActorType {
     Minion,
 }
 
-#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
+pub enum ActorClass {
+    Rogue,
+    Warrior,
+    Mage,
+    Shaman,
+    Cultist,
+}
+
+#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum ActorState {
     Alive,
     #[default]
@@ -125,12 +139,6 @@ pub struct HasHealthBar;
 pub struct InitSpawnEvent {
     pub actor: ActorType,
     pub transform: Transform,
-}
-
-#[derive(Event)]
-pub struct RespawnEvent {
-    pub entity: Entity,
-    pub actor: ActorType,
 }
 
 fn init_player(
@@ -226,7 +234,39 @@ fn init_player(
     }
 }
 
+#[derive(Event)]
+pub struct RespawnEvent {
+    pub entity: Entity,
+    pub actor: ActorType,
+}
+
+#[derive(Component)]
+pub struct Respawn(pub Timer);
+
+fn tick_respawns(
+    mut commands: Commands,
+    mut respawn_events: EventWriter<RespawnEvent>,
+    mut respawning: Query<(&mut Respawn, Entity, Option<&ActorType>)>,
+    time: Res<Time>,
+) {
+    for (mut timer, entity, actor_type) in respawning.iter_mut() {
+        timer.0.tick(time.delta());
+        if timer.0.finished() {
+            let actor_type = if let Some(actor_type) = actor_type {
+                actor_type
+            } else {
+                &ActorType::Minion
+            };
+            respawn_events.send(RespawnEvent {
+                entity: entity.clone(),
+                actor: actor_type.clone(),
+            });
+        }
+    }
+}
+
 fn respawn_entity(
+    mut commands: Commands,
     mut respawn_events: EventReader<RespawnEvent>,
     mut the_damned: Query<(&mut Visibility, &mut ActorState)>,
     local_player: Res<Player>,
@@ -236,6 +276,8 @@ fn respawn_entity(
         let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else {
             continue;
         };
+        commands.entity(event.entity).remove::<Respawn>();
+
         *vis = Visibility::Visible;
         *state = ActorState::Alive;
         if event.actor == ActorType::Player(*local_player) {
@@ -309,17 +351,14 @@ fn check_deaths(
 fn despawn_dead(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
-    mut the_damned: Query<
-        (
-            &mut Transform,
-            &mut Visibility,
-            &mut ActorState,
-            Option<&Bounty>,
-        ),
-        With<ActorType>,
-    >,
+    mut the_damned: Query<(
+        Entity,
+        &mut Transform,
+        &mut Visibility,
+        &mut ActorState,
+        Option<&Bounty>,
+    )>,
     mut attributes: Query<(&mut Attributes, &ActorType)>,
-    mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
     mut character_state_next: ResMut<NextState<ActorState>>,
     local_player: Res<Player>,
@@ -340,9 +379,10 @@ fn despawn_dead(
             }
             _ => (),
         }
-        let respawn_timer = 8; // change to calculate based on level and game time, or static for jg camps
+        let respawn_timer = 8.0; // change to calculate based on level and game time, or static for jg camps
 
-        let Ok((mut transform, mut vis, mut state, bounty)) = the_damned.get_mut(event.entity)
+        let Ok((entity, mut transform, mut vis, mut state, bounty)) =
+            the_damned.get_mut(event.entity)
         else {
             return;
         };
@@ -374,19 +414,16 @@ fn despawn_dead(
 
         //commands.entity(event.entity).despawn_recursive();
         *state = ActorState::Dead;
+        // set transform
         *transform = Transform {
             translation: Vec3::new(0.0, 0.5, 0.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
             ..default()
         };
         *vis = Visibility::Hidden;
-        gamemodedetails.respawns.insert(
-            event.entity.clone(),
-            Respawn {
-                actortype: event.actor.clone(),
-                timer: Timer::new(Duration::from_secs(respawn_timer), TimerMode::Once),
-            },
-        );
+        // Add respawn component to dead thing
+        let respawn = Respawn(Timer::from_seconds(respawn_timer, TimerMode::Once));
+        commands.entity(entity).insert(respawn);
     }
 }
 
@@ -525,6 +562,103 @@ fn trigger_cooldown(
             ),
         );
     }
+}
+
+fn place_homing_ability(
+    mut commands: Commands,
+    mut cast_events: EventReader<FireHomingEvent>,
+    caster: Query<(&GlobalTransform, &Team)>,
+) {
+    for event in cast_events.read() {
+        let Ok((caster_transform, team)) = caster.get(event.caster) else {
+            return;
+        };
+
+        let spawned = event
+            .ability
+            .get_bundle(&mut commands, &caster_transform.compute_transform());
+
+        // Apply general components
+        commands.entity(spawned).insert((
+            Name::new("Tower shot"),
+            team.clone(),
+            Homing(event.target),
+            Caster(event.caster),
+        ));
+
+        // if has a shape
+        commands.entity(spawned).insert((
+            TargetsInArea::default(),
+            TargetsHittable::default(),
+            MaxTargetsHit::new(1),
+            TickBehavior::individual(),
+        ));
+    }
+}
+
+fn place_ability(
+    mut commands: Commands,
+    mut cast_events: EventReader<AbilityFireEvent>,
+    caster: Query<(&GlobalTransform, &Team, &AbilityRanks)>,
+    reticle: Query<&GlobalTransform, With<Reticle>>,
+    procmaps: Query<&ProcMap>,
+) {
+    let Ok(reticle_transform) = reticle.get_single() else {
+        return;
+    };
+    for event in cast_events.read() {
+        let Ok((caster_transform, team, _ranks)) = caster.get(event.caster) else {
+            return;
+        };
+
+        // Get ability-specific components
+        let spawned;
+
+        if event.ability.on_reticle() {
+            spawned = event
+                .ability
+                .get_bundle(&mut commands, &reticle_transform.compute_transform());
+        } else {
+            spawned = event
+                .ability
+                .get_bundle(&mut commands, &caster_transform.compute_transform());
+        }
+
+        // Apply general components
+        commands.entity(spawned).insert((
+            //Name::new("ability #tick number"),
+            team.clone(),
+            Caster(event.caster),
+        ));
+
+        //let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
+        //let scaling = rank.current as u32 * event.ability.get_scaling();
+
+        // Apply special proc components
+        if let Ok(procmap) = procmaps.get(event.caster) {
+            if let Some(behaviors) = procmap.0.get(&event.ability) {
+                for behavior in behaviors {
+                    match behavior {
+                        AbilityBehavior::Homing => (),
+                        AbilityBehavior::OnHit => (),
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct AbilityFireEvent {
+    pub caster: Entity,
+    pub ability: Ability,
+}
+
+#[derive(Event)]
+pub struct FireHomingEvent {
+    pub caster: Entity,
+    pub ability: Ability,
+    pub target: Entity,
 }
 
 // Move these to character file, since mobs will be cc'd and buffed/cooldowns

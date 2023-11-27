@@ -1,27 +1,34 @@
 use bevy::prelude::*;
+use bevy_xpbd_3d::prelude::*;
 use rand::Rng;
 use std::{
     cmp::Ordering,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, collections::HashMap,
 };
 
 use crate::{
     ability::{
-        bundles::Caster, Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType,
-        DeployAreaStage, FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo,
-        Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
-        UniqueTargetsHit,
+        bundles::Caster, Ability, AbilityTooltip, AreaLifetime, DamageType, FilteredTargets,
+        FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
+        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks, UniqueTargetsHit, AreaTimeline, DeployAreaStage,
     },
     actor::{
         buff::{BuffInfo, BuffTargets},
-        crowd_control::CCInfo,
+        crowd_control::CCInfo, FireHomingEvent,
     },
-    game_manager::{FireHomingEvent, Team},
-    prelude::*,
+    game_manager::Team,
 };
 use homing::track_homing;
 
 use self::non_damaging::*;
+
+#[derive(Component)]
+pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);
+
+pub enum AbilityBehavior {
+    Homing,
+    OnHit,
+}
 
 #[derive(Event, Clone)]
 pub struct HealthChangeEvent {
@@ -120,10 +127,10 @@ fn area_apply_tags(
         tags,
         damage_type,
         caster,
-        _parent,
+        parent,
         interval,
         mut max_targets_hit,
-        tick_behavior,
+        mut tick_behavior,
         mut unique_targets_hit,
         ability,
     ) in &mut sensor_query
@@ -132,18 +139,16 @@ fn area_apply_tags(
         let ability = ability.unwrap_or(&Ability::BasicAttack);
         let damage_type = damage_type.unwrap_or(&DamageType::True);
         for target_entity in targets_hittable.list.iter() {
-            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else {
-                continue;
-            };
+            let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else { continue };
             let caster = if let Some(caster) = caster {
                 caster.0
             } else {
-                sensor_entity
+                sensor_entity // change to something random and funny like fg or 'God'
             };
             let on_same_team = sensor_team.0 == target_team.0;
             if let Some(ref unique_targets_hit) = unique_targets_hit {
                 if unique_targets_hit.already_hit.contains(target_entity) {
-                    continue;
+                    continue
                 }
             }
 
@@ -223,7 +228,7 @@ fn area_apply_tags(
                 if let Some(ref mut max_hits) = max_targets_hit {
                     max_hits.current += 1;
                     if max_hits.current >= max_hits.max {
-                        return;
+                        return
                     }
                 }
             }
@@ -261,14 +266,12 @@ fn area_queue_targets(
         sensor_query.iter_mut()
     {
         targets_hittable.list = Vec::new();
-        if timeline.stage != DeployAreaStage::Firing {
-            continue;
-        }
+        if timeline.stage != DeployAreaStage::Firing { continue }
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
                 TickBehavior::Static(ref static_timer) => {
                     if !static_timer.finished() {
-                        continue;
+                        continue
                     }
                     if let Some(filtered_targets) = filtered_targets {
                         targets_hittable.list = filtered_targets.list.clone();
@@ -280,7 +283,7 @@ fn area_queue_targets(
                     for target_entity in targets_in_area.list.iter() {
                         if let Some(filtered_targets) = filtered_targets {
                             if !filtered_targets.list.contains(target_entity) {
-                                continue;
+                                continue
                             }
                         }
                         let hasnt_been_hit_or_interval_over =
@@ -316,7 +319,7 @@ fn filter_targets(
     {
         if targets_in_area.list.is_empty() {
             filtered_targets.list = Vec::new();
-            continue;
+            continue
         }
         let mut targets_thru_filter: Vec<Entity> = Vec::new();
         match target_filter.target_selection {
@@ -325,9 +328,7 @@ fn filter_targets(
 
                 let mut closest_targets: Vec<(f32, Entity)> = Vec::new();
                 for target_entity in targets_in_area.list.iter() {
-                    let Ok(target_transform) = target_query.get(*target_entity) else {
-                        continue;
-                    };
+                    let Ok(target_transform) = target_query.get(*target_entity) else { continue };
                     let relative_translation =
                         target_transform.translation() - sensor_transform.translation();
                     closest_targets.push((relative_translation.length(), *target_entity));
@@ -342,9 +343,7 @@ fn filter_targets(
             }
             TargetSelection::Random => {
                 // only make random selection when the targets change, instead of every frame
-                let Ok(_) = changed_sensors.get(sensor_entity) else {
-                    continue;
-                };
+                let Ok(_) = changed_sensors.get(sensor_entity) else { continue };
                 // can hit the same target twice lol, should remove from array and gen again but
                 // idc
                 let mut rng = rand::thread_rng();
@@ -401,15 +400,14 @@ pub struct AreaOverlapEvent {
     pub overlap: AreaOverlapType,
 }
 
-fn catch_collisions() {}
-/*
 fn catch_collisions(
     targets_query: Query<Entity, Without<Sensor>>,
     mut sensor_query: Query<(Entity, &mut TargetsInArea), With<Sensor>>,
-    mut collision_events: EventReader<CollisionEvent>,
+    mut collision_starts: EventReader<CollisionStarted>,
+    mut collision_ends: EventReader<CollisionEnded>,
     mut area_events: EventWriter<AreaOverlapEvent>,
 ) {
-    for collision_event in collision_events.read() {
+    for collision_event in collision_starts.iter() {
         let ((area_entity, mut targets_in_area), target_entity, colliding) = match collision_event {
             &CollisionEvent::Started(collider1, collider2, _flags) => {
                 let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(collider1) {
@@ -417,13 +415,13 @@ fn catch_collisions(
                 } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
                     (sensor, collider1)
                 } else {
-                    continue;
+                    continue
                 };
 
                 if let Ok(target) = targets_query.get(potential) {
                     (sensor, target, true)
                 } else {
-                    continue;
+                    continue
                 }
             }
             &CollisionEvent::Stopped(collider1, collider2, _flags) => {
@@ -432,13 +430,13 @@ fn catch_collisions(
                 } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
                     (sensor, collider1)
                 } else {
-                    continue;
+                    continue
                 };
 
                 if let Ok(target) = targets_query.get(potential) {
                     (sensor, target, false)
                 } else {
-                    continue;
+                    continue
                 }
             }
         };
@@ -465,7 +463,6 @@ fn catch_collisions(
         }
     }
 }
- */
 
 fn tick_lifetime(
     mut commands: Commands,
@@ -484,9 +481,9 @@ fn tick_lifetime(
 fn tick_timeline(
     mut commands: Commands,
     time: Res<Time>,
-    mut lifetimes: Query<(&mut AreaTimeline, Entity)>,
+    mut lifetimes: Query<(&mut AreaTimeline, Entity, &mut Visibility)>,
 ) {
-    for (mut timeline, entity) in lifetimes.iter_mut() {
+    for (mut timeline, entity, mut vis) in lifetimes.iter_mut() {
         //dbg!(lifetime.clone());
         timeline.timer.tick(time.delta());
         if timeline.timer.finished() {
@@ -494,10 +491,12 @@ fn tick_timeline(
             let new_stage = timeline.stage.get_next_stage();
             let new_time = timeline.blueprint.get(&new_stage).unwrap_or(&0.0).clone();
             timeline.timer = Timer::new(Duration::from_secs_f32(new_time), TimerMode::Once);
-            if timeline.stage == Recovery {
+            if timeline.stage == Recovery{
                 commands.entity(entity).despawn_recursive();
+            } else if timeline.stage == Windup{
+                *vis = Visibility::Visible;
             }
-        }
+        }  
     }
 }
 
@@ -507,7 +506,7 @@ fn apply_interval(
     for (interval, mut tick_behavior) in &mut area_timers {
         match *tick_behavior {
             TickBehavior::Static(ref mut static_timer) => {
-                static_timer.set_duration(Duration::from_millis(interval.0 as u64));
+                static_timer.set_duration(Duration::from_secs_f32(interval.0));
             }
             _ => (),
         }
@@ -525,13 +524,10 @@ fn tick_hit_timers(
         Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in &mut area_timers
-    {
-        // only tick area timers if has timeline and is firing
-        if let Some(timeline) = timeline {
-            if timeline.stage != DeployAreaStage::Firing {
-                continue;
-            }
+    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline,) in &mut area_timers {
+        // only tick area timers if has timeline and is firing 
+        if let Some(timeline) = timeline{
+            if timeline.stage != DeployAreaStage::Firing{ continue }
         }
         match *tick_behavior {
             TickBehavior::Individual(ref mut individual_timers) => {
@@ -564,6 +560,10 @@ fn tick_hit_timers(
         }
     }
 }
+
+
+#[derive(Component)]
+pub struct Fountain;
 
 pub mod homing;
 pub mod non_damaging;

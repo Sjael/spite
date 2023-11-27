@@ -7,7 +7,7 @@ use crate::{
         player::{Player, PlayerEntity},
         stats::{Attributes, Stat},
         view::{PlayerCam, Spectating},
-        DeathEvent, HasHealthBar, RespawnEvent,
+        DeathEvent, HasHealthBar, RespawnEvent, Respawn,
     },
     assets::{Fonts, Images},
     director::GameModeDetails,
@@ -385,18 +385,18 @@ fn show_respawn_ui(
 
 fn tick_respawn_ui(
     mut death_timer: Query<&mut Text, With<RespawnText>>,
-    gamemodedetails: ResMut<GameModeDetails>,
+    respawning: Query<&Respawn>,
     local_entity: Res<PlayerEntity>,
 ) {
     let Ok(mut respawn_text) = death_timer.get_single_mut() else {
         return;
     };
     let Some(local) = local_entity.0 else { return };
-    let Some(respawn) = gamemodedetails.respawns.get(&local) else {
+    let Ok(respawn) = respawning.get(local) else {
         return;
     };
     let new_text =
-        (respawn.timer.duration().as_secs() as f32 - respawn.timer.elapsed_secs()).floor() as u64;
+        (respawn.0.duration().as_secs() as f32 - respawn.0.elapsed_secs()).floor() as u64;
     respawn_text.sections[1].value = new_text.to_string();
 }
 

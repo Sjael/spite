@@ -4,10 +4,18 @@ use crate::{
     actor::player::{Player, PlayerEntity},
     game_manager::{Respawn, Team},
     prelude::{ActorType, TEAM_1, TEAM_2},
+    GameState,
 };
 // Game director
 //
 // Controller of the match over time.
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InGameSet {
+    Pre,
+    Update,
+    Post,
+}
 
 pub struct DirectorPlugin;
 impl Plugin for DirectorPlugin {
@@ -16,6 +24,19 @@ impl Plugin for DirectorPlugin {
         app.insert_resource(Player::new(1507)); // change to be whatever the server says
         app.insert_resource(PlayerEntity(None));
         app.insert_resource(TeamRoster::default());
+
+        app.configure_sets(
+            Update,
+            InGameSet::Update.run_if(in_state(GameState::InGame)),
+        );
+        app.configure_sets(
+            PreUpdate,
+            InGameSet::Pre.run_if(in_state(GameState::InGame)),
+        );
+        app.configure_sets(
+            PostUpdate,
+            InGameSet::Pre.run_if(in_state(GameState::InGame)),
+        );
     }
 }
 
@@ -46,7 +67,6 @@ impl Default for TeamRoster {
 pub struct GameModeDetails {
     pub mode: GameMode,
     pub start_timer: i32,
-    pub respawns: HashMap<Entity, Respawn>,
     pub spawn_points: HashMap<ActorType, Transform>,
 }
 
@@ -55,7 +75,6 @@ impl Default for GameModeDetails {
         Self {
             // Pre-game timer
             start_timer: -65,
-            respawns: HashMap::new(),
             mode: GameMode::default(),
             spawn_points: HashMap::new(),
         }

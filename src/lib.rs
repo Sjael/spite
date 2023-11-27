@@ -88,7 +88,6 @@ impl Plugin for GamePlugin {
         app.add_plugins((
             GameAssetPlugin,
             DirectorPlugin,
-            GameManagerPlugin,
             ViewPlugin,
             UiPlugin,
             CharacterPlugin,

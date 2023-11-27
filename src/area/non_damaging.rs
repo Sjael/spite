@@ -36,6 +36,8 @@ pub fn focus_objective_health(
     local_player: Res<Player>,
     mut focused_health_entity: ResMut<FocusedHealthEntity>,
     mut area_events: EventReader<AreaOverlapEvent>,
+    mut collision_starts: EventReader<CollisionStarted>,
+    mut collision_ends: EventReader<CollisionEnded>,
 ) {
     for event in area_events.read() {
         let Ok(parent) = query.get(event.sensor) else {

@@ -87,6 +87,7 @@ pub struct MaterialPresets(pub HashMap<String, Handle<StandardMaterial>>);
 pub struct GameAssetPlugin;
 impl Plugin for GameAssetPlugin {
     fn build(&self, app: &mut App) {
+        /*
         app.add_loading_state(
             LoadingState::new(GameState::Loading).continue_to_state(GameState::MainMenu),
         )
@@ -96,6 +97,7 @@ impl Plugin for GameAssetPlugin {
         .add_collection_to_loading_state::<_, Scenes>(GameState::Loading)
         .add_collection_to_loading_state::<_, Models>(GameState::Loading)
         .add_collection_to_loading_state::<_, Items>(GameState::Loading);
+        */
 
         app.add_systems(Startup, load_presets);
     }
