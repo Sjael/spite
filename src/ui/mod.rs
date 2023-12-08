@@ -5,9 +5,11 @@ use ui_bundles::team_thumbs_holder;
 use crate::{
     ability::AbilityTooltip,
     actor::{
-        player::Player,
+        player::{
+            camera::{PlayerCam, Spectating},
+            LocalPlayer, LocalPlayerId, Player,
+        },
         stats::{Attributes, Stat},
-        view::{PlayerCam, Spectating},
         HasHealthBar,
     },
     assets::{Fonts, Icons, Images},
@@ -18,9 +20,6 @@ use crate::{
     },
     GameState,
 };
-
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SpectatingSet;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FreeMouseSet;
@@ -54,12 +53,6 @@ impl Plugin for UiPlugin {
 
         app.configure_sets(
             Update,
-            SpectatingSet
-                .run_if(resource_exists::<Spectating>())
-                .run_if(in_state(GameState::InGame)),
-        );
-        app.configure_sets(
-            Update,
             FreeMouseSet
                 .run_if(in_state(MouseState::Free))
                 .run_if(in_state(GameState::InGame)),
@@ -78,7 +71,7 @@ impl Plugin for UiPlugin {
                 spawn_floating_damage,
                 update_damage_log_ui,
             )
-                .in_set(SpectatingSet),
+                .in_set(InGameSet::Update),
         );
         app.add_systems(
             Update,
@@ -461,14 +454,14 @@ fn update_kda(
     mut kda_query: Query<&mut Text, With<PersonalKDA>>,
     //mut scoreboard_kda_query: Query<&mut Text, (With<KDAText>, Without<PersonalKDA>)>,
     scoreboard: Res<Scoreboard>,
-    local_player: Res<Player>,
+    local_player_id: Res<LocalPlayerId>,
 ) {
     if scoreboard.is_changed() {
         let Ok(mut kda_text) = kda_query.get_single_mut() else {
             return;
         };
         for (player, info) in scoreboard.0.iter() {
-            if *player == *local_player {
+            if *player == **local_player_id {
                 kda_text.sections[0].value = format!(
                     "{} / {} / {}",
                     info.kda.kills, info.kda.deaths, info.kda.assists
@@ -553,9 +546,12 @@ pub fn button_actions(
     mut reset_ui_events: EventWriter<ResetUiEvent>,
     mut store_events: EventWriter<StoreEvent>,
     mut undo_events: EventWriter<UndoPressEvent>,
-    player: Option<Res<Spectating>>,
+    player: Option<Res<LocalPlayer>>,
     item_inspected: Res<ItemInspected>,
 ) {
+    let Some(player) = player else {
+        return;
+    };
     for (button_action, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
             continue;
@@ -582,9 +578,9 @@ pub fn button_actions(
                 reset_ui_events.send(ResetUiEvent);
             }
             ButtonAction::BuyItem => {
-                if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()) {
+                if let Some(inspected) = item_inspected.0.clone() {
                     store_events.send(StoreEvent {
-                        player: spectating.0.clone(),
+                        player: **player,
                         item: inspected,
                         direction: TransactionType::Buy,
                         fresh: true,
@@ -592,9 +588,9 @@ pub fn button_actions(
                 }
             }
             ButtonAction::SellItem => {
-                if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()) {
+                if let Some(inspected) = item_inspected.0.clone() {
                     store_events.send(StoreEvent {
-                        player: spectating.0.clone(),
+                        player: **player,
                         item: inspected,
                         direction: TransactionType::Sell,
                         fresh: true,
@@ -602,10 +598,7 @@ pub fn button_actions(
                 }
             }
             ButtonAction::UndoStore => {
-                let Some(spectating) = &player else { continue };
-                undo_events.send(UndoPressEvent {
-                    entity: spectating.0.clone(),
-                });
+                undo_events.send(UndoPressEvent { entity: **player });
             }
             _ => (),
         }

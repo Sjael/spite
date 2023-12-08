@@ -1,61 +1,47 @@
-use bevy::{
-    core_pipeline::{
-        bloom::BloomSettings,
-        fxaa::Fxaa,
-        tonemapping::{DebandDither, Tonemapping},
-    },
-    transform::TransformSystem,
+use bevy::core_pipeline::{
+    bloom::BloomSettings,
+    fxaa::Fxaa,
+    tonemapping::{DebandDither, Tonemapping},
 };
 
-use crate::{actor::ActorState, game_manager::InGameSet, prelude::*, ui::SpectatingSet};
+use crate::{
+    actor::player::{input::PlayerInput, reticle::Reticle, LocalPlayer},
+    prelude::*,
+};
 
-use super::player::PlayerInput;
-
-pub struct ViewPlugin;
-impl Plugin for ViewPlugin {
+pub struct CameraPlugin;
+impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SpectatableObjects::default());
-
-        app.add_event::<SpectateEvent>();
-        app.add_event::<PossessEvent>();
-
-        //app.add_systems(FixedUpdate, (avoid_intersecting,));
-        app.add_systems(
-            Update,
-            (
-                spawn_camera_gimbal,
-                //swap_cameras.run_if(in_state(ActorState::Dead)),
-                spectate_entity,
-            )
-                .in_set(SpectatingSet),
-        );
-        app.add_systems(FixedUpdate, follow_entity.after(PhysicsSet::Sync));
+        app.register_type::<Focus>();
 
         app.add_systems(
             PostUpdate,
-            (
-                update_spectatable,
-                camera_swivel_and_tilt.run_if(resource_exists::<Spectating>()),
-                move_reticle.after(camera_swivel_and_tilt),
-                follow_entity.after(TransformSystem::TransformPropagate),
-            )
-                .in_set(InGameSet::Post),
+            (camera_swivel_and_tilt, spectate_entity, follow_entity).in_set(CameraSet),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            (spectate_entity, focus_entity, follow_entity)
+                .chain()
+                .in_set(FocusSet),
         );
     }
 }
 
-fn update_spectatable(
-    mut objects: ResMut<SpectatableObjects>,
-    added_spectatables: Query<Entity, Added<Spectatable>>,
-    mut removed_spectatables: RemovedComponents<Spectatable>,
-) {
-    for removing in removed_spectatables.read() {
-        if let Some(index) = objects.map.iter().position(|entity| *entity == removing) {
-            objects.map.remove(index);
-        }
-    }
-    for entity in &added_spectatables {
-        objects.map.push(entity);
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CameraSet;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FocusSet;
+
+/// Current target focus for this camera.
+#[derive(Component, Debug, Clone, Reflect, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[reflect(Component)]
+pub struct Focus(pub Entity);
+
+impl FromWorld for Focus {
+    fn from_world(_world: &mut World) -> Self {
+        Focus(Entity::PLACEHOLDER)
     }
 }
 
@@ -74,97 +60,50 @@ pub fn camera_swivel_and_tilt(
     inner_transform.rotation = Quat::from_axis_angle(Vec3::X, local_input.pitch as f32).into();
 }
 
-fn swap_cameras(
-    spectating: Res<Spectating>,
-    mut objects: ResMut<SpectatableObjects>,
+/// Propagate the spectating entity to the current camera focus.
+pub fn spectate_entity(
+    mut spectatables: Query<Entity, With<Spectatable>>,
     mouse: Res<Input<MouseButton>>,
-    mut spectate_events: EventWriter<SpectateEvent>,
+    mut spectators: Query<(&mut Focus, &Spectating), Changed<Spectating>>,
 ) {
-    if mouse.just_pressed(MouseButton::Left) {
-        objects.current += 1;
-    } else if mouse.just_pressed(MouseButton::Right) {
-        objects.current -= 1;
-    }
-    let length = objects.map.len() as isize;
-    if length == 0 {
-        return;
-    }
-    let mut index = objects.current % length;
-    if index < 0 {
-        index += length;
-    }
-    if index > length {
-        index -= length;
-    }
-    objects.current = index;
-    let spectate_new = objects.map.get(index as usize);
-    if let Some(spectate_new) = spectate_new {
-        if spectating.0 == *spectate_new {
-            return;
+    for (mut focus, spectating) in &mut spectators {
+        if let Some(entity) = spectating.spectating() {
+            if focus.0 != entity {
+                focus.0 = entity;
+            }
         }
-        spectate_events.send(SpectateEvent {
-            entity: *spectate_new,
-        })
     }
 }
 
-pub fn move_reticle(
-    mut reticles: Query<(&mut Transform, &Reticle)>,
-    player_input: Res<PlayerInput>,
-) {
-    for (mut transform, reticle) in &mut reticles {
-        let current_angle = player_input.pitch.clamp(-1.57, 0.);
-        transform.translation.z = (1.57 + current_angle).tan() * -reticle.cam_height;
-        transform.translation.z = transform.translation.z.clamp(-reticle.max_distance, 0.);
-    }
-}
-
+/// Follow the translation of another `Entity`.
 #[derive(Component)]
-pub struct FollowEntity(pub Entity);
+pub struct FollowTranslation(pub Entity);
 
-fn follow_entity(
-    mut followers: Query<(&mut Transform, &FollowEntity)>,
+pub fn follow_entity(
+    mut followers: Query<(&mut Transform, &FollowTranslation), Without<Parent>>,
     leaders: Query<&GlobalTransform>,
 ) {
-    for (mut transform, follow_entity) in &mut followers {
-        let Ok(leader_transform) = leaders.get(follow_entity.0) else {
+    for (mut transform, follow) in &mut followers {
+        let Ok(leader_transform) = leaders.get(follow.0) else {
             continue;
         };
         transform.translation = leader_transform.translation();
     }
 }
 
-fn spectate_entity(
-    mut spectate_events: EventReader<SpectateEvent>,
-    mut gimbal_query: Query<&mut FollowEntity, With<OuterGimbal>>,
-    mut spectating: ResMut<Spectating>,
-) {
-    let Ok(mut follow_entity) = gimbal_query.get_single_mut() else {
-        return;
-    };
-    for new_spectate in spectate_events.read() {
-        follow_entity.0 = new_spectate.entity;
-        spectating.0 = new_spectate.entity;
+/// Sync the focus with the entity to follow.
+pub fn focus_entity(mut focuses: Query<(&mut FollowTranslation, &Focus), Changed<Focus>>) {
+    for (mut follow, focus) in &mut focuses {
+        follow.0 = focus.0;
     }
 }
 
-fn spawn_camera_gimbal(
-    mut spectating: ResMut<Spectating>,
+pub fn spawn_camera(
     mut commands: Commands,
-    mut spectate_events: EventReader<SpectateEvent>,
-    mut _meshes: ResMut<Assets<Mesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    gimbal_query: Query<Entity, With<OuterGimbal>>,
+    local_player: Res<LocalPlayer>,
 ) {
-    if let Ok(_) = gimbal_query.get_single() {
-        return;
-    }
-    let Some(spectated) = spectate_events.read().next() else {
-        return;
-    };
-
-    spectating.0 = spectated.entity;
-
     let camera = commands
         .spawn((
             Camera3dBundle {
@@ -208,7 +147,8 @@ fn spawn_camera_gimbal(
                 ..default()
             }),
             OuterGimbal,
-            FollowEntity(spectated.entity),
+            FollowTranslation(local_player.0),
+            Focus(local_player.0),
             Name::new("Outer Gimbal"),
         ))
         .id();
@@ -246,7 +186,7 @@ fn spawn_camera_gimbal(
     let ret_mesh = commands
         .spawn(PbrBundle {
             material: red.clone(),
-            mesh: _meshes.add(Mesh::from(bevy::render::mesh::shape::Cube { size: 0.2 })),
+            mesh: meshes.add(Mesh::from(bevy::render::mesh::shape::Cube { size: 0.2 })),
             ..default()
         })
         .id();
@@ -290,17 +230,8 @@ pub fn avoid_intersecting(
 }
 */
 
-#[derive(Component, Debug)]
-pub struct Reticle {
-    pub max_distance: f32,
-    pub cam_height: f32,
-}
-
 #[derive(Component)]
 pub struct SpectatorCam;
-
-#[derive(Resource, Deref, DerefMut, Debug)]
-pub struct Spectating(pub Entity);
 
 #[derive(Debug)]
 pub struct Possessable {
@@ -311,10 +242,47 @@ pub struct Possessable {
 #[derive(Resource, Deref, DerefMut, Debug)]
 pub struct Possessing(pub Possessable);
 
-#[derive(Resource, Default, Clone, Debug)]
-pub struct SpectatableObjects {
-    map: Vec<Entity>,
-    current: isize,
+#[derive(Component, Default, Clone, Debug)]
+pub struct Spectating {
+    available: Vec<Entity>,
+    index: usize,
+}
+
+impl Spectating {
+    /// Set the list of available entities to spectate.
+    pub fn set_available(&mut self, available: Vec<Entity>) {
+        self.available = available;
+    }
+
+    /// List of available entities to spectate.
+    pub fn available(&self) -> &[Entity] {
+        self.available.as_slice()
+    }
+
+    /// Current entity we are spectating.
+    pub fn spectating(&self) -> Option<Entity> {
+        self.available.get(self.index).copied()
+    }
+
+    /// Set the index of the currently spectated entity.
+    pub fn set_current(&mut self, index: usize) {
+        self.index = index;
+    }
+
+    /// Cycle up the index once.
+    pub fn cycle_up(&mut self) {
+        self.index += 1;
+        self.index = self.index % self.available.len();
+    }
+
+    /// Cycle down the index once.
+    pub fn cycle_down(&mut self) {
+        if self.index == 0 {
+            self.index = self.available.len() - 1;
+        } else {
+            self.index -= 1;
+        }
+    }
 }
 
 #[derive(Component, Debug)]

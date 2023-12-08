@@ -1,13 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    actor::player::PlayerEntity,
+    actor::player::LocalPlayer,
     assets::Items,
     item::Item,
-    ui::{
-        ui_bundles::{item_image_build, BuildSlotNumber},
-        SpectatingSet,
-    },
+    prelude::InGameSet,
+    ui::ui_bundles::{item_image_build, BuildSlotNumber},
 };
 
 #[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
@@ -48,7 +46,7 @@ impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Inventory>();
 
-        app.add_systems(Update, (update_inventory_ui,).in_set(SpectatingSet));
+        app.add_systems(Update, (update_inventory_ui,).in_set(InGameSet::Update));
     }
 }
 
@@ -60,11 +58,11 @@ fn update_inventory_ui(
     query: Query<(&Inventory, Entity), Changed<Inventory>>,
     slot_query: Query<(Entity, &BuildSlotNumber)>,
     items: Res<Items>,
-    local_entity: Res<PlayerEntity>,
+    local_entity: Option<Res<LocalPlayer>>,
 ) {
-    let Some(local) = local_entity.0 else { return };
+    let Some(local) = local_entity else { return };
     for (inv, entity) in query.iter() {
-        if entity != local {
+        if entity != *local {
             continue;
         }
         for (slot_e, index) in &slot_query {

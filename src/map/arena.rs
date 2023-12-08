@@ -11,6 +11,7 @@ use crate::{
     actor::{
         buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
         crowd_control::{CCInfo, CCMap, CCType},
+        player::camera::Spectatable,
         HasHealthBar, IncomingDamageLog, Tower,
     },
     game_manager::Fountain,

@@ -3,7 +3,7 @@ use derive_more::{Deref, DerefMut, Display};
 use leafwing_input_manager::{plugin::InputManagerSystem, prelude::*};
 use std::collections::BTreeMap;
 
-use crate::{ability::Ability, actor::player::HoveredAbility, ui::mouse::MouseState, GameState};
+use crate::{ability::Ability, ui::mouse::MouseState, GameState};
 
 #[derive(Resource)]
 pub struct MouseSensitivity(pub f32);
@@ -43,15 +43,15 @@ pub fn copy_action_state(
         &ActionState<Slot>,
         &mut ActionState<Ability>,
         &SlotAbilityMap,
-        &HoveredAbility,
+        //&HoveredAbility,
     )>,
     mouse_is_free: Res<State<MouseState>>,
 ) {
-    for (slot_state, mut ability_state, slot_ability_map, hovered) in query.iter_mut() {
+    for (slot_state, mut ability_state, slot_ability_map /*hovered*/) in query.iter_mut() {
         for slot in Slot::variants() {
             // skip auto attack if we are in a menu
-            if slot == Slot::LeftClick
-                && (*mouse_is_free == MouseState::Free || hovered.0.is_some())
+            if slot == Slot::LeftClick && (*mouse_is_free == MouseState::Free)
+            //|| hovered.0.is_some())
             {
                 continue;
             }

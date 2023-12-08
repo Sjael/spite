@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 
 pub struct ControllerPlugin;
@@ -32,15 +31,22 @@ impl Controller {
     }
 }
 
-pub fn controller_movement(time: Res<Time>, mut controllers: Query<(&mut ExternalImpulse, &LinearVelocity, &Mass, &Controller)>) {
+pub fn controller_movement(
+    time: Res<Time>,
+    mut controllers: Query<(
+        &mut ExternalImpulse,
+        &mut LinearVelocity,
+        &Mass,
+        &Controller,
+    )>,
+) {
     let dt = time.delta_seconds();
 
-    for (mut impulse, velocity, mass, controller) in &mut controllers {
+    for (mut impulse, mut velocity, mass, controller) in &mut controllers {
         let mass = mass.0;
-        let velocity = velocity.0;
 
         let goal_velocity = controller.goal_velocity();
-        let displacement = goal_velocity - velocity;
+        let displacement = goal_velocity - **velocity;
         let movement_impulse = displacement * mass;
         //info!("displacement: {:?}", displacement);
 
@@ -62,10 +68,16 @@ pub fn controller_movement(time: Res<Time>, mut controllers: Query<(&mut Externa
         gizmos.ray(relative_velocity * squish, -goal_offset * goal_dir * squish, Color::RED);
         gizmos.ray(Vec3::new(0.0, 0.1, 0.0), friction_velocity * squish, Color::CYAN);
         */
-        if movement_impulse.length() > 10.0 {
-            info!("movement_impulse: {:?}", movement_impulse);
+        if movement_impulse.length() > 0.05 {
+            //info!("disp: {:.2?}", displacement);
+            //info!("move: {:.2?}", movement_impulse);
         }
 
+        if velocity.length() > 0.0 {
+            info!("velo: {:.2?}", velocity);
+        }
+
+        //**velocity = goal_velocity;
         impulse.apply_impulse(movement_impulse);
     }
 }

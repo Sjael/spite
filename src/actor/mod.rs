@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use crate::{
     ability::{rank::Rank, Ability, DamageType},
-    actor::view::{Spectatable, SpectateEvent, Spectating},
+    actor::player::camera::{Spectatable, Spectating},
     game_manager::{AbilityFireEvent, Bounty, InGameSet, TEAM_1},
     input::{copy_action_state, SlotBundle},
     inventory::Inventory,
@@ -17,29 +17,27 @@ use oxidized_navigation::NavMeshAffector;
 
 use self::{
     buff::{BuffMap, BuffPlugin},
+    controller::*,
     crowd_control::{CCMap, CCPlugin, CCType},
     minion::MinionPlugin,
     player::*,
     stats::{AttributeTag, Attributes, HealthMitigatedEvent, Modifier, Stat, StatsPlugin},
-    controller::*,
 };
 
 pub mod buff;
-pub mod crowd_control;
 pub mod controller;
+pub mod crowd_control;
 pub mod minion;
 pub mod player;
 pub mod stats;
-pub mod view;
 
-pub struct CharacterPlugin;
-impl Plugin for CharacterPlugin {
+pub struct ActorPlugin;
+impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
         //Resources
         app.insert_resource(PlayerInput::default());
         app.register_type::<PlayerInput>()
             .register_type::<CooldownMap>()
-            .register_type::<HoveredAbility>()
             .register_type::<Attributes>()
             .register_type::<Stat>()
             .register_type::<Modifier>()
@@ -47,37 +45,26 @@ impl Plugin for CharacterPlugin {
 
         app.add_event::<InputCastEvent>()
             .add_event::<CastEvent>()
-            .add_event::<InitSpawnEvent>()
-            .add_event::<RespawnEvent>()
             .add_event::<LogHit>();
 
         //Plugins
-        app.add_plugins((StatsPlugin, BuffPlugin, CCPlugin, MinionPlugin, ControllerPlugin));
+        app.add_plugins((
+            StatsPlugin,
+            BuffPlugin,
+            CCPlugin,
+            MinionPlugin,
+            ControllerPlugin,
+        ));
 
         //Systems
-        app.add_systems(OnEnter(GameState::InGame), setup_player);
-        app.add_systems(
-            PreUpdate,
-            (
-                player_keys_input,
-                player_mouse_input,
-                select_ability.after(copy_action_state),
-                respawn_entity,
-                update_local_player_inputs,
-            )
-                .in_set(InGameSet::Pre),
-        );
         app.add_systems(
             Update,
             (
-                cast_ability,
-                normal_casting,
-                show_targetter.after(normal_casting),
-                change_targetter_color,
-                trigger_cooldown.after(cast_ability),
+                //cast_ability,
+                trigger_cooldown, //.after(cast_ability),
                 tick_cooldowns.after(trigger_cooldown),
-                start_ability_windup.after(cast_ability),
-                tick_windup_timer,
+                //start_ability_windup.after(cast_ability),
+                //tick_windup_timer,
                 init_player,
                 update_damage_logs,
             )
@@ -111,154 +98,17 @@ pub enum ActorState {
     Dead,
 }
 
+#[derive(Component, Deref, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
+pub struct PreviousActorState(ActorState);
+
+pub fn update_previous_actor(mut actors: Query<(&mut PreviousActorState, &ActorState)>) {
+    for (mut previous, current) in &mut actors {
+        previous.0 = current.clone();
+    }
+}
+
 #[derive(Component)]
 pub struct HasHealthBar;
-
-#[derive(Event)]
-pub struct InitSpawnEvent {
-    pub actor: ActorType,
-    pub transform: Transform,
-}
-
-#[derive(Event)]
-pub struct RespawnEvent {
-    pub entity: Entity,
-    pub actor: ActorType,
-}
-
-fn init_player(
-    mut commands: Commands,
-    mut _meshes: ResMut<Assets<Mesh>>,
-    mut spawn_events: EventReader<InitSpawnEvent>,
-    mut spectate_events: EventWriter<SpectateEvent>,
-    local_player: Res<Player>,
-) {
-    for event in spawn_events.read() {
-        let player = match event.actor {
-            ActorType::Player(player) => player,
-            _ => continue,
-        };
-        let spawning_id = player.id.clone();
-        info!("spawning player {}", spawning_id);
-        // reset the rotation so you dont spawn looking the other way
-
-        let player_entity = commands
-            .spawn(SpatialBundle::from_transform(event.transform.clone()))
-            .insert((
-                event.actor.clone(), // ActorType
-                player,              // Player
-                Name::new(format!("Player {}", spawning_id.to_string())),
-                ActorState::Alive,
-            ))
-            /*.insert(ControllerBundle {
-                controller: Controller {
-                    float: Float {
-                        spring: Spring {
-                            strength: SpringStrength::AngularFrequency(25.0),
-                            damping: 0.8,
-                        },
-                        ..default()
-                    },
-                    ..default()
-                },
-                ..default()
-            })
-            */
-            .insert(Controller::default())
-            .insert((
-                // physics
-                Collider::capsule(1.0, 0.5),
-                RigidBody::Dynamic,
-                LockedAxes::ACTOR,
-                CollisionLayers::PLAYER,
-                Friction {
-                    dynamic_coefficient: 0.0,
-                    static_coefficient: 0.0,
-                    combine_rule: CoefficientCombine::Min,
-                },
-                Restitution {
-                    coefficient: 0.0,
-                    combine_rule: CoefficientCombine::Min,
-                },
-            ))
-            .insert((
-                // Inventory/store
-                Inventory::default(),
-                StoreHistory::default(),
-                StoreBuffer::default(),
-            ))
-            .insert({
-                let mut attrs = Attributes::default();
-                attrs
-                    .set(Stat::Health, 33.0)
-                    .set_base(Stat::Speed, 6.0)
-                    .set(Stat::CharacterResource, 33.0)
-                    .set(Stat::Gold, 20_000.0);
-                attrs
-            })
-            .insert((
-                TEAM_1,
-                AbilityCastSettings::default(),
-                AbilityRanks::default(),
-                IncomingDamageLog::default(),
-                OutgoingDamageLog::default(),
-                Bounty::default(),
-                CooldownMap::default(),
-                CCMap::default(),
-                BuffMap::default(),
-                Spectatable,
-                Casting(None),
-                WindupTimer(Timer::default()),
-                PlayerInput::default(),
-                SlotBundle::new(), // Has all the keybinding -> action logic
-                HoveredAbility::default(),
-            ))
-            //.insert(NavMeshAffector)
-            .id();
-
-        let player_is_owned = event.actor == ActorType::Player(*local_player); // make it check if you are that player
-        if player_is_owned {
-            spectate_events.send(SpectateEvent {
-                entity: player_entity,
-            });
-            commands.insert_resource(PlayerEntity(Some(player_entity)));
-            commands.insert_resource(Spectating(player_entity));
-            commands.insert_resource(PlayerInput::default());
-            commands.entity(player_entity).insert((Trackable,));
-        }
-    }
-}
-
-fn respawn_entity(
-    mut respawn_events: EventReader<RespawnEvent>,
-    mut the_damned: Query<(&mut Visibility, &mut ActorState)>,
-    local_player: Res<Player>,
-    mut spectate_events: EventWriter<SpectateEvent>,
-) {
-    for event in respawn_events.read() {
-        let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else {
-            continue;
-        };
-        *vis = Visibility::Visible;
-        *state = ActorState::Alive;
-        if event.actor == ActorType::Player(*local_player) {
-            spectate_events.send(SpectateEvent {
-                entity: event.entity,
-            });
-        }
-    }
-}
-
-fn setup_player(mut spawn_events: EventWriter<InitSpawnEvent>, local_player: Res<Player>) {
-    spawn_events.send(InitSpawnEvent {
-        actor: ActorType::Player(local_player.clone()),
-        transform: Transform {
-            translation: Vec3::new(0.0, 0.5, 0.0),
-            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
-            ..default()
-        },
-    });
-}
 
 pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), With<Player>>) {
     for (mut player_transform, inputs, cc_map) in players.iter_mut() {
@@ -269,14 +119,7 @@ pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), 
     }
 }
 
-pub fn player_movement(
-    mut query: Query<(
-        &Attributes,
-        &mut Controller,
-        &PlayerInput,
-        &CCMap,
-    )>,
-) {
+pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerInput, &CCMap)>) {
     for (attributes, mut controller, player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
             //controller.movement = Vec3::ZERO;
@@ -307,6 +150,7 @@ pub fn player_movement(
     }
 }
 
+/*
 pub fn cast_ability(
     mut players: Query<(&CooldownMap, &CCMap, &mut HoveredAbility)>,
     mut attempt_cast_event: EventReader<InputCastEvent>,
@@ -329,6 +173,7 @@ pub fn cast_ability(
         });
     }
 }
+ */
 
 #[derive(Event)]
 pub struct InputCastEvent {
@@ -350,6 +195,7 @@ pub enum CastingStage {
     None,
 }
 
+/*
 fn start_ability_windup(
     mut players: Query<(&mut WindupTimer, &mut Casting)>,
     mut cast_events: EventReader<CastEvent>,
@@ -384,6 +230,7 @@ fn tick_windup_timer(
         }
     }
 }
+ */
 
 fn trigger_cooldown(
     mut cast_events: EventReader<AbilityFireEvent>,

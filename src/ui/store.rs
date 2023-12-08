@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     ability::TargetsInArea,
     actor::{
-        player::PlayerEntity,
+        player::LocalPlayer,
         stats::{Attributes, Stat, Stat::*},
     },
     area::{AreaOverlapEvent, AreaOverlapType},
@@ -16,7 +16,6 @@ use crate::{
 use super::{
     styles::{NORMAL_BUTTON, PRESSED_BUTTON},
     ui_bundles::*,
-    SpectatingSet,
 };
 
 pub struct StorePlugin;
@@ -118,11 +117,11 @@ fn update_discounts(
         Query<(&mut Text, &ItemDiscount), Changed<ItemDiscount>>,
         Query<(&mut Text, &ItemDiscount)>,
     )>,
-    player_entity: Res<PlayerEntity>,
+    local_player: Res<LocalPlayer>,
     changed_inventories: Query<(&Inventory, Entity), Changed<Inventory>>,
     inventories: Query<&Inventory>,
 ) {
-    let Some(local) = player_entity.0 else { return };
+    let local = **local_player;
     for (inv, entity) in changed_inventories.iter() {
         if entity != local {
             continue;
@@ -329,14 +328,14 @@ fn try_undo_store(
 
 fn leave_store(
     mut buyers: Query<&mut StoreBuffer>,
-    local_entity: Res<PlayerEntity>,
+    local_entity: Res<LocalPlayer>,
     mut area_events: EventReader<AreaOverlapEvent>,
     sensors: Query<&TargetsInArea, With<Fountain>>,
 ) {
     let Some(event) = area_events.read().next() else {
         return;
     };
-    let Some(local) = local_entity.0 else { return };
+    let local = **local_entity;
     if event.target != local || event.overlap == AreaOverlapType::Entered {
         return;
     }

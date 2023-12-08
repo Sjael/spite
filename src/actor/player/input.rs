@@ -1,21 +1,54 @@
-use bevy::{input::mouse::MouseMotion, prelude::*};
-use leafwing_input_manager::prelude::ActionState;
+use std::f32::consts::PI;
+
+use bevy::input::mouse::MouseMotion;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, f32::consts::PI, fmt::Debug};
 
-use crate::{
-    ability::{bundles::Targetter, Ability},
-    actor::ActorType,
-    assets::MaterialPresets,
-    input::MouseSensitivity,
-    ui::mouse::MouseState,
-};
+use crate::{actor::LocalPlayer, input::MouseSensitivity, prelude::*, ui::mouse::MouseState};
 
-use super::{
-    view::{OuterGimbal, Reticle},
-    CooldownMap, InputCastEvent,
-};
+use super::{LocalPlayerId, Player};
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InputSet;
+
+pub struct InputPlugin;
+impl Plugin for InputPlugin {
+    fn build(&self, app: &mut App) {
+        app.register_type::<PlayerInput>();
+
+        app.insert_resource(PlayerInput::default());
+
+        app.configure_sets(PreUpdate, InputSet.in_set(InGameSet::Pre));
+
+        app.add_systems(
+            PreUpdate,
+            (
+                player_mouse_input,
+                player_keys_input,
+                update_local_player_inputs,
+            )
+                .chain()
+                .in_set(InputSet),
+        );
+    }
+}
+
+/// I don't think we should be doing this tbh
+/// we should probably just use the [`LocalPlayer`] resource to fetch it from the entity.
+pub fn update_local_player_inputs(
+    player_input: Res<PlayerInput>,
+    mut query: Query<(&mut PlayerInput, &Player)>,
+    local_player: Res<LocalPlayerId>,
+) {
+    for (mut input, player) in &mut query {
+        if *player != **local_player {
+            continue;
+        }
+        *input = player_input.clone();
+        //info!("setting local player inputs: {:?}", player_input);
+    }
+}
+
+/// Collect inputs for turning the pitch and yaw of the character.
 pub fn player_mouse_input(
     mut ev_mouse: EventReader<MouseMotion>,
     mut player_input: ResMut<PlayerInput>,
@@ -36,6 +69,7 @@ pub fn player_mouse_input(
 }
 
 // change to use leafwing slots? Also input component?
+/// Propagate local keyboard/mouse inputs into the [`PlayerInput`].
 pub fn player_keys_input(
     keyboard_input: Res<Input<KeyCode>>,
     mouse_input: Res<Input<MouseButton>>,
@@ -57,202 +91,7 @@ pub fn player_keys_input(
     player_input.set_right_click(mouse_input.pressed(MouseButton::Right));
 }
 
-pub fn update_local_player_inputs(
-    player_input: Res<PlayerInput>,
-    mut query: Query<(&mut PlayerInput, &ActorType)>,
-    local_player: Res<Player>,
-) {
-    for (mut input, actortype) in &mut query {
-        if actortype != &ActorType::Player(*local_player) {
-            continue;
-        }
-        *input = player_input.clone();
-        //info!("setting local player inputs: {:?}", player_input);
-    }
-}
-
-// Make this local only? would be weird to sync other players cast settings, but
-// sure?
-pub fn select_ability(
-    mut query: Query<(
-        &mut HoveredAbility,
-        &ActionState<Ability>,
-        &AbilityCastSettings,
-        Entity,
-    )>,
-    mut cast_event: EventWriter<InputCastEvent>,
-) {
-    for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
-        for ability in ab_state.get_just_pressed() {
-            let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
-            if *cast_type == CastType::Normal {
-                hover.0 = Some(ability.clone());
-            } else if *cast_type == CastType::Instant {
-                cast_event.send(InputCastEvent {
-                    caster: caster_entity,
-                    ability: ability,
-                });
-            }
-        }
-    }
-}
-
-pub fn show_targetter(
-    mut commands: Commands,
-    query: Query<(&HoveredAbility, &CooldownMap), Changed<HoveredAbility>>,
-    reticles: Query<Entity, With<Reticle>>,
-    gimbals: Query<Entity, With<OuterGimbal>>,
-    targetters: Query<(Entity, &Ability), With<Targetter>>,
-    presets: Res<MaterialPresets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    for (hovered, cooldowns) in &query {
-        let Ok(reticle_entity) = reticles.get_single() else {
-            continue;
-        };
-        let Ok(gimbal_entity) = gimbals.get_single() else {
-            continue;
-        };
-        for (targetter_entity, old_ability) in &targetters {
-            if let Some(hovered_ability) = hovered.0 {
-                if hovered_ability == *old_ability {
-                    continue;
-                }
-            }
-            commands.entity(targetter_entity).despawn_recursive();
-        }
-        let Some(hovered_ability) = hovered.0 else {
-            continue;
-        };
-
-        let mut handle = presets
-            .0
-            .get("blue")
-            .unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into()))
-            .clone();
-        if cooldowns.map.contains_key(&hovered_ability) {
-            handle = presets
-                .0
-                .get("white")
-                .unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into()))
-                .clone();
-        }
-        let targetter = hovered_ability.get_targetter(&mut commands);
-        commands
-            .entity(targetter)
-            .insert((hovered_ability.clone(), handle));
-
-        if hovered_ability.on_reticle() {
-            commands.entity(targetter).set_parent(reticle_entity);
-        } else {
-            commands.entity(targetter).set_parent(gimbal_entity);
-        }
-    }
-}
-
-pub fn change_targetter_color(
-    query: Query<(&HoveredAbility, &CooldownMap), Changed<CooldownMap>>,
-    mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
-    presets: Res<MaterialPresets>,
-) {
-    let Some(castable) = presets.0.get("blue") else {
-        return;
-    };
-    let Some(on_cooldown) = presets.0.get("white") else {
-        return;
-    };
-    for (hovered, cooldowns) in &query {
-        let Some(hovered_ability) = hovered.0 else {
-            continue;
-        };
-        let color;
-        if cooldowns.map.contains_key(&hovered_ability) {
-            color = on_cooldown.clone();
-        } else {
-            color = castable.clone();
-        }
-        for (old_ability, mut material) in &mut targetters {
-            if old_ability != &hovered_ability {
-                continue;
-            }
-            *material = color.clone();
-        }
-    }
-}
-
-pub fn normal_casting(
-    mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>,
-    mut cast_event: EventWriter<InputCastEvent>,
-) {
-    for (input, mut hovered, player) in &mut query {
-        let Some(hovered_ability) = hovered.0 else {
-            continue;
-        };
-        if input.left_click() {
-            cast_event.send(InputCastEvent {
-                caster: player,
-                ability: hovered_ability,
-            });
-        }
-        if input.right_click() {
-            hovered.0 = None;
-        }
-    }
-}
-
-#[derive(
-    Component,
-    Resource,
-    Reflect,
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    Eq,
-    Hash,
-    Deref,
-    DerefMut,
-)]
-#[reflect(Component)]
-pub struct Player {
-    pub id: u32,
-}
-
-impl Player {
-    pub fn new(id: u32) -> Self {
-        Self { id }
-    }
-}
-
-#[derive(Resource, Deref, DerefMut, Debug)]
-pub struct PlayerEntity(pub Option<Entity>);
-
-#[derive(Component, Debug, Default, Reflect)]
-#[reflect(Component)]
-pub struct HoveredAbility(pub Option<Ability>);
-#[derive(Component, Debug, Default)]
-pub struct Casting(pub Option<Ability>);
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum CastType {
-    Normal,
-    Quick,
-    Instant,
-}
-
-#[derive(Component, Debug)]
-pub struct AbilityCastSettings(pub HashMap<Ability, CastType>);
-
-impl Default for AbilityCastSettings {
-    fn default() -> Self {
-        let settings = HashMap::from([(Ability::BasicAttack, CastType::Instant)]);
-        Self(settings)
-    }
-}
-
+/// Ground truth collection of player inputs for this simulation tick.
 #[derive(Component, Resource, Reflect, Clone, Copy, Default, Serialize, Deserialize)]
 #[reflect(Resource)]
 pub struct PlayerInput {
@@ -405,7 +244,7 @@ impl PlayerInputKeys {
     }
 }
 
-impl Debug for PlayerInput {
+impl std::fmt::Debug for PlayerInput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PlayerInput")
             .field("keys", &self.binary_inputs.shorthand_display())
@@ -419,7 +258,7 @@ impl Debug for PlayerInput {
 #[serde(transparent)]
 pub struct Radians(f32);
 
-impl Debug for Radians {
+impl std::fmt::Debug for Radians {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
             "{value:.precision$?}°",
@@ -428,3 +267,159 @@ impl Debug for Radians {
         ))
     }
 }
+
+// ability selection stuff?
+
+// Make this local only? would be weird to sync other players cast settings, but
+// sure?
+/*
+pub fn select_ability(
+    mut query: Query<(
+        &mut HoveredAbility,
+        &ActionState<Ability>,
+        &AbilityCastSettings,
+        Entity,
+    )>,
+    mut cast_event: EventWriter<InputCastEvent>,
+) {
+    for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
+        for ability in ab_state.get_just_pressed() {
+            let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
+            if *cast_type == CastType::Normal {
+                hover.0 = Some(ability.clone());
+            } else if *cast_type == CastType::Instant {
+                cast_event.send(InputCastEvent {
+                    caster: caster_entity,
+                    ability: ability,
+                });
+            }
+        }
+    }
+}
+
+pub fn show_targetter(
+    mut commands: Commands,
+    query: Query<(&HoveredAbility, &CooldownMap), Changed<HoveredAbility>>,
+    reticles: Query<Entity, With<Reticle>>,
+    gimbals: Query<Entity, With<OuterGimbal>>,
+    targetters: Query<(Entity, &Ability), With<Targetter>>,
+    presets: Res<MaterialPresets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (hovered, cooldowns) in &query {
+        let Ok(reticle_entity) = reticles.get_single() else {
+            continue;
+        };
+        let Ok(gimbal_entity) = gimbals.get_single() else {
+            continue;
+        };
+        for (targetter_entity, old_ability) in &targetters {
+            if let Some(hovered_ability) = hovered.0 {
+                if hovered_ability == *old_ability {
+                    continue;
+                }
+            }
+            commands.entity(targetter_entity).despawn_recursive();
+        }
+        let Some(hovered_ability) = hovered.0 else {
+            continue;
+        };
+
+        let mut handle = presets
+            .0
+            .get("blue")
+            .unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into()))
+            .clone();
+        if cooldowns.map.contains_key(&hovered_ability) {
+            handle = presets
+                .0
+                .get("white")
+                .unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into()))
+                .clone();
+        }
+        let targetter = hovered_ability.get_targetter(&mut commands);
+        commands
+            .entity(targetter)
+            .insert((hovered_ability.clone(), handle));
+
+        if hovered_ability.on_reticle() {
+            commands.entity(targetter).set_parent(reticle_entity);
+        } else {
+            commands.entity(targetter).set_parent(gimbal_entity);
+        }
+    }
+}
+
+pub fn change_targetter_color(
+    query: Query<(&HoveredAbility, &CooldownMap), Changed<CooldownMap>>,
+    mut targetters: Query<(&Ability, &mut Handle<StandardMaterial>), With<Targetter>>,
+    presets: Res<MaterialPresets>,
+) {
+    let Some(castable) = presets.0.get("blue") else {
+        return;
+    };
+    let Some(on_cooldown) = presets.0.get("white") else {
+        return;
+    };
+    for (hovered, cooldowns) in &query {
+        let Some(hovered_ability) = hovered.0 else {
+            continue;
+        };
+        let color;
+        if cooldowns.map.contains_key(&hovered_ability) {
+            color = on_cooldown.clone();
+        } else {
+            color = castable.clone();
+        }
+        for (old_ability, mut material) in &mut targetters {
+            if old_ability != &hovered_ability {
+                continue;
+            }
+            *material = color.clone();
+        }
+    }
+}
+
+pub fn normal_casting(
+    mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>,
+    mut cast_event: EventWriter<InputCastEvent>,
+) {
+    for (input, mut hovered, player) in &mut query {
+        let Some(hovered_ability) = hovered.0 else {
+            continue;
+        };
+        if input.left_click() {
+            cast_event.send(InputCastEvent {
+                caster: player,
+                ability: hovered_ability,
+            });
+        }
+        if input.right_click() {
+            hovered.0 = None;
+        }
+    }
+}
+
+#[derive(Component, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct HoveredAbility(pub Option<Ability>);
+#[derive(Component, Debug, Default)]
+pub struct Casting(pub Option<Ability>);
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum CastType {
+    Normal,
+    Quick,
+    Instant,
+}
+
+#[derive(Component, Debug)]
+pub struct AbilityCastSettings(pub HashMap<Ability, CastType>);
+
+impl Default for AbilityCastSettings {
+    fn default() -> Self {
+        let settings = HashMap::from([(Ability::BasicAttack, CastType::Instant)]);
+        Self(settings)
+    }
+}
+*/

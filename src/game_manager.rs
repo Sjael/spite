@@ -11,11 +11,9 @@ use crate::{
         bundles::Caster, Ability, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
     },
     actor::{
-        cast_ability,
-        player::{Player, PlayerEntity},
+        player::{reticle::Reticle, LocalPlayer, LocalPlayerId, Player, SpawnPlayerEvent},
         stats::{Attributes, Stat},
-        view::Reticle,
-        AbilityRanks, IncomingDamageLog, RespawnEvent,
+        AbilityRanks, IncomingDamageLog,
     },
     area::homing::Homing,
     inventory::Inventory,
@@ -36,8 +34,7 @@ impl Plugin for GameManagerPlugin {
         app.register_type::<Bounty>();
 
         app.insert_resource(GameModeDetails::default());
-        app.insert_resource(Player::new(1507)); // change to be whatever the server says
-        app.insert_resource(PlayerEntity(None));
+        app.insert_resource(LocalPlayerId::new(Player::new(1507))); // change to be whatever the server says
         app.insert_resource(TeamRoster::default());
         app.insert_resource(Scoreboard::default());
 
@@ -46,28 +43,27 @@ impl Plugin for GameManagerPlugin {
         app.add_event::<FireHomingEvent>();
 
         app.configure_sets(
-            PreUpdate, InGameSet::Pre.run_if(in_state(GameState::InGame)),
+            PreUpdate,
+            InGameSet::Pre.run_if(in_state(GameState::InGame)),
         );
 
         app.configure_sets(
-            Update, InGameSet::Update.run_if(in_state(GameState::InGame)),
+            Update,
+            InGameSet::Update.run_if(in_state(GameState::InGame)),
         );
 
         app.configure_sets(
-            PostUpdate, InGameSet::Post.run_if(in_state(GameState::InGame)),
+            PostUpdate,
+            InGameSet::Post.run_if(in_state(GameState::InGame)),
         );
 
         app.configure_sets(
             FixedUpdate,
-            (
-                InGameSet::Pre,
-                InGameSet::Update,
-                InGameSet::Post,
-            )
-            .chain()
-            .run_if(in_state(GameState::InGame))
-            .before(PhysicsSet::Prepare)
-            .before(PhysicsSet::Sync)
+            (InGameSet::Pre, InGameSet::Update, InGameSet::Post)
+                .chain()
+                .run_if(in_state(GameState::InGame))
+                .before(PhysicsSet::Prepare)
+                .before(PhysicsSet::Sync),
         );
 
         app.add_systems(First, check_deaths.run_if(in_state(GameState::InGame)));
@@ -76,10 +72,10 @@ impl Plugin for GameManagerPlugin {
             (
                 spool_gold,
                 increment_bounty,
-                handle_respawning,
-                show_respawn_ui,
+                //handle_respawning,
+                //show_respawn_ui,
                 tick_respawn_ui,
-                place_ability.after(cast_ability),
+                place_ability, //.after(cast_ability),
                 place_homing_ability,
             )
                 .in_set(InGameSet::Update),
@@ -284,11 +280,12 @@ fn place_ability(
     }
 }
 
+/*
 fn handle_respawning(
     time: Res<Time>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     mut respawn_events: EventWriter<RespawnEvent>,
-    local_player: Res<Player>,
+    local_player: Res<LocalPlayer>,
 ) {
     //let theredeemed = commands.spawn(()).id();
     // need to combine the loading and respawn system to go from an event
@@ -306,12 +303,14 @@ fn handle_respawning(
         !respawn.timer.finished()
     });
 }
+*/
 
+/*
 fn show_respawn_ui(
     mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
     mut death_events: EventReader<DeathEvent>,
     mut spawn_events: EventReader<RespawnEvent>,
-    local_player: Res<Player>,
+    local_player: Res<LocalPlayer>,
 ) {
     let Ok(mut vis) = death_timer.get_single_mut() else {
         return;
@@ -327,17 +326,20 @@ fn show_respawn_ui(
         }
     }
 }
+*/
 
 fn tick_respawn_ui(
     mut death_timer: Query<&mut Text, With<RespawnText>>,
     gamemodedetails: ResMut<GameModeDetails>,
-    local_entity: Res<PlayerEntity>,
+    local_player: Option<Res<LocalPlayer>>,
 ) {
+    let Some(local_player) = local_player else {
+        return;
+    };
     let Ok(mut respawn_text) = death_timer.get_single_mut() else {
         return;
     };
-    let Some(local) = local_entity.0 else { return };
-    let Some(respawn) = gamemodedetails.respawns.get(&local) else {
+    let Some(respawn) = gamemodedetails.respawns.get(&*local_player) else {
         return;
     };
     let new_text =
@@ -399,14 +401,14 @@ fn despawn_dead(
     mut attributes: Query<(&mut Attributes, &ActorType)>,
     mut gamemodedetails: ResMut<GameModeDetails>,
     ui: Query<Entity, With<PlayerUI>>,
-    local_player: Res<Player>,
+    local_player_id: Res<LocalPlayerId>,
     mut scoreboard: ResMut<Scoreboard>,
 ) {
     for event in death_events.read() {
         let mut is_dead_player = false;
         match event.actor {
             ActorType::Player(player) => {
-                if player == *local_player {
+                if player == *local_player_id {
                     let Ok(ui) = ui.get_single() else { continue };
                     commands.entity(ui).despawn_recursive(); // simply spectate something else in new ui system
                 }

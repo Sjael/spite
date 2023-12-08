@@ -7,9 +7,9 @@ use oxidized_navigation::{
 };
 */
 
-use crate::game_manager::{TEAM_1};
-use crate::prelude::*;
 use crate::actor::controller::Controller;
+use crate::game_manager::TEAM_1;
+use crate::prelude::*;
 
 pub struct MinionPlugin;
 impl Plugin for MinionPlugin {
@@ -42,8 +42,18 @@ impl Plugin for MinionPlugin {
         */
         //app.add_plugins(WanderlustPlugin::default());
 
-        app.add_systems(FixedUpdate, (spawn_single_minion, spawn_minion).chain().in_set(InGameSet::Pre));
-        app.add_systems(FixedUpdate, (minion_follow_path, minion_update_progress).chain().in_set(InGameSet::Update));
+        app.add_systems(
+            FixedUpdate,
+            (spawn_single_minion, spawn_minion)
+                .chain()
+                .in_set(InGameSet::Pre),
+        );
+        app.add_systems(
+            FixedUpdate,
+            (minion_follow_path, minion_update_progress)
+                .chain()
+                .in_set(InGameSet::Update),
+        );
         //app.add_systems(Update, (toggle_nav_mesh_system, run_blocking_pathfinding));
     }
 }
@@ -179,7 +189,11 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
             ))
             .insert(
                 // physics
-                (RigidBody::Dynamic, LockedAxes::ACTOR, CollisionLayers::PLAYER),
+                (
+                    RigidBody::Dynamic,
+                    LockedAxes::ACTOR,
+                    CollisionLayers::PLAYER,
+                ),
             )
             .add_child(minion_collider)
             .insert({

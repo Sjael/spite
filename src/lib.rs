@@ -8,7 +8,7 @@ use bevy_xpbd_3d::prelude::*;
 use inventory::InventoryPlugin;
 
 use ability::shape::load_ability_shape;
-use actor::{view::ViewPlugin, CharacterPlugin};
+use actor::ActorPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
 use game_manager::GameManagerPlugin;
@@ -25,23 +25,19 @@ pub mod input;
 pub mod inventory;
 pub mod item;
 pub mod map;
-pub mod ui;
 pub mod physics;
+pub mod ui;
 
 pub mod prelude {
     pub use crate::{
         //ability::{},
         actor::{
             stats::{AttributeTag, Attributes, Modifier, Stat},
-            view::Spectatable,
             ActorState, ActorType,
         },
         area::*,
         assets::{Icons, Models, Scenes},
-        game_manager::{
-            InGameSet, TEAM_1, TEAM_2, TEAM_3,
-            TEAM_NEUTRAL,
-        },
+        game_manager::{InGameSet, TEAM_1, TEAM_2, TEAM_3, TEAM_NEUTRAL},
         inventory::Inventory,
         item::Item,
         physics::*,
@@ -54,21 +50,22 @@ pub mod prelude {
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        let default_res = (1500.0, 600.0);
+        let default_res = (1200.0, 600.0);
 
         //Basic
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Sacred Aurora".to_string(),
                 resolution: default_res.into(),
-                present_mode: bevy::window::PresentMode::Immediate,
                 ..default()
             }),
             ..default()
         }));
 
         //Resources + States
-        app.insert_resource(Time::<Fixed>::from_hz(64.0));
+        let tick_hz = 128.0;
+        app.insert_resource(Time::<Fixed>::from_hz(tick_hz))
+            .insert_resource(Time::<Physics>::new_with(Physics::fixed_once_hz(tick_hz)));
 
         app.insert_resource(GameTimer::default())
             .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
@@ -86,9 +83,8 @@ impl Plugin for GamePlugin {
         app.add_plugins((
             GameAssetPlugin,
             GameManagerPlugin,
-            ViewPlugin,
             UiPlugin,
-            CharacterPlugin,
+            ActorPlugin,
             AreaPlugin,
             InputPlugin,
         ))
@@ -110,7 +106,7 @@ pub struct GameTimer(Timer);
 
 impl Default for GameTimer {
     fn default() -> Self {
-        Self(Timer::new(tick_hz(64), TimerMode::Repeating))
+        Self(Timer::new(tick_hz(128), TimerMode::Repeating))
     }
 }
 
