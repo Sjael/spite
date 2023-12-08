@@ -7,7 +7,7 @@ use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 use inventory::InventoryPlugin;
 
-use ability::shape::load_ability_shape;
+use ability::{shape::load_ability_shape, collector::AbilityPlugin};
 use actor::ActorPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
@@ -30,7 +30,6 @@ pub mod ui;
 
 pub mod prelude {
     pub use crate::{
-        //ability::{},
         actor::{
             stats::{AttributeTag, Attributes, Modifier, Stat},
             ActorState, ActorType,
@@ -67,8 +66,7 @@ impl Plugin for GamePlugin {
         app.insert_resource(Time::<Fixed>::from_hz(tick_hz))
             .insert_resource(Time::<Physics>::new_with(Physics::fixed_once_hz(tick_hz)));
 
-        app.insert_resource(GameTimer::default())
-            .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
+        app.insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
             .add_state::<GameState>();
 
         app.add_plugins(EditorPlugin::default());
@@ -84,12 +82,12 @@ impl Plugin for GamePlugin {
             GameAssetPlugin,
             GameManagerPlugin,
             UiPlugin,
+            AbilityPlugin,
             ActorPlugin,
             AreaPlugin,
             InputPlugin,
         ))
-        .add_systems(PostUpdate, load_ability_shape) // after systems that spawn ability_shape components
-        .add_systems(Update, tick_game);
+        .add_systems(PostUpdate, load_ability_shape); // after systems that spawn ability_shape components
     }
 }
 
@@ -101,24 +99,7 @@ pub enum GameState {
     MainMenu,
 }
 
-#[derive(Deref, DerefMut, Debug, Clone, Resource)]
-pub struct GameTimer(Timer);
-
-impl Default for GameTimer {
-    fn default() -> Self {
-        Self(Timer::new(tick_hz(4), TimerMode::Repeating))
-    }
-}
-
 /// Quick function for getting a duration for tick rates.
 pub const fn tick_hz(rate: u64) -> Duration {
     Duration::from_nanos(1_000_000_000 / rate)
-}
-
-pub fn tick_game(time: Res<Time>, mut game_timer: ResMut<GameTimer>) {
-    game_timer.tick(time.delta());
-}
-
-pub fn on_gametick(game_timer: Res<GameTimer>) -> bool {
-    game_timer.just_finished()
 }

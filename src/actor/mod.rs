@@ -16,7 +16,6 @@ use crate::{
 use oxidized_navigation::NavMeshAffector;
 
 use self::{
-    buff::{BuffMap, BuffPlugin},
     controller::*,
     crowd_control::{CCMap, CCPlugin, CCType},
     minion::MinionPlugin,
@@ -24,7 +23,6 @@ use self::{
     stats::{AttributeTag, Attributes, HealthMitigatedEvent, Modifier, Stat, StatsPlugin},
 };
 
-pub mod buff;
 pub mod controller;
 pub mod crowd_control;
 pub mod minion;
@@ -50,7 +48,6 @@ impl Plugin for ActorPlugin {
         //Plugins
         app.add_plugins((
             StatsPlugin,
-            BuffPlugin,
             CCPlugin,
             MinionPlugin,
             ControllerPlugin,

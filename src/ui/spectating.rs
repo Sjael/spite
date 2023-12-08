@@ -9,9 +9,11 @@ use bevy::{
 use bevy_tweening::TweenCompleted;
 
 use crate::{
-    ability::Ability,
-    actor::{
+    ability::{
+        Ability,
         buff::{BuffAddEvent, BuffStackEvent, BuffType},
+    },
+    actor::{
         crowd_control::{CCMap, CCType},
         player::{LocalPlayer, Player},
         stats::*,

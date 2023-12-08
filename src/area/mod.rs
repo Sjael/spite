@@ -11,9 +11,9 @@ use crate::{
         DeployAreaStage, FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo,
         Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
         UniqueTargetsHit,
+        buff::{BuffInfo, BuffTargets},
     },
     actor::{
-        buff::{BuffInfo, BuffTargets},
         crowd_control::CCInfo,
     },
     game_manager::{FireHomingEvent, Team},

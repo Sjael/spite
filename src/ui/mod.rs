@@ -49,7 +49,7 @@ impl Plugin for UiPlugin {
 
         app.add_systems(Update, (button_hovers, button_actions));
 
-        //app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
+        app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
 
         app.configure_sets(
             Update,
@@ -76,8 +76,8 @@ impl Plugin for UiPlugin {
         app.add_systems(
             Update,
             (
-                //add_player_ui,
-                //add_ability_icons,
+                add_player_ui,
+                add_ability_icons,
                 follow_in_3d,
                 floating_damage_cleanup,
                 update_buff_timers,

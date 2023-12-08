@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     actor::{
-        buff::BuffMap, controller::Controller, crowd_control::CCMap, player::camera::Spectatable,
+        controller::Controller, crowd_control::CCMap, player::camera::Spectatable,
         AbilityRanks, CooldownMap, IncomingDamageLog, OutgoingDamageLog,
     },
     game_manager::Bounty,
@@ -16,7 +16,7 @@ use crate::{
         store::{StoreBuffer, StoreHistory},
         Trackable,
     },
-    GameState,
+    GameState, ability::buff::BuffMap,
 };
 
 pub mod camera;
@@ -40,14 +40,13 @@ impl Plugin for PlayerPlugin {
 
         app.init_resource::<Players>();
 
-        app
-        .add_plugins(input::InputPlugin)
-        .add_plugins(camera::CameraPlugin);
+        app.add_plugins(input::InputPlugin)
+            .add_plugins(camera::CameraPlugin);
 
         app.add_systems(OnEnter(GameState::InGame), spawn_local_player);
         app.add_systems(
             FixedUpdate,
-            (/*init_player,*/ update_players).in_set(InGameSet::Pre),
+            (/*init_player,*/update_players).in_set(InGameSet::Pre),
         );
     }
 }

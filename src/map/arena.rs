@@ -7,9 +7,9 @@ use crate::{
     ability::{
         bundles::Caster, Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags,
         TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
+        buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
     },
     actor::{
-        buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
         crowd_control::{CCInfo, CCMap, CCType},
         player::camera::Spectatable,
         HasHealthBar, IncomingDamageLog, Tower,

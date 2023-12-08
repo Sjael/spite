@@ -32,7 +32,6 @@ impl Controller {
 }
 
 pub fn controller_movement(
-    time: Res<Time>,
     mut controllers: Query<(
         &mut ExternalImpulse,
         &mut LinearVelocity,
@@ -43,9 +42,11 @@ pub fn controller_movement(
     for (mut impulse, mut velocity, mass, controller) in &mut controllers {
         let mass = mass.0;
 
+        let strength = 0.4;
+
         let goal_velocity = controller.goal_velocity();
         let displacement = goal_velocity - **velocity;
-        let movement_impulse = displacement * mass;
+        let movement_impulse = displacement * mass * strength;
         //info!("displacement: {:?}", displacement);
 
         /*

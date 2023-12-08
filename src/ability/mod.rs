@@ -1,8 +1,16 @@
+//! Construction of abilities.
+//!
+//! Basic premise of all abilities is there are `collectors`, `filters`, and `appliers`.
+//!
+//! `Collectors` use colliders/auto-targetters/etc. to determine potential targets for an ability.
+//! `Filters` take collectors and disqualify them if they shouldn't be affected.
+//! `Appliers` finalize the effects of the ability on the target entity, most commonly damaging or
+//! debuffing.
+
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
     actor::{
-        buff::BuffInfo,
         crowd_control::{CCInfo, CCType},
         stats::Stat,
     },
@@ -14,12 +22,14 @@ use leafwing_input_manager::Actionlike;
 
 use self::{
     bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
-    shape::AbilityShape,
+    shape::AbilityShape, buff::BuffInfo,
 };
 
 pub mod bundles;
+pub mod collector;
 pub mod rank;
 pub mod shape;
+pub mod buff;
 
 #[derive(
     Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,

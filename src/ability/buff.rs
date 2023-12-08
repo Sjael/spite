@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use super::stats::{AttributeTag, Attributes, Stat};
+use crate::actor::stats::{AttributeTag, Attributes, Stat};
 use crate::{area::BuffEvent, game_manager::InGameSet};
 use bevy::prelude::*;
 
@@ -61,7 +61,7 @@ impl Default for BuffInfo {
     }
 }
 
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone)]
 pub struct BuffInfoApplied {
     pub info: BuffInfo,
     pub stacks: u32,
@@ -73,7 +73,6 @@ impl Plugin for BuffPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<BuffAddEvent>();
         app.add_event::<BuffStackEvent>();
-        app.register_type::<BuffMap>();
 
         app.add_systems(Update, (apply_buffs, tick_buffs).in_set(InGameSet::Update));
     }
@@ -172,7 +171,7 @@ pub fn tick_buffs(time: Res<Time>, mut query: Query<(&mut BuffMap, &mut Attribut
 // PLACE WITH STAT MODULE
 //
 
-#[derive(Component, Reflect, Default, Debug, Clone)]
+#[derive(Component, Default, Debug, Clone)]
 pub struct BuffMap {
     pub map: HashMap<String, BuffInfoApplied>, // Create buff id from entity-ability/item-positive, orc2-spear-debuff aka who it comes from
 }
