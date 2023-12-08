@@ -7,7 +7,7 @@ use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 use inventory::InventoryPlugin;
 
-use ability::{shape::load_ability_shape, collector::AbilityPlugin};
+use ability::{collector::AbilityPlugin, shape::load_ability_shape};
 use actor::ActorPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;

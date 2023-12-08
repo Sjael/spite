@@ -5,9 +5,10 @@ use bevy::utils::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    ability::buff::BuffMap,
     actor::{
-        controller::Controller, crowd_control::CCMap, player::camera::Spectatable,
-        AbilityRanks, CooldownMap, IncomingDamageLog, OutgoingDamageLog,
+        controller::Controller, crowd_control::CCMap, player::camera::Spectatable, AbilityRanks,
+        CooldownMap, IncomingDamageLog, OutgoingDamageLog,
     },
     game_manager::Bounty,
     input::SlotBundle,
@@ -16,7 +17,7 @@ use crate::{
         store::{StoreBuffer, StoreHistory},
         Trackable,
     },
-    GameState, ability::buff::BuffMap,
+    GameState,
 };
 
 pub mod camera;

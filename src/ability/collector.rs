@@ -24,10 +24,8 @@ pub enum AbilitySet {
 
 pub struct AbilityPlugin;
 
-
 impl Plugin for AbilityPlugin {
     fn build(&self, app: &mut App) {
-
         app.add_plugins(BuffPlugin);
 
         app.configure_sets(

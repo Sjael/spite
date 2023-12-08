@@ -7,15 +7,14 @@ use std::{
 
 use crate::{
     ability::{
-        bundles::Caster, Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType,
-        DeployAreaStage, FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo,
-        Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
-        UniqueTargetsHit,
         buff::{BuffInfo, BuffTargets},
+        bundles::Caster,
+        Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType, DeployAreaStage,
+        FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags,
+        TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
+        UniqueTargetsHit,
     },
-    actor::{
-        crowd_control::CCInfo,
-    },
+    actor::crowd_control::CCInfo,
     game_manager::{FireHomingEvent, Team},
     prelude::*,
 };
