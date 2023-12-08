@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
 use bevy_tweening::TweeningPlugin;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 use inventory::InventoryPlugin;
 
 use ability::shape::load_ability_shape;
@@ -63,7 +63,7 @@ impl Plugin for GamePlugin {
         }));
 
         //Resources + States
-        let tick_hz = 128.0;
+        let tick_hz = 64.0;
         app.insert_resource(Time::<Fixed>::from_hz(tick_hz))
             .insert_resource(Time::<Physics>::new_with(Physics::fixed_once_hz(tick_hz)));
 
@@ -106,7 +106,7 @@ pub struct GameTimer(Timer);
 
 impl Default for GameTimer {
     fn default() -> Self {
-        Self(Timer::new(tick_hz(128), TimerMode::Repeating))
+        Self(Timer::new(tick_hz(4), TimerMode::Repeating))
     }
 }
 

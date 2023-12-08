@@ -47,7 +47,7 @@ impl Plugin for PlayerPlugin {
         app.add_systems(OnEnter(GameState::InGame), spawn_local_player);
         app.add_systems(
             FixedUpdate,
-            (init_player, update_players).in_set(InGameSet::Pre),
+            (/*init_player,*/ update_players).in_set(InGameSet::Pre),
         );
     }
 }

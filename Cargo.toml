@@ -39,6 +39,8 @@ name = "local"
 path = "src/local.rs"
 
 [patch.crates-io]
+#bevy_xpbd_3d = { path = "../bevy_xpbd/crates/bevy_xpbd_3d" }
+bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd" }
 # Replacing the entirety of bevy, sed replace "hash" with revision you want.
 #bevy = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_animation = { git = "https://github.com/bevyengine/bevy", rev = "hash" }

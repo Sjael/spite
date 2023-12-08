@@ -40,8 +40,6 @@ pub fn controller_movement(
         &Controller,
     )>,
 ) {
-    let dt = time.delta_seconds();
-
     for (mut impulse, mut velocity, mass, controller) in &mut controllers {
         let mass = mass.0;
 
@@ -71,10 +69,6 @@ pub fn controller_movement(
         if movement_impulse.length() > 0.05 {
             //info!("disp: {:.2?}", displacement);
             //info!("move: {:.2?}", movement_impulse);
-        }
-
-        if velocity.length() > 0.0 {
-            info!("velo: {:.2?}", velocity);
         }
 
         //**velocity = goal_velocity;
