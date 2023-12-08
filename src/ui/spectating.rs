@@ -16,13 +16,12 @@ use crate::{
         player::Player,
         stats::*,
         view::Spectating,
-        CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer,
+        CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer, AbilityFireEvent,
     },
     assets::{Fonts, Icons, Images, Items},
-    game_manager::{AbilityFireEvent, Team},
     input::SlotAbilityMap,
     item::{Item, ITEM_DB},
-    ui::ui_bundles::*,
+    ui::ui_bundles::*, collision_masks::Team,
 };
 
 use super::{store::CATEGORIES, ButtonAction};

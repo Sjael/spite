@@ -12,7 +12,6 @@ use ability::shape::load_ability_shape;
 use actor::{view::ViewPlugin, CharacterPlugin};
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
-use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use ui::{spectating::spawn_spectator_camera, UiPlugin};
 
@@ -20,9 +19,9 @@ pub mod ability;
 pub mod actor;
 pub mod area;
 pub mod assets;
+pub mod collision_masks;
 pub mod debug;
 pub mod director;
-pub mod game_manager;
 pub mod input;
 pub mod inventory;
 pub mod item;
@@ -39,8 +38,9 @@ pub mod prelude {
         },
         area::*,
         assets::{Icons, Models, Scenes},
-        game_manager::{
-            InGameSet, ABILITY_LAYER, GROUND_LAYER, PLAYER_LAYER, TEAM_1, TEAM_2, TEAM_3,
+        director::InGameSet,
+        collision_masks::{
+            ABILITY_LAYER, GROUND_LAYER, PLAYER_LAYER, TEAM_1, TEAM_2, TEAM_3,
             TEAM_NEUTRAL, WALL_LAYER,
         },
         inventory::Inventory,
@@ -74,7 +74,7 @@ impl Plugin for GamePlugin {
 
         app.add_plugins(EditorPlugin::default());
         fn test(state: Res<State<GameState>>) {
-            //info!("game_state: {:?}", *state); 
+            //info!("game_state: {:?}", *state);
         }
         app.add_systems(Update, test);
         app.add_plugins(PhysicsPlugins::default());

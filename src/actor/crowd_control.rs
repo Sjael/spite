@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::{area::CCEvent, assets::Icons, game_manager::InGameSet};
+use crate::{area::CCEvent, assets::Icons, director::InGameSet};
 
 #[derive(Debug, Clone, Reflect, Copy)]
 pub struct CCInfo {

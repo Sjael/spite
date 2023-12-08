@@ -7,11 +7,10 @@ use crate::{
         player::{Player, PlayerEntity},
         stats::{Attributes, Stat},
         view::{PlayerCam, Spectating},
-        DeathEvent, HasHealthBar, RespawnEvent, Respawn,
+        DeathEvent, HasHealthBar, Respawn, RespawnEvent,
     },
     assets::{Fonts, Images},
-    director::GameModeDetails,
-    game_manager::InGameSet,
+    director::{GameModeDetails, InGameSet},
     prelude::ActorType,
     ui::{
         hud_editor::*, ingame_menu::*, main_menu::*, mouse::*, spectating::*, store::*, styles::*,
@@ -40,8 +39,7 @@ impl Plugin for UiPlugin {
             .add_state::<InGameMenu>()
             .add_state::<EditingHUD>();
 
-        app.add_event::<ResetUiEvent>()
-            .add_event::<MenuEvent>();
+        app.add_event::<ResetUiEvent>().add_event::<MenuEvent>();
 
         app.insert_resource(FocusedHealthEntity(None));
         app.insert_resource(Scoreboard::default());

@@ -13,7 +13,7 @@ use crate::{
         crowd_control::{CCInfo, CCMap, CCType},
         HasHealthBar, IncomingDamageLog, Tower,
     },
-    game_manager::Fountain,
+    area::Fountain,
     prelude::{non_damaging::ObjectiveHealthOwner, *},
     GameState,
 };

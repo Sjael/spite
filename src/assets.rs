@@ -2,9 +2,9 @@
 
 use bevy::utils::HashMap;
 
-use bevy_asset_loader::prelude::*;
 use crate::prelude::*;
 use crate::GameState;
+use bevy_asset_loader::prelude::*;
 
 #[derive(AssetCollection, Resource)]
 pub struct Icons {

@@ -7,7 +7,7 @@ use oxidized_navigation::{
 };
 */
 
-use crate::game_manager::{PLAYER_LAYER, TEAM_1};
+use crate::collision_masks::{PLAYER_LAYER, TEAM_1};
 use crate::prelude::*;
 
 pub struct MinionPlugin;

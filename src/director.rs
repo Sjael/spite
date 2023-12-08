@@ -2,9 +2,8 @@ use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
     actor::player::{Player, PlayerEntity},
-    game_manager::{Respawn, Team},
     prelude::{ActorType, TEAM_1, TEAM_2},
-    GameState,
+    GameState, collision_masks::Team,
 };
 // Game director
 //

@@ -7,7 +7,7 @@ use bevy::{
     transform::TransformSystem,
 };
 
-use crate::{actor::ActorState, game_manager::InGameSet, prelude::*, ui::SpectatingSet};
+use crate::{director::InGameSet, prelude::*, ui::SpectatingSet};
 
 use super::player::PlayerInput;
 
