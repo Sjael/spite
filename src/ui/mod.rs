@@ -49,7 +49,7 @@ impl Plugin for UiPlugin {
 
         app.add_systems(Update, (button_hovers, button_actions));
 
-        app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
+        //app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
 
         app.configure_sets(
             Update,
@@ -76,8 +76,8 @@ impl Plugin for UiPlugin {
         app.add_systems(
             Update,
             (
-                add_player_ui,
-                add_ability_icons,
+                //add_player_ui,
+                //add_ability_icons,
                 follow_in_3d,
                 floating_damage_cleanup,
                 update_buff_timers,
@@ -549,15 +549,13 @@ pub fn button_actions(
     player: Option<Res<LocalPlayer>>,
     item_inspected: Res<ItemInspected>,
 ) {
-    let Some(player) = player else {
-        return;
-    };
     for (button_action, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
             continue;
         }
         match button_action {
             ButtonAction::Play => {
+                info!("play");
                 game_state_next.set(GameState::InGame);
             }
             ButtonAction::Settings => {}
@@ -578,6 +576,10 @@ pub fn button_actions(
                 reset_ui_events.send(ResetUiEvent);
             }
             ButtonAction::BuyItem => {
+                let Some(player) = player.as_deref() else {
+                    continue;
+                };
+
                 if let Some(inspected) = item_inspected.0.clone() {
                     store_events.send(StoreEvent {
                         player: **player,
@@ -588,6 +590,10 @@ pub fn button_actions(
                 }
             }
             ButtonAction::SellItem => {
+                let Some(player) = player.as_deref() else {
+                    continue;
+                };
+
                 if let Some(inspected) = item_inspected.0.clone() {
                     store_events.send(StoreEvent {
                         player: **player,
@@ -598,6 +604,9 @@ pub fn button_actions(
                 }
             }
             ButtonAction::UndoStore => {
+                let Some(player) = player.as_deref() else {
+                    continue;
+                };
                 undo_events.send(UndoPressEvent { entity: **player });
             }
             _ => (),

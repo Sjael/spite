@@ -54,6 +54,7 @@ impl Plugin for ActorPlugin {
             CCPlugin,
             MinionPlugin,
             ControllerPlugin,
+            PlayerPlugin,
         ));
 
         //Systems

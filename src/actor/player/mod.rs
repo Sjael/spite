@@ -16,6 +16,7 @@ use crate::{
         store::{StoreBuffer, StoreHistory},
         Trackable,
     },
+    GameState,
 };
 
 pub mod camera;
@@ -39,9 +40,15 @@ impl Plugin for PlayerPlugin {
 
         app.init_resource::<Players>();
 
-        app.add_plugins(input::InputPlugin);
+        app
+        .add_plugins(input::InputPlugin)
+        .add_plugins(camera::CameraPlugin);
 
-        app.add_systems(FixedUpdate, (init_player, update_players));
+        app.add_systems(OnEnter(GameState::InGame), spawn_local_player);
+        app.add_systems(
+            FixedUpdate,
+            (init_player, update_players).in_set(InGameSet::Pre),
+        );
     }
 }
 
@@ -168,6 +175,7 @@ pub fn spawn_local_player(
     mut spawn_events: EventWriter<SpawnPlayerEvent>,
     local_player_id: Res<LocalPlayerId>,
 ) {
+    info!("spawning local player");
     spawn_events.send(SpawnPlayerEvent {
         player_id: **local_player_id,
         transform: Transform {
@@ -200,7 +208,8 @@ impl PartialEq<LocalPlayer> for Entity {
 }
 
 /// Convenience map for fetching an entity of a specific player.
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Reflect)]
+#[reflect(Resource)]
 pub struct Players(HashMap<Player, Entity>);
 
 impl Players {

@@ -6,7 +6,7 @@ use bevy::core_pipeline::{
 
 use crate::{
     actor::player::{input::PlayerInput, reticle::Reticle, LocalPlayer},
-    prelude::*,
+    prelude::*, GameState,
 };
 
 pub struct CameraPlugin;
@@ -24,6 +24,11 @@ impl Plugin for CameraPlugin {
             (spectate_entity, focus_entity, follow_entity)
                 .chain()
                 .in_set(FocusSet),
+        );
+
+        app.add_systems(
+            FixedUpdate,
+            spawn_camera.in_set(InGameSet::Pre),
         );
     }
 }
@@ -102,8 +107,14 @@ pub fn spawn_camera(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    local_player: Res<LocalPlayer>,
+    local_player: Option<Res<LocalPlayer>>,
+    player_cams: Query<(), With<PlayerCam>>,
 ) {
+    let Some(local_player) = local_player else { return; };
+    if player_cams.iter().next().is_some() {
+        return;
+    }
+
     let camera = commands
         .spawn((
             Camera3dBundle {
