@@ -7,7 +7,7 @@ use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 use inventory::InventoryPlugin;
 
-use ability::{collector::AbilityPlugin, shape::load_ability_shape};
+use ability::{AbilityPlugin, shape::load_ability_shape};
 use actor::ActorPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
@@ -30,8 +30,8 @@ pub mod ui;
 
 pub mod prelude {
     pub use crate::{
+        ability::stats::{AttributeTag, Attributes, Modifier, Stat},
         actor::{
-            stats::{AttributeTag, Attributes, Modifier, Stat},
             ActorState, ActorType,
         },
         area::*,

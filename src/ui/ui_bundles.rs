@@ -7,8 +7,7 @@ use bevy_tweening::{
 };
 
 use crate::{
-    ability::{Ability, AbilityTooltip},
-    actor::{crowd_control::CCType, stats::Stat},
+    ability::{crowd_control::CCType, stats::Stat, Ability, AbilityTooltip},
     assets::{Fonts, Icons, Images, Items},
     item::Item,
 };

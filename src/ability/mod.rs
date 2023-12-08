@@ -9,29 +9,83 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use crate::{
-    actor::{
-        crowd_control::{CCInfo, CCType},
-        stats::Stat,
-    },
-    assets::Icons,
-};
+use crate::{prelude::*, assets::Icons};
+
 use bevy::prelude::*;
 use derive_more::Display;
 use leafwing_input_manager::Actionlike;
 
 use self::{
-    buff::BuffInfo,
+    buff::{BuffInfo, BuffPlugin},
     bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
+    crowd_control::{CCInfo, CCType, CCPlugin},
     shape::AbilityShape,
+    stats::{Stat, StatsPlugin}, cast::CastPlugin,
 };
 
 pub mod buff;
 pub mod bundles;
 pub mod cast;
 pub mod collector;
+pub mod crowd_control;
 pub mod rank;
 pub mod shape;
+pub mod stats;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AbilitySet {
+    /// Gather entities that should be considered for ability application.
+    CollectorUpdate,
+    /// Filter/disqualify entities that were collected.
+    Filter,
+    /// Apply ability effects to entities.
+    Apply,
+    /// Update filters based on previously collected entities.
+    FilterUpdate,
+    /// Clear the collected entities for next tick.
+    ClearCollected,
+}
+
+pub struct AbilityPlugin;
+
+impl Plugin for AbilityPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(BuffPlugin);
+        app.add_plugins(StatsPlugin);
+        app.add_plugins(CCPlugin);
+        app.add_plugins(CastPlugin);
+
+        app.configure_sets(
+            FixedUpdate,
+            (
+                AbilitySet::CollectorUpdate,
+                AbilitySet::Filter,
+                AbilitySet::Apply,
+                AbilitySet::FilterUpdate,
+                AbilitySet::ClearCollected,
+            )
+                .chain()
+                .in_set(InGameSet::Update),
+        );
+
+        /*
+        app.add_systems(
+            FixedUpdate,
+            (filter_already_hit, filter_timed_hit).in_set(AbilitySet::Filter),
+        );
+
+        app.add_systems(
+            FixedUpdate,
+            (update_already_hit, update_timed_hit).in_set(AbilitySet::FilterUpdate),
+        );
+
+        app.add_systems(
+            FixedUpdate,
+            clear_collected.in_set(AbilitySet::ClearCollected),
+        );
+        */
+    }
+}
 
 #[derive(
     Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,

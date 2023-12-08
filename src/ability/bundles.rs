@@ -1,15 +1,11 @@
-use crate::{
-    actor::{
-        crowd_control::{CCInfo, CCType},
-        stats::Stat,
-    },
-    prelude::*,
+use crate::prelude::*;
+
+use super::{
+    crowd_control::{CCInfo, CCType},
+    shape::AbilityShape,
+    DamageType, *,
 };
 
-use super::{shape::AbilityShape, DamageType, *};
-
-#[derive(Component)]
-pub struct Caster(pub Entity);
 
 #[derive(Component)]
 pub struct Targetter;
@@ -29,10 +25,6 @@ impl AbilityInfo {
             _ => Shadowbolt(DefaultAbilityInfo::default()),
         }
     }
-}
-
-pub trait AbilityBehavior {
-    fn spawn(&self) -> Entity;
 }
 
 #[derive(Bundle, Clone, Debug)]

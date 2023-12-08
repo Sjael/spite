@@ -8,13 +8,13 @@ use std::{
 use crate::{
     ability::{
         buff::{BuffInfo, BuffTargets},
-        bundles::Caster,
+        cast::Caster,
+        crowd_control::{CCEvent, CCInfo},
         Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType, DeployAreaStage,
         FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags,
         TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
         UniqueTargetsHit,
     },
-    actor::crowd_control::CCInfo,
     game_manager::{FireHomingEvent, Team},
     prelude::*,
 };
@@ -42,12 +42,6 @@ pub struct BuffEvent {
     pub ability: Ability,
 }
 
-#[derive(Event)]
-pub struct CCEvent {
-    pub target_entity: Entity,
-    pub ccinfo: CCInfo,
-}
-
 pub struct AreaPlugin;
 impl Plugin for AreaPlugin {
     fn build(&self, app: &mut App) {
@@ -56,7 +50,6 @@ impl Plugin for AreaPlugin {
         app.add_event::<HealthChangeEvent>();
         app.add_event::<AreaOverlapEvent>();
         app.add_event::<BuffEvent>();
-        app.add_event::<CCEvent>();
 
         app.add_systems(PreUpdate, (apply_interval, catch_collisions));
         app.add_systems(

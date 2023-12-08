@@ -2,7 +2,25 @@ use std::{collections::BTreeMap, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::{area::CCEvent, assets::Icons, game_manager::InGameSet};
+use crate::{assets::Icons, game_manager::InGameSet};
+
+pub struct CCPlugin;
+impl Plugin for CCPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<CCEvent>();
+
+        app.add_systems(
+            FixedUpdate,
+            (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre),
+        );
+    }
+}
+
+#[derive(Event)]
+pub struct CCEvent {
+    pub target_entity: Entity,
+    pub ccinfo: CCInfo,
+}
 
 #[derive(Debug, Clone, Reflect, Copy)]
 pub struct CCInfo {
@@ -47,16 +65,6 @@ impl CCType {
 impl std::fmt::Display for CCType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-pub struct CCPlugin;
-impl Plugin for CCPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            FixedUpdate,
-            (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre),
-        );
     }
 }
 

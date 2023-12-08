@@ -8,12 +8,11 @@ use bevy_xpbd_3d::prelude::*;
 
 use crate::{
     ability::{
-        bundles::Caster, Ability, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
+        cast::Caster, cast::{AbilityFireEvent, IncomingDamageLog}, Ability, MaxTargetsHit, TargetsHittable,
+        TargetsInArea, TickBehavior,
     },
     actor::{
         player::{reticle::Reticle, LocalPlayer, LocalPlayerId, Player, SpawnPlayerEvent},
-        stats::{Attributes, Stat},
-        AbilityRanks, IncomingDamageLog,
     },
     area::homing::Homing,
     inventory::Inventory,
@@ -75,12 +74,10 @@ impl Plugin for GameManagerPlugin {
                 //handle_respawning,
                 //show_respawn_ui,
                 tick_respawn_ui,
-                place_ability, //.after(cast_ability),
-                place_homing_ability,
             )
                 .in_set(InGameSet::Update),
         );
-        app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
+        //app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }
 
@@ -194,90 +191,6 @@ pub struct LoggedNumbers {
     pub damage_taken: u32,
     pub damage_mitigated: u32,
     pub healing_dealt: u32,
-}
-
-fn place_homing_ability(
-    mut commands: Commands,
-    mut cast_events: EventReader<FireHomingEvent>,
-    caster: Query<(&GlobalTransform, &Team)>,
-) {
-    for event in cast_events.read() {
-        let Ok((caster_transform, team)) = caster.get(event.caster) else {
-            return;
-        };
-
-        let spawned = event
-            .ability
-            .get_bundle(&mut commands, &caster_transform.compute_transform());
-
-        // Apply general components
-        commands.entity(spawned).insert((
-            Name::new("Tower shot"),
-            team.clone(),
-            Homing(event.target),
-            Caster(event.caster),
-        ));
-
-        // if has a shape
-        commands.entity(spawned).insert((
-            TargetsInArea::default(),
-            TargetsHittable::default(),
-            MaxTargetsHit::new(1),
-            TickBehavior::individual(),
-        ));
-    }
-}
-
-fn place_ability(
-    mut commands: Commands,
-    mut cast_events: EventReader<AbilityFireEvent>,
-    caster: Query<(&GlobalTransform, &Team, &AbilityRanks)>,
-    reticle: Query<&GlobalTransform, With<Reticle>>,
-    procmaps: Query<&ProcMap>,
-) {
-    let Ok(reticle_transform) = reticle.get_single() else {
-        return;
-    };
-    for event in cast_events.read() {
-        let Ok((caster_transform, team, _ranks)) = caster.get(event.caster) else {
-            return;
-        };
-
-        // Get ability-specific components
-        let spawned;
-
-        if event.ability.on_reticle() {
-            spawned = event
-                .ability
-                .get_bundle(&mut commands, &reticle_transform.compute_transform());
-        } else {
-            spawned = event
-                .ability
-                .get_bundle(&mut commands, &caster_transform.compute_transform());
-        }
-
-        // Apply general components
-        commands.entity(spawned).insert((
-            //Name::new("ability #tick number"),
-            team.clone(),
-            Caster(event.caster),
-        ));
-
-        //let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
-        //let scaling = rank.current as u32 * event.ability.get_scaling();
-
-        // Apply special proc components
-        if let Ok(procmap) = procmaps.get(event.caster) {
-            if let Some(behaviors) = procmap.0.get(&event.ability) {
-                for behavior in behaviors {
-                    match behavior {
-                        AbilityBehavior::Homing => (),
-                        AbilityBehavior::OnHit => (),
-                    }
-                }
-            }
-        }
-    }
 }
 
 /*
@@ -486,12 +399,6 @@ fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: R
 }
 
 #[derive(Event)]
-pub struct AbilityFireEvent {
-    pub caster: Entity,
-    pub ability: Ability,
-}
-
-#[derive(Event)]
 pub struct FireHomingEvent {
     pub caster: Entity,
     pub ability: Ability,
@@ -527,7 +434,7 @@ pub const TEAM_NEUTRAL: Team = Team(TeamMask::from_bits_truncate(
 pub const TEAM_ALL: Team = Team(TeamMask::from_bits_truncate(TeamMask::ALL.bits()));
 
 #[derive(Component)]
-pub struct ProcMap(HashMap<Ability, Vec<AbilityBehavior>>);
+pub struct ProcMap(pub HashMap<Ability, Vec<AbilityBehavior>>);
 
 pub enum AbilityBehavior {
     Homing,

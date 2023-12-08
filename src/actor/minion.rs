@@ -7,6 +7,7 @@ use oxidized_navigation::{
 };
 */
 
+use crate::ability::stats::Attributes;
 use crate::actor::controller::Controller;
 use crate::game_manager::TEAM_1;
 use crate::prelude::*;

@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    ability::TargetsInArea,
-    actor::{
-        player::LocalPlayer,
+    ability::{
         stats::{Attributes, Stat, Stat::*},
+        TargetsInArea,
     },
+    actor::player::LocalPlayer,
     area::{AreaOverlapEvent, AreaOverlapType},
     assets::Items,
     game_manager::Fountain,

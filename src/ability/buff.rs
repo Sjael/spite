@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use crate::actor::stats::{AttributeTag, Attributes, Stat};
+use crate::ability::stats::{AttributeTag, Attributes, Stat};
 use crate::{area::BuffEvent, game_manager::InGameSet};
 use bevy::prelude::*;
 

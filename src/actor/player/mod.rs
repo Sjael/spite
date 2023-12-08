@@ -5,11 +5,16 @@ use bevy::utils::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ability::buff::BuffMap,
-    actor::{
-        controller::Controller, crowd_control::CCMap, player::camera::Spectatable, AbilityRanks,
-        CooldownMap, IncomingDamageLog, OutgoingDamageLog,
+    ability::{
+        buff::BuffMap,
+        cast::{
+            AbilityCastSettings, Casting, CooldownMap, HoveredAbility, IncomingDamageLog,
+            OutgoingDamageLog, WindupTimer,
+        },
+        crowd_control::{CCMap, CCType},
+        rank::AbilityRanks,
     },
+    actor::{controller::Controller, player::camera::Spectatable},
     game_manager::Bounty,
     input::SlotBundle,
     prelude::*,
@@ -47,7 +52,7 @@ impl Plugin for PlayerPlugin {
         app.add_systems(OnEnter(GameState::InGame), spawn_local_player);
         app.add_systems(
             FixedUpdate,
-            (/*init_player,*/update_players).in_set(InGameSet::Pre),
+            (init_player, update_players).in_set(InGameSet::Pre),
         );
     }
 }
@@ -120,7 +125,7 @@ pub fn init_player(
             })
             .insert((
                 TEAM_1,
-                //AbilityCastSettings::default(),
+                AbilityCastSettings::default(),
                 AbilityRanks::default(),
                 IncomingDamageLog::default(),
                 OutgoingDamageLog::default(),
@@ -129,11 +134,11 @@ pub fn init_player(
                 CCMap::default(),
                 BuffMap::default(),
                 Spectatable,
-                //Casting(None),
-                //WindupTimer(Timer::default()),
+                Casting(None),
+                WindupTimer(Timer::default()),
                 PlayerInput::default(),
                 SlotBundle::new(), // Has all the keybinding -> action logic
-                                   //HoveredAbility::default(),
+                HoveredAbility::default(),
             ))
             //.insert(NavMeshAffector)
             .id();

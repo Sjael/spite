@@ -3,13 +3,15 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    ability::AbilityTooltip,
+    ability::{
+        stats::{Attributes, Stat},
+        AbilityTooltip,
+    },
     actor::{
         player::{
             camera::{PlayerCam, Spectating},
             LocalPlayer, LocalPlayerId, Player,
         },
-        stats::{Attributes, Stat},
         HasHealthBar,
     },
     assets::{Fonts, Icons, Images},

@@ -6,57 +6,6 @@ use bevy::utils::HashSet;
 
 use crate::prelude::*;
 
-use super::buff::BuffPlugin;
-
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum AbilitySet {
-    /// Gather entities that should be considered for ability application.
-    CollectorUpdate,
-    /// Filter/disqualify entities that were collected.
-    Filter,
-    /// Apply ability effects to entities.
-    Apply,
-    /// Update filters based on previously collected entities.
-    FilterUpdate,
-    /// Clear the collected entities for next tick.
-    ClearCollected,
-}
-
-pub struct AbilityPlugin;
-
-impl Plugin for AbilityPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugins(BuffPlugin);
-
-        app.configure_sets(
-            FixedUpdate,
-            (
-                AbilitySet::CollectorUpdate,
-                AbilitySet::Filter,
-                AbilitySet::Apply,
-                AbilitySet::FilterUpdate,
-                AbilitySet::ClearCollected,
-            )
-                .chain()
-                .in_set(InGameSet::Update),
-        );
-
-        app.add_systems(
-            FixedUpdate,
-            (filter_already_hit, filter_timed_hit).in_set(AbilitySet::Filter),
-        );
-
-        app.add_systems(
-            FixedUpdate,
-            (update_already_hit, update_timed_hit).in_set(AbilitySet::FilterUpdate),
-        );
-
-        app.add_systems(
-            FixedUpdate,
-            clear_collected.in_set(AbilitySet::ClearCollected),
-        );
-    }
-}
 
 #[derive(Component, Default)]
 pub struct Collected(Vec<Entity>);
@@ -153,6 +102,3 @@ pub fn update_timed_hit(time: Res<Time>, mut hitting: Query<(&mut TimedHit, &Col
         timed_hit.advance_by(time.delta());
     }
 }
-
-#[derive(Component)]
-pub struct Caster(Entity);
