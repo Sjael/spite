@@ -3,7 +3,7 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    actor::{player::LocalPlayer, HasHealthBar, Respawn},
+    actor::{player::LocalPlayer, HasHealthBar},
     assets::{Fonts, Images},
     camera::PlayerCam,
     prelude::ActorState,
@@ -72,7 +72,7 @@ impl Plugin for UiPlugin {
                 spawn_floating_damage,
                 update_damage_log_ui,
                 show_respawn_ui,
-                tick_respawn_ui,
+                //tick_respawn_ui,
             )
                 .in_set(InGameSet::Update),
         );
@@ -369,22 +369,22 @@ fn show_respawn_ui(
     }
 }
 
-fn tick_respawn_ui(
-    mut death_timer: Query<&mut Text, With<RespawnText>>,
-    respawning: Query<&Respawn>,
-    local_entity: Option<Res<LocalPlayer>>,
-) {
-    let Ok(mut respawn_text) = death_timer.get_single_mut() else {
-        return;
-    };
-    let Some(local) = local_entity else { return };
-    let Ok(respawn) = respawning.get(**local) else {
-        return;
-    };
-    let new_text =
-        (respawn.0.duration().as_secs() as f32 - respawn.0.elapsed_secs()).floor() as u64;
-    respawn_text.sections[1].value = new_text.to_string();
-}
+// fn tick_respawn_ui(
+//     mut death_timer: Query<&mut Text, With<RespawnText>>,
+//     respawning: Query<&Respawn>,
+//     local_entity: Option<Res<LocalPlayer>>,
+// ) {
+//     let Ok(mut respawn_text) = death_timer.get_single_mut() else {
+//         return;
+//     };
+//     let Some(local) = local_entity else { return };
+//     let Ok(respawn) = respawning.get(**local) else {
+//         return;
+//     };
+//     let new_text =
+//         (respawn.0.duration().as_secs() as f32 - respawn.0.elapsed_secs()).floor() as u64;
+//     respawn_text.sections[1].value = new_text.to_string();
+// }
 
 pub fn killfeed_update(
     mut commands: Commands,

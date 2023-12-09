@@ -1,9 +1,12 @@
 
 
+use std::time::{Instant, Duration};
+
 use crate::{
-    ability::crowd_control::{CCMap, CCType},
+    ability::{crowd_control::{CCMap, CCType}, cast::IncomingDamageLog},
     prelude::*,
     session::director::InGameSet,
+    stats::Bounty, ui::scoreboard::Scoreboard,
 };
 
 use self::{controller::*, minion::MinionPlugin, player::*};
@@ -55,8 +58,6 @@ pub enum ActorState {
     Dead,
 }
 
-#[derive(Component)]
-pub struct Respawn(pub Timer);
 
 #[derive(Component, Deref, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub struct PreviousActorState(ActorState);
@@ -110,9 +111,105 @@ pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerIn
     }
 }
 
-/// What should we do when the player dies?
-pub fn kill_player(mut commands: Commands, players: Query<(Entity, &Attributes)>) {
-    for (player_entity, attrs) in &players {
-        if attrs.get(Stat::Health) <= 0.0 {}
+
+fn give_kill_credit(
+    changed_states: Query<(Option<&Bounty>, &ActorState, &IncomingDamageLog), Changed<ActorState>>,
+    mut victors: Query<(&mut Attributes, &ActorType)>,
+    mut scoreboard: ResMut<Scoreboard>,
+){
+    const TIME_FOR_KILL_CREDIT: u64 = 30;
+    for (bounty, state, log) in changed_states.iter(){
+        if state == &ActorState::Alive { continue }
+        
+        let mut killers = Vec::new();
+        for instance in log.list.iter().rev() {
+            if Instant::now().duration_since(instance.when)
+                > Duration::from_secs(TIME_FOR_KILL_CREDIT)
+            {
+                break;
+            }
+            //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
+            killers.push(instance.attacker);
+        }
+        for (index, awardee) in killers.iter().enumerate() {
+            let Ok((mut attributes, awardee_actor)) = victors.get_mut(*awardee) else {
+                continue;
+            };
+    
+            if let Some(bounty) = bounty {
+                let gold = attributes.get_mut(Stat::Gold);
+                *gold += bounty.gold;
+                let xp = attributes.get_mut(Stat::Xp);
+                *xp += bounty.xp;
+            }
+    
+            if let ActorType::Player(killer) = awardee_actor {
+                let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
+                if index == 0 {
+                    killer_scoreboard.kda.kills += 1;
+                } else {
+                    killer_scoreboard.kda.assists += 1;
+                }
+            }
+        }
     }
 }
+
+#[derive(Component)]
+pub struct DeathDelay(pub Timer);
+
+fn start_death_timer(
+    mut commands: Commands,
+    changed_states: Query<(Entity, &ActorState), Changed<ActorState>>,
+){
+    let respawn_timer = 8.0;
+    for (entity, state) in changed_states.iter(){
+        if state == &ActorState::Alive { continue }
+        // Add respawn timer to director
+
+        // Add despawn delay component to dead thing
+        let death_delay = DeathDelay(Timer::from_seconds(10.0, TimerMode::Once));
+        commands.entity(entity).insert(death_delay);
+    }
+}
+
+
+fn tick_death_timer(
+    mut respawning: Query<(Entity, &mut DeathDelay, &mut Visibility)>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    for (entity, mut timer, mut vis) in respawning.iter_mut() {
+        timer.0.tick(time.delta());
+        if timer.0.percent() > 0.7 {
+            *vis = Visibility::Hidden;
+        }
+        if timer.0.finished() {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+// probably want to change this respawn system to just despawn the entity instead of hiding it
+//
+// it makes sense to just move players back to spawn at first, but what about minions? 
+// the hiding + moving way works for players cus u will have just 1
+// like is there supposed to be a cap for minions then? we def despawn them so i think having a unified way of respawning thing too
+// and should do the same for players, fully despawning and setting a respawn in something managed by the director instead of component
+// fn respawn_entity(
+//     mut commands: Commands,
+//     mut the_damned: Query<(&mut Visibility, &ActorState, Entity, &ActorType), Changed<ActorState>>,
+//     local_player: Res<Player>,
+//     //mut spectate_events: EventWriter<SpectateEvent>,
+// ) {
+//     for (mut vis, state, entity, actor_type) in the_damned.iter_mut(){
+//         if state == ActorState::Dead { continue }
+//         commands.entity(entity).remove::<Respawn>();
+//         *vis = Visibility::Visible;
+//         if actor_type == ActorType::Player(*local_player) {
+//             spectate_events.send(SpectateEvent {
+//                 entity: event.entity,
+//             });
+//         }
+//     }
+// }

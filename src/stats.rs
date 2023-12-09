@@ -1,4 +1,4 @@
-use crate::ability::{Ability, DamageType};
+use crate::{ability::{Ability, DamageType}, prelude::ActorState};
 use bevy::{
     prelude::*,
     utils::{HashMap, HashSet},
@@ -219,10 +219,10 @@ pub fn calculate_health_change(
 
 pub fn apply_health_change(
     mut health_mitigated_events: EventReader<HealthMitigatedEvent>,
-    mut health_query: Query<&mut Attributes>,
+    mut health_query: Query<(&mut ActorState, &mut Attributes)>,
 ) {
     for event in health_mitigated_events.read() {
-        let Ok(mut defender_stats) = health_query.get_mut(event.defender) else {
+        let Ok((mut actor_state, mut defender_stats)) = health_query.get_mut(event.defender) else {
             continue;
         };
         let health = defender_stats.get_mut(Stat::Health);
@@ -235,6 +235,9 @@ pub fn apply_health_change(
          */
         let new_hp = *health + event.change as f32; // Add since we flipped number back in team detection
         *health = new_hp;
+        if new_hp < 0.0{
+            *actor_state = ActorState::Dead;
+        }
     }
 }
 pub fn regen_health(mut query: Query<&mut Attributes>, time: Res<Time>) {
