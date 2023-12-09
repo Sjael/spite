@@ -3,7 +3,7 @@ use bevy::{prelude::*, utils::HashMap};
 use super::team::*;
 use crate::{
     actor::player::{LocalPlayerId, Player},
-    prelude::{ActorType, TEAM_1, TEAM_2},
+    prelude::*,
     GameState,
 };
 
@@ -37,6 +37,15 @@ impl Plugin for DirectorPlugin {
         app.configure_sets(
             PostUpdate,
             InGameSet::Pre.run_if(in_state(GameState::InGame)),
+        );
+
+        app.configure_sets(
+            FixedUpdate,
+            (InGameSet::Pre, InGameSet::Update, InGameSet::Post)
+                .chain()
+                .run_if(in_state(GameState::InGame))
+                .before(PhysicsSet::Prepare)
+                .before(PhysicsSet::Sync),
         );
     }
 }
