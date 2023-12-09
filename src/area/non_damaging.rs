@@ -1,11 +1,10 @@
 use crate::{
     ability::TargetsInArea,
-    actor::player::{LocalPlayer, Player},
+    actor::player::LocalPlayer,
     prelude::*,
     ui::spectating::FocusedHealthEntity,
 };
 
-use super::{AreaOverlapEvent, AreaOverlapType};
 
 #[derive(Component)]
 pub struct HealthBarDetect;
@@ -34,27 +33,18 @@ pub fn add_health_bar_detect_colliders(
 }
 
 pub fn focus_objective_health(
-    query: Query<&Parent, With<HealthBarDetect>>,
-    players: Query<&Player>,
     local_player: Option<Res<LocalPlayer>>,
     mut focused_health_entity: ResMut<FocusedHealthEntity>,
-    mut area_events: EventReader<AreaOverlapEvent>,
-    mut collision_starts: EventReader<CollisionStarted>,
-    mut collision_ends: EventReader<CollisionEnded>,
+    targets_query: Query<(&TargetsInArea, &Parent), (Changed<TargetsInArea>, With<HealthBarDetect>)>,
 ) {
     let Some(local_player) = local_player else {
         return;
     };
-    for event in area_events.read() {
-        let Ok(parent) = query.get(event.sensor) else {
-            continue;
-        };
-        if event.target == *local_player {
-            if event.overlap == AreaOverlapType::Entered {
-                focused_health_entity.0 = Some(parent.get());
-            } else {
-                focused_health_entity.0 = None;
-            }
+    for (targets, parent) in targets_query.iter(){
+        if targets.list.contains(&**local_player){
+            focused_health_entity.0 = Some(parent.get());
+        } else { 
+            focused_health_entity.0 = None;
         }
     }
 }

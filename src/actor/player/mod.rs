@@ -11,10 +11,11 @@ use crate::{
             AbilityCastSettings, Casting, CooldownMap, HoveredAbility, IncomingDamageLog,
             OutgoingDamageLog, WindupTimer,
         },
-        crowd_control::{CCMap, CCType},
+        crowd_control::CCMap,
         rank::AbilityRanks,
     },
-    actor::{controller::Controller, player::camera::Spectatable},
+    actor::controller::Controller,
+    camera::Spectatable,
     input::SlotBundle,
     prelude::*,
     ui::{
@@ -25,7 +26,6 @@ use crate::{
     stats::Bounty,
 };
 
-pub mod camera;
 pub mod input;
 pub mod reticle;
 
@@ -46,8 +46,7 @@ impl Plugin for PlayerPlugin {
 
         app.init_resource::<Players>();
 
-        app.add_plugins(input::InputPlugin)
-            .add_plugins(camera::CameraPlugin);
+        app.add_plugins(input::InputPlugin);
 
         app.add_systems(OnEnter(GameState::InGame), spawn_local_player);
         app.add_systems(
@@ -151,12 +150,7 @@ pub fn init_player(
     }
 }
 
-/// What should we do when the player dies?
-pub fn kill_player(mut commands: Commands, players: Query<(Entity, &Attributes), With<Player>>) {
-    for (player_entity, attrs) in &players {
-        if attrs.get(Stat::Health) <= 0.0 {}
-    }
-}
+
 
 /*
 pub fn respawn_player(

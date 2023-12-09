@@ -4,7 +4,8 @@ use bevy::prelude::*;
 use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
 use bevy_tweening::TweeningPlugin;
-use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
+use bevy_xpbd_3d::prelude::*;
+use camera::CameraPlugin;
 use inventory::InventoryPlugin;
 use session::director::DirectorPlugin;
 
@@ -19,6 +20,7 @@ pub mod ability;
 pub mod actor;
 pub mod area;
 pub mod assets;
+pub mod camera;
 pub mod debug;
 pub mod input;
 pub mod inventory;
@@ -81,7 +83,7 @@ impl Plugin for GamePlugin {
         app.add_plugins((
             GameAssetPlugin,
             DirectorPlugin,
-            //ViewPlugin,
+            CameraPlugin,
             UiPlugin,
             AbilityPlugin,
             ActorPlugin,

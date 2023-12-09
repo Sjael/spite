@@ -1,12 +1,10 @@
-use std::{collections::HashMap, time::Duration};
+
 
 use crate::{
     ability::crowd_control::{CCMap, CCType},
     prelude::*,
-    session::{director::InGameSet, team::TEAM_1},
-    GameState,
+    session::director::InGameSet,
 };
-use oxidized_navigation::NavMeshAffector;
 
 use self::{controller::*, minion::MinionPlugin, player::*};
 
@@ -109,5 +107,12 @@ pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerIn
 
         controller.direction = movement_vector;
         controller.max_speed = speed;
+    }
+}
+
+/// What should we do when the player dies?
+pub fn kill_player(mut commands: Commands, players: Query<(Entity, &Attributes)>) {
+    for (player_entity, attrs) in &players {
+        if attrs.get(Stat::Health) <= 0.0 {}
     }
 }

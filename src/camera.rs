@@ -157,8 +157,8 @@ pub fn spawn_camera(
                 ..default()
             }),
             OuterGimbal,
-            FollowTranslation(local_player.0),
-            Focus(local_player.0),
+            FollowTranslation(**local_player),
+            Focus(**local_player),
             Name::new("Outer Gimbal"),
         ))
         .id();

@@ -3,18 +3,10 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    ability::{
-        AbilityTooltip,
-    },
-    actor::{
-        player::{
-            camera::{PlayerCam, Spectating},
-            LocalPlayer, LocalPlayerId, Player,
-        },
-        HasHealthBar, Respawn,
-    },
+    actor::{player::LocalPlayer, HasHealthBar, Respawn},
     assets::{Fonts, Images},
-    prelude::{ActorState, ActorType},
+    camera::PlayerCam,
+    prelude::ActorState,
     session::director::{GameModeDetails, InGameSet},
     ui::{
         hud_editor::*, ingame_menu::*, main_menu::*, mouse::*, spectating::*, store::*, styles::*,
@@ -358,7 +350,7 @@ fn drop_holdable(
 
 fn show_respawn_ui(
     mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
-    mut changed_states: Query<&ActorState, Changed<ActorState>>,
+    changed_states: Query<&ActorState, Changed<ActorState>>,
     local_entity: Option<Res<LocalPlayer>>,
 ) {
     let Ok(mut vis) = death_timer.get_single_mut() else {
@@ -396,7 +388,7 @@ fn tick_respawn_ui(
 
 pub fn killfeed_update(
     mut commands: Commands,
-    mut changed_states: Query<&ActorState, Changed<ActorState>>, // Add player id so we can increment kda for that player
+    changed_states: Query<&ActorState, Changed<ActorState>>, // Add player id so we can increment kda for that player
     killfeed_query: Query<Entity, With<Killfeed>>,
 ) {
     for actor_state in changed_states.iter() {

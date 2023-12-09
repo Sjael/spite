@@ -9,7 +9,6 @@ use oxidized_navigation::{
 
 use crate::stats::Attributes;
 use crate::actor::controller::Controller;
-use crate::physics::PLAYER;
 use crate::prelude::*;
 use crate::session::team::TEAM_1;
 

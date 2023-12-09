@@ -2,7 +2,6 @@ use std::io::Cursor;
 
 use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
 //use bevy_fly_camera::{camera_movement_system, mouse_motion_system};
-use sacred_aurora::prelude::*;
 use winit::window::Icon;
 
 fn main() {

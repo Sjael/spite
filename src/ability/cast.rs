@@ -5,7 +5,8 @@ use leafwing_input_manager::prelude::*;
 
 use crate::{
     ability::Ability,
-    actor::player::{camera::OuterGimbal, reticle::Reticle, PlayerInput},
+    actor::player::{reticle::Reticle, PlayerInput},
+    camera::OuterGimbal, 
     area::{homing::Homing, AbilityBehavior},
     assets::MaterialPresets,
     prelude::*,
@@ -15,7 +16,7 @@ use crate::{
 use super::{
     bundles::Targetter,
     crowd_control::{CCMap, CCType},
-    rank::{AbilityRanks, Rank},
+    rank::AbilityRanks,
     DamageType, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
 };
 

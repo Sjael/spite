@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::input::mouse::MouseMotion;
 use serde::{Deserialize, Serialize};
 
-use crate::{actor::LocalPlayer, input::MouseSensitivity, prelude::*, ui::mouse::MouseState};
+use crate::{input::MouseSensitivity, prelude::*, ui::mouse::MouseState};
 
 use super::{LocalPlayerId, Player};
 

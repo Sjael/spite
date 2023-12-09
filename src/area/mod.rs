@@ -11,14 +11,13 @@ use crate::{
     ability::{
         buff::{BuffInfo, BuffTargets},
         cast::{Caster, FireHomingEvent},
-        crowd_control::{CCEvent, CCInfo},
+        crowd_control::CCEvent,
         Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType, DeployAreaStage,
         FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags,
         TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
         UniqueTargetsHit,
     },
     session::team::Team,
-    prelude::*,
 };
 use homing::track_homing;
 
@@ -65,7 +64,7 @@ impl Plugin for AreaPlugin {
         app.add_systems(
             Update,
             (
-                tick_lifetime,
+                tick_area_lifetime,
                 tick_hit_timers,
                 track_homing,
                 add_health_bar_detect_colliders,
@@ -122,7 +121,7 @@ fn area_apply_tags(
         tags,
         damage_type,
         caster,
-        parent,
+        _parent,
         interval,
         mut max_targets_hit,
         mut tick_behavior,
@@ -479,7 +478,7 @@ fn catch_collisions(
 //     Some((area_entity, target_entity, &mut *targets_in_area))
 // }
 
-fn tick_lifetime(
+fn tick_area_lifetime(
     mut commands: Commands,
     time: Res<Time>,
     mut lifetimes: Query<(&mut AreaLifetime, Entity)>,
@@ -532,14 +531,14 @@ fn tick_hit_timers(
     time: Res<Time>,
     mut area_timers: Query<(
         &TargetsInArea,
-        &mut Ticks,
+        &Ticks,
         &FiringInterval,
         &mut TickBehavior,
         Option<&PausesWhenEmpty>,
         Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline) in
+    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in
         &mut area_timers
     {
         // only tick area timers if has timeline and is firing
