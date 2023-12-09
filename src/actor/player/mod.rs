@@ -13,7 +13,6 @@ use crate::{
         },
         crowd_control::{CCMap, CCType},
         rank::AbilityRanks,
-        stats::Bounty,
     },
     actor::{controller::Controller, player::camera::Spectatable},
     input::SlotBundle,
@@ -23,6 +22,7 @@ use crate::{
         Trackable,
     },
     GameState,
+    stats::Bounty,
 };
 
 pub mod camera;

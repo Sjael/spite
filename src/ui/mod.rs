@@ -4,7 +4,6 @@ use ui_bundles::team_thumbs_holder;
 
 use crate::{
     ability::{
-        stats::{Attributes, Stat},
         AbilityTooltip,
     },
     actor::{
@@ -22,6 +21,7 @@ use crate::{
         ui_bundles::*,
     },
     GameState,
+    stats::{Attributes, Stat},
 };
 
 use self::{
@@ -44,6 +44,7 @@ impl Plugin for UiPlugin {
         app.add_event::<ResetUiEvent>().add_event::<MenuEvent>();
 
         app.insert_resource(FocusedHealthEntity(None))
+            .insert_resource(Scoreboard::default())
             .insert_resource(CursorHolding(None));
 
         app.add_plugins(StorePlugin);

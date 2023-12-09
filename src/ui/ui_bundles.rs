@@ -7,9 +7,10 @@ use bevy_tweening::{
 };
 
 use crate::{
-    ability::{crowd_control::CCType, stats::Stat, Ability, AbilityTooltip},
+    ability::{crowd_control::CCType, Ability, AbilityTooltip},
     assets::{Fonts, Icons, Images, Items},
     item::Item,
+    stats::Stat,
 };
 
 use super::styles::*;

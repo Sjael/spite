@@ -4,18 +4,18 @@ use bevy::utils::HashMap;
 use leafwing_input_manager::prelude::*;
 
 use crate::{
-    ability::{stats::Attributes, Ability},
+    ability::Ability,
     actor::player::{camera::OuterGimbal, reticle::Reticle, PlayerInput},
     area::{homing::Homing, AbilityBehavior},
     assets::MaterialPresets,
     prelude::*,
+    stats::{HealthMitigatedEvent, Attributes},
 };
 
 use super::{
     bundles::Targetter,
     crowd_control::{CCMap, CCType},
     rank::{AbilityRanks, Rank},
-    stats::HealthMitigatedEvent,
     DamageType, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
 };
 
@@ -24,6 +24,8 @@ impl Plugin for CastPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<LogHit>()
             .add_event::<InputCastEvent>()
+            .add_event::<AbilityFireEvent>()
+            .add_event::<FireHomingEvent>()
             .add_event::<CastEvent>();
 
         app.add_systems(

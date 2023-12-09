@@ -26,11 +26,12 @@ pub mod item;
 pub mod map;
 pub mod physics;
 pub mod session;
+pub mod stats;
 pub mod ui;
 
 pub mod prelude {
     pub use crate::{
-        ability::stats::{AttributeTag, Attributes, Modifier, Stat},
+        stats::{AttributeTag, Attributes, Modifier, Stat},
         actor::{ActorState, ActorType},
         area::*,
         assets::{Icons, Models, Scenes},

@@ -15,7 +15,6 @@ use crate::{
             AbilityFireEvent, CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer,
         },
         crowd_control::{CCMap, CCType},
-        stats::*,
         Ability,
         //view::Spectating,
     },
@@ -25,6 +24,7 @@ use crate::{
     item::{Item, ITEM_DB},
     session::team::*,
     ui::ui_bundles::*,
+    stats::*,
 };
 
 use super::{store::CATEGORIES, ButtonAction};

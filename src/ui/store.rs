@@ -1,15 +1,13 @@
 use bevy::prelude::*;
 
 use crate::{
-    ability::{
-        stats::{Attributes, Stat, Stat::*},
-        TargetsInArea,
-    },
+    ability::TargetsInArea,
     actor::player::LocalPlayer,
     area::{AreaOverlapEvent, AreaOverlapType, Fountain},
     assets::Items,
     inventory::Inventory,
     item::Item,
+    stats::{Attributes, Stat, Stat::*},
 };
 
 use super::{

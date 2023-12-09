@@ -9,7 +9,11 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use crate::{assets::Icons, prelude::*};
+use crate::{
+    assets::Icons, 
+    prelude::*,
+    stats::{Stat, StatsPlugin},
+};
 
 use bevy::prelude::*;
 use derive_more::Display;
@@ -21,7 +25,6 @@ use self::{
     cast::CastPlugin,
     crowd_control::{CCInfo, CCPlugin, CCType},
     shape::AbilityShape,
-    stats::{Stat, StatsPlugin},
 };
 
 pub mod buff;
@@ -31,7 +34,6 @@ pub mod collector;
 pub mod crowd_control;
 pub mod rank;
 pub mod shape;
-pub mod stats;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AbilitySet {
