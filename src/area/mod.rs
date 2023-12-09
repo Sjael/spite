@@ -1,7 +1,9 @@
 use bevy::prelude::*;
+use bevy_xpbd_3d::prelude::*;
 use rand::Rng;
 use std::{
     cmp::Ordering,
+    collections::HashMap,
     time::{Duration, Instant},
 };
 
@@ -15,12 +17,20 @@ use crate::{
         TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
         UniqueTargetsHit,
     },
-    game_manager::{FireHomingEvent, Team},
+    collision_masks::Team,
     prelude::*,
 };
 use homing::track_homing;
 
 use self::non_damaging::*;
+
+#[derive(Component)]
+pub struct ProcMap(pub HashMap<Ability, Vec<AbilityBehavior>>);
+
+pub enum AbilityBehavior {
+    Homing,
+    OnHit,
+}
 
 #[derive(Event, Clone)]
 pub struct HealthChangeEvent {
@@ -112,10 +122,10 @@ fn area_apply_tags(
         tags,
         damage_type,
         caster,
-        _parent,
+        parent,
         interval,
         mut max_targets_hit,
-        tick_behavior,
+        mut tick_behavior,
         mut unique_targets_hit,
         ability,
     ) in &mut sensor_query
@@ -130,7 +140,7 @@ fn area_apply_tags(
             let caster = if let Some(caster) = caster {
                 caster.0
             } else {
-                sensor_entity
+                sensor_entity // change to something random and funny like fg or 'God'
             };
             let on_same_team = sensor_team.0 == target_team.0;
             if let Some(ref unique_targets_hit) = unique_targets_hit {
@@ -393,71 +403,81 @@ pub struct AreaOverlapEvent {
     pub overlap: AreaOverlapType,
 }
 
-fn catch_collisions() {}
-/*
 fn catch_collisions(
     targets_query: Query<Entity, Without<Sensor>>,
     mut sensor_query: Query<(Entity, &mut TargetsInArea), With<Sensor>>,
-    mut collision_events: EventReader<CollisionEvent>,
+    mut collision_starts: EventReader<CollisionStarted>,
+    mut collision_ends: EventReader<CollisionEnded>,
     mut area_events: EventWriter<AreaOverlapEvent>,
 ) {
-    for collision_event in collision_events.read() {
-        let ((area_entity, mut targets_in_area), target_entity, colliding) = match collision_event {
-            &CollisionEvent::Started(collider1, collider2, _flags) => {
-                let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(collider1) {
-                    (sensor, collider2)
-                } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
-                    (sensor, collider1)
-                } else {
-                    continue;
-                };
-
-                if let Ok(target) = targets_query.get(potential) {
-                    (sensor, target, true)
-                } else {
-                    continue;
-                }
-            }
-            &CollisionEvent::Stopped(collider1, collider2, _flags) => {
-                let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(collider1) {
-                    (sensor, collider2)
-                } else if let Ok(sensor) = sensor_query.get_mut(collider2) {
-                    (sensor, collider1)
-                } else {
-                    continue;
-                };
-
-                if let Ok(target) = targets_query.get(potential) {
-                    (sensor, target, false)
-                } else {
-                    continue;
-                }
-            }
+    for CollisionStarted(entity1, entity2) in collision_starts.read() {
+        let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(*entity1) {
+            (sensor, entity2)
+        } else if let Ok(sensor) = sensor_query.get_mut(*entity2) {
+            (sensor, entity1)
+        } else {
+            continue;
         };
-        if colliding {
-            targets_in_area.list.push(target_entity);
+
+        let ((area_entity, mut targets_in_area), target_entity) =
+            if let Ok(target) = targets_query.get(*potential) {
+                (sensor, target)
+            } else {
+                continue;
+            };
+        targets_in_area.list.push(target_entity);
+        area_events.send(AreaOverlapEvent {
+            sensor: area_entity,
+            target: target_entity,
+            overlap: AreaOverlapType::Entered,
+        });
+    }
+    for CollisionEnded(entity1, entity2) in collision_ends.read() {
+        let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(*entity1) {
+            (sensor, entity2)
+        } else if let Ok(sensor) = sensor_query.get_mut(*entity2) {
+            (sensor, entity1)
+        } else {
+            continue;
+        };
+
+        let ((area_entity, mut targets_in_area), target_entity) =
+            if let Ok(target) = targets_query.get(*potential) {
+                (sensor, target)
+            } else {
+                continue;
+            };
+        if let Some(index) = targets_in_area
+            .list
+            .iter()
+            .position(|x| *x == target_entity)
+        {
+            targets_in_area.list.remove(index);
             area_events.send(AreaOverlapEvent {
                 sensor: area_entity,
                 target: target_entity,
-                overlap: AreaOverlapType::Entered,
+                overlap: AreaOverlapType::Exited,
             });
-        } else {
-            if let Some(index) = targets_in_area
-                .list
-                .iter()
-                .position(|x| *x == target_entity)
-            {
-                targets_in_area.list.remove(index);
-                area_events.send(AreaOverlapEvent {
-                    sensor: area_entity,
-                    target: target_entity,
-                    overlap: AreaOverlapType::Exited,
-                });
-            }
         }
     }
 }
- */
+
+// fn get_sensors(entity1: Entity, entity2: Entity, sensor_query: &mut Query<(Entity, &mut TargetsInArea), With<Sensor>>, targets_query: &Query<Entity, Without<Sensor>>) -> Option<(Entity, Entity, &mut TargetsInArea)> {
+//     let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(entity1) {
+//         (sensor, entity2)
+//     } else if let Ok(sensor) = sensor_query.get_mut(entity2) {
+//         (sensor, entity1)
+//     } else {
+//         return None
+//     };
+
+//     let ((area_entity, mut targets_in_area), target_entity) = if let Ok(target) = targets_query.get(potential) {
+//         (sensor, target)
+//     } else {
+//         return None
+//     };
+//     Some((area_entity, target_entity, &mut *targets_in_area))
+// }
 
 fn tick_lifetime(
     mut commands: Commands,
@@ -476,9 +496,9 @@ fn tick_lifetime(
 fn tick_timeline(
     mut commands: Commands,
     time: Res<Time>,
-    mut lifetimes: Query<(&mut AreaTimeline, Entity)>,
+    mut lifetimes: Query<(&mut AreaTimeline, Entity, &mut Visibility)>,
 ) {
-    for (mut timeline, entity) in lifetimes.iter_mut() {
+    for (mut timeline, entity, mut vis) in lifetimes.iter_mut() {
         //dbg!(lifetime.clone());
         timeline.timer.tick(time.delta());
         if timeline.timer.finished() {
@@ -488,6 +508,8 @@ fn tick_timeline(
             timeline.timer = Timer::new(Duration::from_secs_f32(new_time), TimerMode::Once);
             if timeline.stage == Recovery {
                 commands.entity(entity).despawn_recursive();
+            } else if timeline.stage == Windup {
+                *vis = Visibility::Visible;
             }
         }
     }
@@ -499,7 +521,7 @@ fn apply_interval(
     for (interval, mut tick_behavior) in &mut area_timers {
         match *tick_behavior {
             TickBehavior::Static(ref mut static_timer) => {
-                static_timer.set_duration(Duration::from_millis(interval.0 as u64));
+                static_timer.set_duration(Duration::from_secs_f32(interval.0));
             }
             _ => (),
         }
@@ -517,7 +539,8 @@ fn tick_hit_timers(
         Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in &mut area_timers
+    for (targets_in_area, mut ticks, interval, mut tick_behavior, pauses, timeline) in
+        &mut area_timers
     {
         // only tick area timers if has timeline and is firing
         if let Some(timeline) = timeline {
@@ -556,6 +579,9 @@ fn tick_hit_timers(
         }
     }
 }
+
+#[derive(Component)]
+pub struct Fountain;
 
 pub mod homing;
 pub mod non_damaging;

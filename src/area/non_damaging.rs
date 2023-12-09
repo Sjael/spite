@@ -39,6 +39,8 @@ pub fn focus_objective_health(
     local_player: Option<Res<LocalPlayer>>,
     mut focused_health_entity: ResMut<FocusedHealthEntity>,
     mut area_events: EventReader<AreaOverlapEvent>,
+    mut collision_starts: EventReader<CollisionStarted>,
+    mut collision_ends: EventReader<CollisionEnded>,
 ) {
     let Some(local_player) = local_player else {
         return;

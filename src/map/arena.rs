@@ -13,7 +13,7 @@ use crate::{
         TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
     },
     actor::{player::camera::Spectatable, HasHealthBar},
-    game_manager::Fountain,
+    area::Fountain,
     prelude::{non_damaging::ObjectiveHealthOwner, *},
     GameState,
 };

@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::{assets::Icons, game_manager::InGameSet};
+use crate::{assets::Icons, session::director::InGameSet};
 
 pub struct CCPlugin;
 impl Plugin for CCPlugin {

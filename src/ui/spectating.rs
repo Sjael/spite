@@ -17,12 +17,13 @@ use crate::{
         crowd_control::{CCMap, CCType},
         stats::*,
         Ability,
+        //view::Spectating,
     },
     actor::player::{LocalPlayer, Player},
     assets::{Fonts, Icons, Images, Items},
-    game_manager::Team,
     input::SlotAbilityMap,
     item::{Item, ITEM_DB},
+    session::team::*,
     ui::ui_bundles::*,
 };
 

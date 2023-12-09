@@ -9,8 +9,9 @@ use oxidized_navigation::{
 
 use crate::ability::stats::Attributes;
 use crate::actor::controller::Controller;
-use crate::game_manager::TEAM_1;
+use crate::physics::PLAYER;
 use crate::prelude::*;
+use crate::session::team::TEAM_1;
 
 pub struct MinionPlugin;
 impl Plugin for MinionPlugin {

@@ -4,18 +4,19 @@ use bevy::utils::HashMap;
 use leafwing_input_manager::prelude::*;
 
 use crate::{
-    ability::{Ability, stats::Attributes},
+    ability::{stats::Attributes, Ability},
     actor::player::{camera::OuterGimbal, reticle::Reticle, PlayerInput},
+    area::{homing::Homing, AbilityBehavior},
     assets::MaterialPresets,
-    prelude::*, game_manager::{Team, ProcMap, FireHomingEvent, AbilityBehavior}, area::homing::Homing,
+    prelude::*,
 };
 
 use super::{
-    bundles::{Targetter, },
+    bundles::Targetter,
     crowd_control::{CCMap, CCType},
-    rank::{Rank, AbilityRanks},
+    rank::{AbilityRanks, Rank},
     stats::HealthMitigatedEvent,
-    DamageType, TickBehavior, MaxTargetsHit, TargetsHittable, TargetsInArea,
+    DamageType, MaxTargetsHit, TargetsHittable, TargetsInArea, TickBehavior,
 };
 
 pub struct CastPlugin;
@@ -503,6 +504,13 @@ pub struct Tower;
 pub struct AbilityFireEvent {
     pub caster: Entity,
     pub ability: Ability,
+}
+
+#[derive(Event)]
+pub struct FireHomingEvent {
+    pub caster: Entity,
+    pub ability: Ability,
+    pub target: Entity,
 }
 
 pub fn place_homing_ability(

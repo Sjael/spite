@@ -2,8 +2,9 @@ use std::{collections::HashMap, time::Duration};
 
 use crate::{
     ability::crowd_control::{CCMap, CCType},
-    game_manager::{InGameSet, TEAM_1},
     prelude::*,
+    session::{director::InGameSet, team::TEAM_1},
+    GameState,
 };
 use oxidized_navigation::NavMeshAffector;
 
@@ -34,6 +35,7 @@ impl Plugin for ActorPlugin {
                 .chain()
                 .in_set(InGameSet::Post),
         );
+        //app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }
 
@@ -54,6 +56,9 @@ pub enum ActorState {
     #[default]
     Dead,
 }
+
+#[derive(Component)]
+pub struct Respawn(pub Timer);
 
 #[derive(Component, Deref, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub struct PreviousActorState(ActorState);

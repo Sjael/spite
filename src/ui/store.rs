@@ -6,9 +6,8 @@ use crate::{
         TargetsInArea,
     },
     actor::player::LocalPlayer,
-    area::{AreaOverlapEvent, AreaOverlapType},
+    area::{AreaOverlapEvent, AreaOverlapType, Fountain},
     assets::Items,
-    game_manager::Fountain,
     inventory::Inventory,
     item::Item,
 };

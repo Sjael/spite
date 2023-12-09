@@ -6,7 +6,6 @@ use super::{
     DamageType, *,
 };
 
-
 #[derive(Component)]
 pub struct Targetter;
 

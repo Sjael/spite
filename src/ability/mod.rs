@@ -9,7 +9,7 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use crate::{prelude::*, assets::Icons};
+use crate::{assets::Icons, prelude::*};
 
 use bevy::prelude::*;
 use derive_more::Display;
@@ -18,9 +18,10 @@ use leafwing_input_manager::Actionlike;
 use self::{
     buff::{BuffInfo, BuffPlugin},
     bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
-    crowd_control::{CCInfo, CCType, CCPlugin},
+    cast::CastPlugin,
+    crowd_control::{CCInfo, CCPlugin, CCType},
     shape::AbilityShape,
-    stats::{Stat, StatsPlugin}, cast::CastPlugin,
+    stats::{Stat, StatsPlugin},
 };
 
 pub mod buff;

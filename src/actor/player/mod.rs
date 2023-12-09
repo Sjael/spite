@@ -13,9 +13,9 @@ use crate::{
         },
         crowd_control::{CCMap, CCType},
         rank::AbilityRanks,
+        stats::Bounty,
     },
     actor::{controller::Controller, player::camera::Spectatable},
-    game_manager::Bounty,
     input::SlotBundle,
     prelude::*,
     ui::{

@@ -6,7 +6,6 @@ use bevy::utils::HashSet;
 
 use crate::prelude::*;
 
-
 #[derive(Component, Default)]
 pub struct Collected(Vec<Entity>);
 

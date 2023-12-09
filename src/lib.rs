@@ -6,12 +6,12 @@ use bevy_editor_pls::prelude::*;
 use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 use inventory::InventoryPlugin;
+use session::director::DirectorPlugin;
 
-use ability::{AbilityPlugin, shape::load_ability_shape};
+use ability::{shape::load_ability_shape, AbilityPlugin};
 use actor::ActorPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
-use game_manager::GameManagerPlugin;
 use input::InputPlugin;
 use ui::{spectating::spawn_spectator_camera, UiPlugin};
 
@@ -19,27 +19,27 @@ pub mod ability;
 pub mod actor;
 pub mod area;
 pub mod assets;
+pub mod collision_masks;
 pub mod debug;
-pub mod game_manager;
 pub mod input;
 pub mod inventory;
 pub mod item;
 pub mod map;
 pub mod physics;
+pub mod session;
 pub mod ui;
 
 pub mod prelude {
     pub use crate::{
         ability::stats::{AttributeTag, Attributes, Modifier, Stat},
-        actor::{
-            ActorState, ActorType,
-        },
+        actor::{ActorState, ActorType},
         area::*,
         assets::{Icons, Models, Scenes},
-        game_manager::{InGameSet, TEAM_1, TEAM_2, TEAM_3, TEAM_NEUTRAL},
         inventory::Inventory,
         item::Item,
         physics::*,
+        session::director::InGameSet,
+        session::team::*,
     };
     pub use bevy::prelude::*;
     pub use bevy_xpbd_3d::prelude::*;
@@ -80,7 +80,8 @@ impl Plugin for GamePlugin {
 
         app.add_plugins((
             GameAssetPlugin,
-            GameManagerPlugin,
+            DirectorPlugin,
+            //ViewPlugin,
             UiPlugin,
             AbilityPlugin,
             ActorPlugin,
