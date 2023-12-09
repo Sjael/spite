@@ -19,7 +19,6 @@ pub mod ability;
 pub mod actor;
 pub mod area;
 pub mod assets;
-pub mod collision_masks;
 pub mod debug;
 pub mod input;
 pub mod inventory;

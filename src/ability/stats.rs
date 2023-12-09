@@ -8,10 +8,10 @@ use strum_macros::EnumIter;
 //use fixed::types::I40F24;
 use crate::area::HealthChangeEvent;
 //use crate::buff::BuffMap;
-use crate::director::InGameSet;
+use crate::session::director::InGameSet;
 use std::{fmt::Display, time::Instant};
 
-use super::player::Player;
+use crate::actor::player::Player;
 
 // Use enum as stat instead of unit structs?
 //
