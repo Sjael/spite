@@ -9,7 +9,7 @@ use bevy::{
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 //use fixed::types::I40F24;
-use crate::area::HealthChangeEvent;
+use crate::area::queue::HealthChangeEvent;
 //use crate::buff::BuffMap;
 use crate::session::director::InGameSet;
 use std::{fmt::Display, time::Instant};

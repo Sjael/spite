@@ -1,7 +1,7 @@
 use super::{
     crowd_control::{CCInfo, CCType},
     shape::AbilityShape,
-    DamageType, *,
+    DamageType, *, timeline::AreaLifetime,
 };
 
 #[derive(Component)]

@@ -3,7 +3,10 @@ use bevy::prelude::*;
 use crate::{
     ability::TargetsInArea,
     actor::player::LocalPlayer,
-    area::{AreaOverlapEvent, AreaOverlapType, Fountain},
+    area::{
+        queue::{AreaOverlapEvent, AreaOverlapType},
+        Fountain,
+    },
     assets::Items,
     inventory::Inventory,
     item::Item,

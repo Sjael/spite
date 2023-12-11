@@ -21,9 +21,7 @@ impl Plugin for CameraPlugin {
 
         app.add_systems(
             PostUpdate,
-            (spectate_entity, focus_entity)
-                .chain()
-                .in_set(FocusSet),
+            (spectate_entity, focus_entity).chain().in_set(FocusSet),
         );
 
         app.add_systems(FixedUpdate, spawn_camera.in_set(InGameSet::Pre));

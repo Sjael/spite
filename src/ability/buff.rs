@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::stats::{AttributeTag, Attributes, Stat};
-use crate::{area::BuffEvent, session::director::InGameSet};
+use crate::{area::queue::BuffEvent, session::director::InGameSet};
 use bevy::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug, Reflect, Eq, PartialEq)]

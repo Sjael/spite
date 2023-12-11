@@ -179,128 +179,134 @@ pub fn setup_arena(
         .insert((Attributes::default(),));
 
     // Scanning Damage zone RED
-    commands.spawn((
-        SpatialBundle::from_transform(Transform {
-            translation: Vec3::new(-10.0, 0.0, 10.0),
-            ..default()
-        }),
-        meshes.add(Mesh::from(shape::Plane {
-            size: 4.0,
-            subdivisions: 2,
-        })),
-        materials.add(StandardMaterial::from(Color::MAROON)),
-        Name::new("DamageFountain"),
-    )).insert((
-        RigidBody::Static,
-        Collider::cuboid(4.0, 0.3, 4.0),
-        CollisionLayers::ABILITY,
-        Sensor,
-        FiringInterval(5.0),
-        Ticks::Unlimited,
-        TickBehavior::static_timer(),
-        TargetsInArea::default(),
-        TargetsHittable::default(),
-        TEAM_NEUTRAL,
-        Tags {
-            list: vec![
-                TagInfo::Damage(12.0),
-                TagInfo::CC(CCInfo {
-                    cctype: CCType::Stun,
-                    duration: 3.0,
-                }),
-            ],
-        },
-    ));
+    commands
+        .spawn((
+            SpatialBundle::from_transform(Transform {
+                translation: Vec3::new(-10.0, 0.0, 10.0),
+                ..default()
+            }),
+            meshes.add(Mesh::from(shape::Plane {
+                size: 4.0,
+                subdivisions: 2,
+            })),
+            materials.add(StandardMaterial::from(Color::MAROON)),
+            Name::new("DamageFountain"),
+        ))
+        .insert((
+            RigidBody::Static,
+            Collider::cuboid(4.0, 0.3, 4.0),
+            CollisionLayers::ABILITY,
+            Sensor,
+            FiringInterval(5.0),
+            Ticks::Unlimited,
+            TickBehavior::static_timer(),
+            TargetsInArea::default(),
+            TargetsHittable::default(),
+            TEAM_NEUTRAL,
+            Tags {
+                list: vec![
+                    TagInfo::Damage(12.0),
+                    TagInfo::CC(CCInfo {
+                        cctype: CCType::Stun,
+                        duration: 3.0,
+                    }),
+                ],
+            },
+        ));
 
     // Damage zone YELLOW
-    commands.spawn((
-        SpatialBundle::from_transform(Transform {
-            translation: Vec3::new(10.0, 0.0, 10.0),
-            ..default()
-        }),
-        meshes.add(Mesh::from(shape::Plane {
-            size: 4.0,
-            subdivisions: 2,
-        })),
-        materials.add(StandardMaterial::from(Color::GOLD)),
-        Spectatable,
-        Name::new("DamageFountain2"),
-    )).insert((
-        RigidBody::Static,
-        CollisionLayers::ABILITY,
-        Collider::cuboid(4.0, 0.3, 4.0),
-        Sensor,
-        Tags {
-            list: vec![
-                TagInfo::Damage(27.0),
-                TagInfo::Buff(BuffInfo {
-                    stat: AttributeTag::Modifier {
-                        modifier: Modifier::Mul,
-                        target: Box::new(Stat::Speed.into()),
-                    },
-                    amount: 20.0,
-                    max_stacks: 3,
-                    duration: 10.0,
-                    ..default()
-                }),
-                TagInfo::CC(CCInfo {
-                    cctype: CCType::Silence,
-                    duration: 7.0,
-                }),
-            ],
-        },
-        FiringInterval(1.0),
-        TickBehavior::individual(),
-        Ticks::Unlimited,
-        TEAM_NEUTRAL,
-        TargetsInArea::default(),
-        TargetsHittable::default(),
-    ));
+    commands
+        .spawn((
+            SpatialBundle::from_transform(Transform {
+                translation: Vec3::new(10.0, 0.0, 10.0),
+                ..default()
+            }),
+            meshes.add(Mesh::from(shape::Plane {
+                size: 4.0,
+                subdivisions: 2,
+            })),
+            materials.add(StandardMaterial::from(Color::GOLD)),
+            Spectatable,
+            Name::new("DamageFountain2"),
+        ))
+        .insert((
+            RigidBody::Static,
+            CollisionLayers::ABILITY,
+            Collider::cuboid(4.0, 0.3, 4.0),
+            Sensor,
+            Tags {
+                list: vec![
+                    TagInfo::Damage(27.0),
+                    TagInfo::Buff(BuffInfo {
+                        stat: AttributeTag::Modifier {
+                            modifier: Modifier::Mul,
+                            target: Box::new(Stat::Speed.into()),
+                        },
+                        amount: 20.0,
+                        max_stacks: 3,
+                        duration: 10.0,
+                        ..default()
+                    }),
+                    TagInfo::CC(CCInfo {
+                        cctype: CCType::Silence,
+                        duration: 7.0,
+                    }),
+                ],
+            },
+            FiringInterval(1.0),
+            TickBehavior::individual(),
+            Ticks::Unlimited,
+            TEAM_NEUTRAL,
+            TargetsInArea::default(),
+            TargetsHittable::default(),
+        ));
 
     // Fountain GREEN
-    commands.spawn((
-        SpatialBundle::from_transform(Transform {
-            translation: Vec3::new(10.0, 0.0, -10.0),
-            ..default()
-        }),
-        meshes.add(Mesh::from(shape::Plane {
-            size: 4.0,
-            subdivisions: 2,
-        })),
-        materials.add(StandardMaterial::from(Color::GREEN)),
-        Spectatable,
-        Name::new("Healing Fountain"),
-        Fountain,
-    )).insert((
-        Collider::cuboid(4.0, 0.3, 4.0),
-        RigidBody::Static,
-        CollisionLayers::ABILITY,
-        Sensor,
-        TEAM_1,
-        TargetsInArea::default(),
-        TickBehavior::individual(),
-        Ticks::Unlimited,
-        FiringInterval(1.0),
-        Tags {
-            list: vec![
-                TagInfo::Heal(28.0),
-                TagInfo::Damage(44.0),
-                TagInfo::Buff(BuffInfo {
-                    stat: AttributeTag::Modifier {
-                        modifier: Modifier::Add,
-                        target: Box::new(Stat::PhysicalPenetration.into()),
-                    },
-                    amount: 5.0,
-                    max_stacks: 6,
-                    duration: 18.0,
-                    bufftargets: BuffTargets::Allies,
-                    bufftype: BuffType::Buff,
-                    ..default()
-                }),
-            ],
-        },
-        TargetsHittable::default(),
-    ));
+    commands
+        .spawn((
+            SpatialBundle::from_transform(Transform {
+                translation: Vec3::new(10.0, 0.0, -10.0),
+                ..default()
+            }),
+            meshes.add(Mesh::from(shape::Plane {
+                size: 4.0,
+                subdivisions: 2,
+            })),
+            materials.add(StandardMaterial::from(Color::GREEN)),
+            Spectatable,
+            Name::new("Healing Fountain"),
+            Fountain,
+        ))
+        .insert((
+            Collider::cuboid(4.0, 0.3, 4.0),
+            RigidBody::Static,
+            CollisionLayers::ABILITY,
+            Sensor,
+            TEAM_1,
+            TargetsInArea::default(),
+            TickBehavior::individual(),
+            Ticks::Unlimited,
+            FiringInterval(1.0),
+            Tags {
+                list: vec![
+                    TagInfo::Heal(28.0),
+                    TagInfo::Damage(44.0),
+                    TagInfo::Buff(BuffInfo {
+                        stat: AttributeTag::Modifier {
+                            modifier: Modifier::Add,
+                            target: Box::new(Stat::PhysicalPenetration.into()),
+                        },
+                        amount: 5.0,
+                        max_stacks: 6,
+                        duration: 18.0,
+                        bufftargets: BuffTargets::Allies,
+                        bufftype: BuffType::Buff,
+                        ..default()
+                    }),
+                ],
+            },
+            TargetsHittable::default(),
+        ));
 
     // sky
     let _sky = commands
