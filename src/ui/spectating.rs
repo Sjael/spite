@@ -23,8 +23,8 @@ use crate::{
     input::SlotAbilityMap,
     item::{Item, ITEM_DB},
     session::team::*,
-    ui::ui_bundles::*,
     stats::*,
+    ui::ui_bundles::*,
 };
 
 use super::{store::CATEGORIES, ButtonAction};

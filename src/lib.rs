@@ -33,7 +33,6 @@ pub mod ui;
 
 pub mod prelude {
     pub use crate::{
-        stats::{AttributeTag, Attributes, Modifier, Stat},
         actor::{ActorState, ActorType},
         area::*,
         assets::{Icons, Models, Scenes},
@@ -42,6 +41,7 @@ pub mod prelude {
         physics::*,
         session::director::InGameSet,
         session::team::*,
+        stats::{AttributeTag, Attributes, Modifier, Stat},
     };
     pub use bevy::prelude::*;
     pub use bevy_xpbd_3d::prelude::*;

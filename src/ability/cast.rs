@@ -6,11 +6,11 @@ use leafwing_input_manager::prelude::*;
 use crate::{
     ability::Ability,
     actor::player::{reticle::Reticle, PlayerInput},
-    camera::OuterGimbal, 
     area::{homing::Homing, AbilityBehavior},
     assets::MaterialPresets,
+    camera::OuterGimbal,
     prelude::*,
-    stats::{HealthMitigatedEvent, Attributes},
+    stats::{Attributes, HealthMitigatedEvent},
 };
 
 use super::{
@@ -39,7 +39,6 @@ impl Plugin for CastPlugin {
                 tick_cooldowns.after(trigger_cooldown),
                 start_ability_windup.after(cast_ability),
                 tick_windup_timer,
-                update_damage_logs,
                 place_ability.after(cast_ability),
                 place_homing_ability,
             )
@@ -330,18 +329,6 @@ pub struct CooldownMap {
     pub map: HashMap<Ability, Timer>,
 }
 
-#[derive(Component, Default)]
-pub struct OutgoingDamageLog {
-    pub list: Vec<HealthMitigatedEvent>,
-    pub sums: HashMap<Entity, HashMap<Entity, DamageSum>>,
-}
-
-#[derive(Component, Default)]
-pub struct IncomingDamageLog {
-    pub list: Vec<HealthMitigatedEvent>,
-    pub sums: HashMap<Entity, DamageSum>,
-}
-
 pub struct DamageSum {
     total_change: i32,
     total_mitigated: u32,
@@ -377,84 +364,6 @@ impl DamageSum {
     }
 }
 
-// change mitigated function to round properly, dont need to cast to ints here
-fn update_damage_logs(
-    mut damage_events: EventReader<HealthMitigatedEvent>,
-    mut incoming_logs: Query<&mut IncomingDamageLog>,
-    mut outgoing_logs: Query<&mut OutgoingDamageLog>,
-    mut log_hit_events: EventWriter<LogHit>,
-) {
-    for damage_instance in damage_events.read() {
-        if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
-            defender_log.list.push(damage_instance.clone());
-            if defender_log.sums.contains_key(&damage_instance.sensor) {
-                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {
-                    continue;
-                };
-                hits.add_damage(damage_instance.clone());
-                log_hit_events.send(LogHit::new(
-                    damage_instance.clone(),
-                    LogType::Stack,
-                    LogSide::Incoming,
-                ));
-            } else {
-                defender_log.sums.insert(
-                    damage_instance.sensor.clone(),
-                    DamageSum::from_instance(damage_instance.clone()),
-                );
-                log_hit_events.send(LogHit::new(
-                    damage_instance.clone(),
-                    LogType::Add,
-                    LogSide::Incoming,
-                ));
-            }
-        }
-
-        if let Ok(mut attacker_log) = outgoing_logs.get_mut(damage_instance.attacker) {
-            attacker_log.list.push(damage_instance.clone());
-            if attacker_log.sums.contains_key(&damage_instance.sensor) {
-                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {
-                    continue;
-                };
-                if targets_hit.contains_key(&damage_instance.defender) {
-                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {
-                        continue;
-                    };
-                    hits.add_damage(damage_instance.clone());
-                    log_hit_events.send(LogHit::new(
-                        damage_instance.clone(),
-                        LogType::Stack,
-                        LogSide::Outgoing,
-                    ));
-                } else {
-                    targets_hit.insert(
-                        damage_instance.defender.clone(),
-                        DamageSum::from_instance(damage_instance.clone()),
-                    );
-                    log_hit_events.send(LogHit::new(
-                        damage_instance.clone(),
-                        LogType::Add,
-                        LogSide::Outgoing,
-                    ));
-                }
-            } else {
-                let init = HashMap::from([(
-                    damage_instance.defender,
-                    DamageSum::from_instance(damage_instance.clone()),
-                )]);
-                attacker_log
-                    .sums
-                    .insert(damage_instance.sensor.clone(), init);
-                log_hit_events.send(LogHit::new(
-                    damage_instance.clone(),
-                    LogType::Add,
-                    LogSide::Outgoing,
-                ));
-            }
-        }
-    }
-}
-
 #[derive(PartialEq, Eq, Debug)]
 pub enum LogSide {
     Incoming,
@@ -482,7 +391,7 @@ pub struct LogHit {
 }
 
 impl LogHit {
-    fn new(event: HealthMitigatedEvent, log_type: LogType, log_direction: LogSide) -> Self {
+    pub fn new(event: HealthMitigatedEvent, log_type: LogType, log_direction: LogSide) -> Self {
         LogHit {
             sensor: event.sensor,
             attacker: event.attacker,

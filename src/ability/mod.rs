@@ -10,7 +10,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    assets::Icons, 
+    assets::Icons,
     prelude::*,
     stats::{Stat, StatsPlugin},
 };

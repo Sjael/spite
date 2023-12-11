@@ -7,14 +7,14 @@ use crate::{
     ability::{
         buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
         cast::Caster,
-        cast::{IncomingDamageLog, Tower},
+        cast::Tower,
         crowd_control::{CCInfo, CCMap, CCType},
         Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
         TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
     },
-    actor::HasHealthBar,
-    camera::Spectatable,
+    actor::{HasHealthBar, IncomingDamageLog},
     area::Fountain,
+    camera::Spectatable,
     prelude::{non_damaging::ObjectiveHealthOwner, *},
     GameState,
 };
@@ -166,7 +166,6 @@ pub fn setup_arena(
             materials.add(StandardMaterial::from(Color::INDIGO)),
             Collider::capsule(1.0, 0.5),
             RigidBody::Dynamic,
-            Friction::new(2.0),
             LockedAxes::ACTOR,
             CollisionLayers::PLAYER,
             TEAM_2,
@@ -179,7 +178,7 @@ pub fn setup_arena(
         ))
         .insert((Attributes::default(),));
 
-    // Scanning Damage zone
+    // Scanning Damage zone RED
     commands.spawn((
         SpatialBundle::from_transform(Transform {
             translation: Vec3::new(-10.0, 0.0, 10.0),
@@ -190,7 +189,11 @@ pub fn setup_arena(
             subdivisions: 2,
         })),
         materials.add(StandardMaterial::from(Color::MAROON)),
-        Collider::cuboid(2.0, 0.3, 2.0),
+        Name::new("DamageFountain"),
+    )).insert((
+        RigidBody::Static,
+        Collider::cuboid(4.0, 0.3, 4.0),
+        CollisionLayers::ABILITY,
         Sensor,
         FiringInterval(5.0),
         Ticks::Unlimited,
@@ -207,10 +210,9 @@ pub fn setup_arena(
                 }),
             ],
         },
-        Name::new("DamageFountain"),
     ));
 
-    // Damage zone
+    // Damage zone YELLOW
     commands.spawn((
         SpatialBundle::from_transform(Transform {
             translation: Vec3::new(10.0, 0.0, 10.0),
@@ -221,7 +223,12 @@ pub fn setup_arena(
             subdivisions: 2,
         })),
         materials.add(StandardMaterial::from(Color::GOLD)),
-        Collider::cuboid(2.0, 0.3, 2.0),
+        Spectatable,
+        Name::new("DamageFountain2"),
+    )).insert((
+        RigidBody::Static,
+        CollisionLayers::ABILITY,
+        Collider::cuboid(4.0, 0.3, 4.0),
         Sensor,
         Tags {
             list: vec![
@@ -248,11 +255,9 @@ pub fn setup_arena(
         TEAM_NEUTRAL,
         TargetsInArea::default(),
         TargetsHittable::default(),
-        Spectatable,
-        Name::new("DamageFountain2"),
     ));
 
-    // Fountain
+    // Fountain GREEN
     commands.spawn((
         SpatialBundle::from_transform(Transform {
             translation: Vec3::new(10.0, 0.0, -10.0),
@@ -263,9 +268,14 @@ pub fn setup_arena(
             subdivisions: 2,
         })),
         materials.add(StandardMaterial::from(Color::GREEN)),
-        Collider::cuboid(2.0, 0.3, 2.0),
-        Sensor,
+        Spectatable,
+        Name::new("Healing Fountain"),
         Fountain,
+    )).insert((
+        Collider::cuboid(4.0, 0.3, 4.0),
+        RigidBody::Static,
+        CollisionLayers::ABILITY,
+        Sensor,
         TEAM_1,
         TargetsInArea::default(),
         TickBehavior::individual(),
@@ -290,8 +300,6 @@ pub fn setup_arena(
             ],
         },
         TargetsHittable::default(),
-        Spectatable,
-        Name::new("Healing Fountain"),
     ));
 
     // sky

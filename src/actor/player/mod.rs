@@ -7,23 +7,20 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ability::{
         buff::BuffMap,
-        cast::{
-            AbilityCastSettings, Casting, CooldownMap, HoveredAbility, IncomingDamageLog,
-            OutgoingDamageLog, WindupTimer,
-        },
+        cast::{AbilityCastSettings, Casting, CooldownMap, HoveredAbility, WindupTimer},
         crowd_control::CCMap,
         rank::AbilityRanks,
     },
-    actor::controller::Controller,
+    actor::{controller::Controller, IncomingDamageLog, OutgoingDamageLog},
     camera::Spectatable,
     input::SlotBundle,
     prelude::*,
+    stats::Bounty,
     ui::{
         store::{StoreBuffer, StoreHistory},
         Trackable,
     },
     GameState,
-    stats::Bounty,
 };
 
 pub mod input;
@@ -149,8 +146,6 @@ pub fn init_player(
         }
     }
 }
-
-
 
 /*
 pub fn respawn_player(

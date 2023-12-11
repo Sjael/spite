@@ -72,6 +72,7 @@ pub fn scale_ui(
     mut scroll_events: EventReader<MouseWheel>,
 ) {
     for event in scroll_events.read() {
+        println!("gamer");
         for (parent, interaction) in edit_handles.iter() {
             if interaction != &Interaction::Hovered {
                 continue;

@@ -21,7 +21,7 @@ impl Plugin for CameraPlugin {
 
         app.add_systems(
             PostUpdate,
-            (spectate_entity, focus_entity, follow_entity)
+            (spectate_entity, focus_entity)
                 .chain()
                 .in_set(FocusSet),
         );
@@ -70,9 +70,10 @@ pub fn spectate_entity(
 ) {
     for (mut focus, spectating) in &mut spectators {
         if let Some(entity) = spectating.spectating() {
-            if focus.0 != entity {
-                focus.0 = entity;
+            if focus.0 == entity {
+                continue;
             }
+            focus.0 = entity;
         }
     }
 }
@@ -132,11 +133,11 @@ pub fn spawn_camera(
             PlayerCam,
             BloomSettings::default(),
             Name::new("Player Camera"),
-            AvoidIntersecting {
-                dir: Vec3::Z,
-                max_toi: 6.5,
-                buffer: 0.05,
-            },
+            // AvoidIntersecting {
+            //     dir: Vec3::Z,
+            //     max_toi: 6.5,
+            //     buffer: 0.05,
+            // },
             /*
             FogSettings {
                 color: Color::rgba(0.05, 0.1, 0.4, 1.0),
@@ -301,23 +302,14 @@ pub struct Spectatable;
 #[derive(Component, Debug)]
 pub struct PlayerCam;
 
-#[derive(Component, Clone, Debug)]
-pub struct AvoidIntersecting {
-    pub dir: Vec3,
-    pub max_toi: f32,
-    pub buffer: f32,
-}
+// #[derive(Component, Clone, Debug)]
+// pub struct AvoidIntersecting {
+//     pub dir: Vec3,
+//     pub max_toi: f32,
+//     pub buffer: f32,
+// }
 
 #[derive(Component, Debug)]
 pub struct OuterGimbal;
 #[derive(Component, Debug)]
 pub struct InnerGimbal;
-
-#[derive(Event)]
-pub struct SpectateEvent {
-    pub entity: Entity,
-}
-#[derive(Event)]
-pub struct PossessEvent {
-    pub entity: Entity,
-}

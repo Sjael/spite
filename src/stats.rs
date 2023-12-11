@@ -1,4 +1,7 @@
-use crate::{ability::{Ability, DamageType}, prelude::ActorState};
+use crate::{
+    ability::{Ability, DamageType},
+    prelude::ActorState,
+};
 use bevy::{
     prelude::*,
     utils::{HashMap, HashSet},
@@ -235,7 +238,7 @@ pub fn apply_health_change(
          */
         let new_hp = *health + event.change as f32; // Add since we flipped number back in team detection
         *health = new_hp;
-        if new_hp < 0.0{
+        if new_hp < 0.0 {
             *actor_state = ActorState::Dead;
         }
     }

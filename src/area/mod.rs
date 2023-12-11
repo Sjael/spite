@@ -11,7 +11,7 @@ use crate::{
     ability::{
         buff::{BuffInfo, BuffTargets},
         cast::{Caster, FireHomingEvent},
-        crowd_control::CCEvent,
+        crowd_control::CCInfo,
         Ability, AbilityTooltip, AreaLifetime, AreaTimeline, DamageType, DeployAreaStage,
         FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags,
         TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
@@ -51,14 +51,21 @@ pub struct BuffEvent {
     pub ability: Ability,
 }
 
+#[derive(Event)]
+pub struct CCEvent {
+    pub target_entity: Entity,
+    pub ccinfo: CCInfo,
+}
+
 pub struct AreaPlugin;
 impl Plugin for AreaPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<AbilityTooltip>();
 
         app.add_event::<HealthChangeEvent>();
-        app.add_event::<AreaOverlapEvent>();
         app.add_event::<BuffEvent>();
+        app.add_event::<CCEvent>();
+        app.add_event::<AreaOverlapEvent>();
 
         app.add_systems(PreUpdate, (apply_interval, catch_collisions));
         app.add_systems(
@@ -312,9 +319,13 @@ fn filter_targets(
     changed_sensors: Query<Entity, Changed<TargetsInArea>>,
     target_query: Query<&GlobalTransform>, // add threat stat later
 ) {
-    for (target_filter, sensor_transform, targets_in_area, mut filtered_targets, sensor_entity) in
-        sensor_query.iter_mut()
-    {
+    for (
+        target_filter, 
+        sensor_transform, 
+        targets_in_area, 
+        mut filtered_targets, 
+        sensor_entity
+    ) in sensor_query.iter_mut() {
         if targets_in_area.list.is_empty() {
             filtered_targets.list = Vec::new();
             continue;
@@ -346,8 +357,7 @@ fn filter_targets(
                 let Ok(_) = changed_sensors.get(sensor_entity) else {
                     continue;
                 };
-                // can hit the same target twice lol, should remove from array and gen again but
-                // idc
+                // can hit the same target twice lol, should remove from array and gen again but idc
                 let mut rng = rand::thread_rng();
                 for _ in 0..target_filter.number_of_targets {
                     let random_target_index = rng.gen_range(0..targets_in_area.list.len());
@@ -410,6 +420,7 @@ fn catch_collisions(
     mut area_events: EventWriter<AreaOverlapEvent>,
 ) {
     for CollisionStarted(entity1, entity2) in collision_starts.read() {
+        println!("collided");
         let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(*entity1) {
             (sensor, entity2)
         } else if let Ok(sensor) = sensor_query.get_mut(*entity2) {
@@ -430,6 +441,10 @@ fn catch_collisions(
             target: target_entity,
             overlap: AreaOverlapType::Entered,
         });
+        if !targets_in_area.list.is_empty(){
+            dbg!(target_entity);
+            dbg!(area_entity);
+        }
     }
     for CollisionEnded(entity1, entity2) in collision_ends.read() {
         let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(*entity1) {
@@ -538,8 +553,7 @@ fn tick_hit_timers(
         Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in
-        &mut area_timers
+    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in &mut area_timers
     {
         // only tick area timers if has timeline and is firing
         if let Some(timeline) = timeline {

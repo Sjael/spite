@@ -2,24 +2,16 @@ use std::{collections::BTreeMap, time::Duration};
 
 use bevy::prelude::*;
 
-use crate::{assets::Icons, session::director::InGameSet};
+use crate::{area::CCEvent, assets::Icons, session::director::InGameSet};
 
 pub struct CCPlugin;
 impl Plugin for CCPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<CCEvent>();
-
         app.add_systems(
             FixedUpdate,
             (tick_ccs, apply_ccs).chain().in_set(InGameSet::Pre),
         );
     }
-}
-
-#[derive(Event)]
-pub struct CCEvent {
-    pub target_entity: Entity,
-    pub ccinfo: CCInfo,
 }
 
 #[derive(Debug, Clone, Reflect, Copy)]
@@ -37,6 +29,7 @@ pub enum CCType {
     Silence,
     Cripple,
     //Slow, change to buff since affects a stat, proper CC's are for absolutes
+    // UPDATE: probably want this to be an exception, make it a hybrid because it is useful to see displayed
 }
 
 impl CCType {

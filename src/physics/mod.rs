@@ -15,7 +15,7 @@ pub trait CollisionLayersGameDefs {
 }
 
 impl CollisionLayersGameDefs for CollisionLayers {
-    const PLAYER: CollisionLayers = CollisionLayers::from_bits(PLAYER, PLAYER | WALL);
+    const PLAYER: CollisionLayers = CollisionLayers::from_bits(PLAYER, PLAYER | WALL | ABILITY);
     const GROUND: CollisionLayers = CollisionLayers::from_bits(GROUND, u32::MAX);
     const WALL: CollisionLayers = CollisionLayers::from_bits(WALL, u32::MAX);
     const ABILITY: CollisionLayers = CollisionLayers::from_bits(ABILITY, PLAYER | WALL);

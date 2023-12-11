@@ -7,10 +7,10 @@ use oxidized_navigation::{
 };
 */
 
-use crate::stats::Attributes;
 use crate::actor::controller::Controller;
 use crate::prelude::*;
 use crate::session::team::TEAM_1;
+use crate::stats::Attributes;
 
 pub struct MinionPlugin;
 impl Plugin for MinionPlugin {

@@ -1,4 +1,3 @@
-
 use super::{
     crowd_control::{CCInfo, CCType},
     shape::AbilityShape,

@@ -8,12 +8,12 @@ use crate::{
     camera::PlayerCam,
     prelude::ActorState,
     session::director::{GameModeDetails, InGameSet},
+    stats::{Attributes, Stat},
     ui::{
         hud_editor::*, ingame_menu::*, main_menu::*, mouse::*, spectating::*, store::*, styles::*,
         ui_bundles::*,
     },
     GameState,
-    stats::{Attributes, Stat},
 };
 
 use self::{
@@ -119,11 +119,11 @@ impl Plugin for UiPlugin {
         app.add_systems(OnEnter(InGameMenu::Open), toggle_ingame_menu);
         app.add_systems(OnEnter(InGameMenu::Closed), toggle_ingame_menu);
 
+        app.add_systems(OnEnter(EditingHUD::Yes), give_editable_ui);
         app.add_systems(
-            OnEnter(EditingHUD::Yes),
-            (give_editable_ui, scale_ui, reset_editable_ui),
+            Update,
+            (scale_ui, reset_editable_ui).run_if(in_state(EditingHUD::Yes)),
         );
-
         app.add_systems(OnEnter(EditingHUD::No), remove_editable_ui);
     }
 }

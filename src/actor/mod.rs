@@ -1,12 +1,17 @@
-
-
-use std::time::{Instant, Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use crate::{
-    ability::{crowd_control::{CCMap, CCType}, cast::IncomingDamageLog},
+    ability::{
+        cast::{DamageSum, LogHit, LogSide, LogType},
+        crowd_control::{CCMap, CCType},
+    },
     prelude::*,
     session::director::InGameSet,
-    stats::Bounty, ui::scoreboard::Scoreboard,
+    stats::{Bounty, HealthMitigatedEvent},
+    ui::scoreboard::Scoreboard,
 };
 
 use self::{controller::*, minion::MinionPlugin, player::*};
@@ -36,6 +41,7 @@ impl Plugin for ActorPlugin {
                 .chain()
                 .in_set(InGameSet::Post),
         );
+        app.add_systems(FixedUpdate, update_damage_logs.in_set(InGameSet::Update));
         //app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }
@@ -57,7 +63,6 @@ pub enum ActorState {
     #[default]
     Dead,
 }
-
 
 #[derive(Component, Deref, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub struct PreviousActorState(ActorState);
@@ -111,16 +116,17 @@ pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerIn
     }
 }
 
-
 fn give_kill_credit(
     changed_states: Query<(Option<&Bounty>, &ActorState, &IncomingDamageLog), Changed<ActorState>>,
     mut victors: Query<(&mut Attributes, &ActorType)>,
     mut scoreboard: ResMut<Scoreboard>,
-){
+) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
-    for (bounty, state, log) in changed_states.iter(){
-        if state == &ActorState::Alive { continue }
-        
+    for (bounty, state, log) in changed_states.iter() {
+        if state == &ActorState::Alive {
+            continue;
+        }
+
         let mut killers = Vec::new();
         for instance in log.list.iter().rev() {
             if Instant::now().duration_since(instance.when)
@@ -135,14 +141,14 @@ fn give_kill_credit(
             let Ok((mut attributes, awardee_actor)) = victors.get_mut(*awardee) else {
                 continue;
             };
-    
+
             if let Some(bounty) = bounty {
                 let gold = attributes.get_mut(Stat::Gold);
                 *gold += bounty.gold;
                 let xp = attributes.get_mut(Stat::Xp);
                 *xp += bounty.xp;
             }
-    
+
             if let ActorType::Player(killer) = awardee_actor {
                 let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
                 if index == 0 {
@@ -161,10 +167,12 @@ pub struct DeathDelay(pub Timer);
 fn start_death_timer(
     mut commands: Commands,
     changed_states: Query<(Entity, &ActorState), Changed<ActorState>>,
-){
+) {
     let respawn_timer = 8.0;
-    for (entity, state) in changed_states.iter(){
-        if state == &ActorState::Alive { continue }
+    for (entity, state) in changed_states.iter() {
+        if state == &ActorState::Alive {
+            continue;
+        }
         // Add respawn timer to director
 
         // Add despawn delay component to dead thing
@@ -172,7 +180,6 @@ fn start_death_timer(
         commands.entity(entity).insert(death_delay);
     }
 }
-
 
 fn tick_death_timer(
     mut respawning: Query<(Entity, &mut DeathDelay, &mut Visibility)>,
@@ -192,7 +199,7 @@ fn tick_death_timer(
 
 // probably want to change this respawn system to just despawn the entity instead of hiding it
 //
-// it makes sense to just move players back to spawn at first, but what about minions? 
+// it makes sense to just move players back to spawn at first, but what about minions?
 // the hiding + moving way works for players cus u will have just 1
 // like is there supposed to be a cap for minions then? we def despawn them so i think having a unified way of respawning thing too
 // and should do the same for players, fully despawning and setting a respawn in something managed by the director instead of component
@@ -213,3 +220,92 @@ fn tick_death_timer(
 //         }
 //     }
 // }
+
+#[derive(Component, Default)]
+pub struct OutgoingDamageLog {
+    pub list: Vec<HealthMitigatedEvent>,
+    pub sums: HashMap<Entity, HashMap<Entity, DamageSum>>,
+}
+
+#[derive(Component, Default)]
+pub struct IncomingDamageLog {
+    pub list: Vec<HealthMitigatedEvent>,
+    pub sums: HashMap<Entity, DamageSum>,
+}
+// change mitigated function to round properly, dont need to cast to ints here
+fn update_damage_logs(
+    mut damage_events: EventReader<HealthMitigatedEvent>,
+    mut incoming_logs: Query<&mut IncomingDamageLog>,
+    mut outgoing_logs: Query<&mut OutgoingDamageLog>,
+    mut log_hit_events: EventWriter<LogHit>,
+) {
+    for damage_instance in damage_events.read() {
+        if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
+            defender_log.list.push(damage_instance.clone());
+            if defender_log.sums.contains_key(&damage_instance.sensor) {
+                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {
+                    continue;
+                };
+                hits.add_damage(damage_instance.clone());
+                log_hit_events.send(LogHit::new(
+                    damage_instance.clone(),
+                    LogType::Stack,
+                    LogSide::Incoming,
+                ));
+            } else {
+                defender_log.sums.insert(
+                    damage_instance.sensor.clone(),
+                    DamageSum::from_instance(damage_instance.clone()),
+                );
+                log_hit_events.send(LogHit::new(
+                    damage_instance.clone(),
+                    LogType::Add,
+                    LogSide::Incoming,
+                ));
+            }
+        }
+
+        if let Ok(mut attacker_log) = outgoing_logs.get_mut(damage_instance.attacker) {
+            attacker_log.list.push(damage_instance.clone());
+            if attacker_log.sums.contains_key(&damage_instance.sensor) {
+                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {
+                    continue;
+                };
+                if targets_hit.contains_key(&damage_instance.defender) {
+                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {
+                        continue;
+                    };
+                    hits.add_damage(damage_instance.clone());
+                    log_hit_events.send(LogHit::new(
+                        damage_instance.clone(),
+                        LogType::Stack,
+                        LogSide::Outgoing,
+                    ));
+                } else {
+                    targets_hit.insert(
+                        damage_instance.defender.clone(),
+                        DamageSum::from_instance(damage_instance.clone()),
+                    );
+                    log_hit_events.send(LogHit::new(
+                        damage_instance.clone(),
+                        LogType::Add,
+                        LogSide::Outgoing,
+                    ));
+                }
+            } else {
+                let init = HashMap::from([(
+                    damage_instance.defender,
+                    DamageSum::from_instance(damage_instance.clone()),
+                )]);
+                attacker_log
+                    .sums
+                    .insert(damage_instance.sensor.clone(), init);
+                log_hit_events.send(LogHit::new(
+                    damage_instance.clone(),
+                    LogType::Add,
+                    LogSide::Outgoing,
+                ));
+            }
+        }
+    }
+}
