@@ -10,7 +10,7 @@ use crate::{
         cast::Tower,
         crowd_control::{CCInfo, CCMap, CCType},
         Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
-        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
+        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks, timeline::{DeployAreaStage, AreaTimeline},
     },
     actor::{HasHealthBar, IncomingDamageLog},
     area::Fountain,
@@ -234,6 +234,10 @@ pub fn setup_arena(
             CollisionLayers::ABILITY,
             Collider::cuboid(4.0, 0.3, 4.0),
             Sensor,
+            AreaTimeline{
+                stage: DeployAreaStage::Firing,
+                ..default()
+            },
             Tags {
                 list: vec![
                     TagInfo::Damage(27.0),
@@ -283,6 +287,10 @@ pub fn setup_arena(
             CollisionLayers::ABILITY,
             Sensor,
             TEAM_1,
+            AreaTimeline{
+                stage: DeployAreaStage::Firing,
+                ..default()
+            },
             TargetsInArea::default(),
             TickBehavior::individual(),
             Ticks::Unlimited,

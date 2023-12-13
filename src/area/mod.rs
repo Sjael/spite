@@ -6,6 +6,7 @@ use homing::track_homing;
 
 use crate::ability::Ability;
 use crate::ability::AbilityTooltip;
+use crate::ability::TickBehavior;
 
 use self::non_damaging::*;
 use self::queue::*;
@@ -23,7 +24,7 @@ pub struct AreaPlugin;
 impl Plugin for AreaPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<AbilityTooltip>();
-
+        app.register_type::<TickBehavior>();
         app.add_event::<HealthChangeEvent>();
         app.add_event::<BuffEvent>();
         app.add_event::<CCEvent>();

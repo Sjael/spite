@@ -70,8 +70,6 @@ pub fn area_apply_tags(
         let ability = ability.unwrap_or(&Ability::BasicAttack);
         let damage_type = damage_type.unwrap_or(&DamageType::True);
         for target_entity in targets_hittable.list.iter() {
-            dbg!(sensor_entity);
-            dbg!(target_entity);
             let Ok((_, target_team)) = targets_query.get_mut(*target_entity) else {
                 continue;
             };
@@ -173,7 +171,7 @@ pub fn area_apply_tags(
                     for got_hit in targets_that_got_hit.iter() {
                         individual_timers.map.insert(
                             *got_hit,
-                            Timer::new(Duration::from_millis(interval.0 as u64), TimerMode::Once),
+                            Timer::new(Duration::from_secs_f32(interval.0), TimerMode::Once),
                         );
                     }
                 }
@@ -203,6 +201,7 @@ pub fn area_queue_targets(
         if timeline.stage != DeployAreaStage::Firing {
             continue;
         }
+        if targets_in_area.list.is_empty() { continue }
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
                 TickBehavior::Static(ref static_timer) => {
@@ -298,19 +297,6 @@ pub fn filter_targets(
     }
 }
 
-#[derive(PartialEq, Eq)]
-pub enum AreaOverlapType {
-    Entered,
-    Exited,
-}
-
-#[derive(Event)]
-pub struct AreaOverlapEvent {
-    pub sensor: Entity,
-    pub target: Entity,
-    pub overlap: AreaOverlapType,
-}
-
 pub fn catch_collisions(
     targets_query: Query<Entity, Without<Sensor>>,
     mut sensor_query: Query<(Entity, &mut TargetsInArea), With<Sensor>>,
@@ -403,23 +389,16 @@ pub fn tick_hit_timers(
         &FiringInterval,
         &mut TickBehavior,
         Option<&PausesWhenEmpty>,
-        Option<&AreaTimeline>,
     )>,
 ) {
-    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses, timeline) in &mut area_timers
+    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses) in &mut area_timers
     {
-        // only tick area timers if has timeline and is firing
-        if let Some(timeline) = timeline {
-            if timeline.stage != DeployAreaStage::Firing {
-                continue;
-            }
-        }
         match *tick_behavior {
             TickBehavior::Individual(ref mut individual_timers) => {
-                // tick per-target timer and retain it
+                // tick per-target timer and retain it if not finished
                 individual_timers.map.retain(|_entity, hittimer| {
                     hittimer.tick(time.delta());
-                    true
+                    !hittimer.finished()
                 });
             }
             TickBehavior::Static(ref mut static_timer) => {
@@ -470,4 +449,17 @@ pub struct BuffEvent {
 pub struct CCEvent {
     pub target_entity: Entity,
     pub ccinfo: CCInfo,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum AreaOverlapType {
+    Entered,
+    Exited,
+}
+
+#[derive(Event)]
+pub struct AreaOverlapEvent {
+    pub sensor: Entity,
+    pub target: Entity,
+    pub overlap: AreaOverlapType,
 }
