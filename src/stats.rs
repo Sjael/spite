@@ -139,7 +139,6 @@ impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HealthMitigatedEvent>();
         app.register_type::<Vec<String>>();
-        app.register_type::<Bounty>();
 
         app.add_systems(
             Update,
@@ -152,7 +151,6 @@ impl Plugin for StatsPlugin {
                     apply_health_change,
                 )
                     .chain(),
-                increment_bounty,
                 spool_gold,
             )
                 .in_set(InGameSet::Update),
@@ -266,15 +264,6 @@ pub fn regen_resource(mut query: Query<&mut Attributes>, time: Res<Time>) {
     }
 }
 
-// Make only increment when damageable? Aegis before guarenteed death is meta
-// now LMAO
-fn increment_bounty(mut the_notorious: Query<&mut Bounty>, time: Res<Time>) {
-    for mut wanted in the_notorious.iter_mut() {
-        wanted.gold += 2.0 * time.delta_seconds();
-        wanted.xp += 4.0 * time.delta_seconds();
-    }
-}
-
 fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: Res<Time>) {
     let gold_per_second = 3.0;
     for mut attributes in attribute_query.iter_mut() {
@@ -283,21 +272,6 @@ fn spool_gold(mut attribute_query: Query<&mut Attributes, With<Player>>, time: R
     }
 }
 
-#[derive(Component, Debug, Clone, Reflect)]
-#[reflect(Component)]
-pub struct Bounty {
-    pub xp: f32,
-    pub gold: f32,
-}
-
-impl Default for Bounty {
-    fn default() -> Self {
-        Self {
-            xp: 200.0,
-            gold: 250.0,
-        }
-    }
-}
 /*
 basic case:
 Mul<Base<Health>> = 1.1;

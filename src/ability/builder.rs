@@ -1,10 +1,8 @@
-use std::collections::HashMap;
+use crate::{ability::bundles::FireballInfo, stats::Stat};
 use bevy::prelude::*;
-use crate::{stats::Stat, ability::bundles::FireballInfo};
+use std::collections::HashMap;
 
-use super::{Ability, shape::AbilityShape, crowd_control::CCType};
-
-
+use super::{crowd_control::CCType, shape::AbilityShape, Ability};
 
 pub struct AbilityBlueprint {
     pub base_ability: Ability,

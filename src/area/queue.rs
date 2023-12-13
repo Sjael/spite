@@ -12,9 +12,10 @@ use crate::{
         buff::{BuffInfo, BuffTargets},
         cast::{Caster, FireHomingEvent},
         crowd_control::CCInfo,
-        Ability, DamageType, FilteredTargets, FiringInterval,
-        MaxTargetsHit, PausesWhenEmpty, TagInfo, Tags, TargetFilter, TargetSelection,
-        TargetsHittable, TargetsInArea, TickBehavior, Ticks, UniqueTargetsHit, timeline::{AreaTimeline, DeployAreaStage},
+        timeline::{AreaTimeline, DeployAreaStage},
+        Ability, DamageType, FilteredTargets, FiringInterval, MaxTargetsHit, PausesWhenEmpty,
+        TagInfo, Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea, TickBehavior,
+        Ticks, UniqueTargetsHit,
     },
     session::team::Team,
 };
@@ -191,17 +192,21 @@ pub fn area_queue_targets(
         &mut TargetsHittable,
         Option<&TickBehavior>,
         Option<&FilteredTargets>,
-        &AreaTimeline,
+        Option<&AreaTimeline>,
     )>,
 ) {
     for (targets_in_area, mut targets_hittable, tick_behavior, filtered_targets, timeline) in
         sensor_query.iter_mut()
     {
         targets_hittable.list = Vec::new();
-        if timeline.stage != DeployAreaStage::Firing {
+        if let Some(timeline) = timeline {
+            if timeline.stage != DeployAreaStage::Firing {
+                continue;
+            }
+        }
+        if targets_in_area.list.is_empty() {
             continue;
         }
-        if targets_in_area.list.is_empty() { continue }
         if let Some(tick_behavior) = tick_behavior {
             match *tick_behavior {
                 TickBehavior::Static(ref static_timer) => {
@@ -391,8 +396,7 @@ pub fn tick_hit_timers(
         Option<&PausesWhenEmpty>,
     )>,
 ) {
-    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses) in &mut area_timers
-    {
+    for (targets_in_area, ticks, _interval, mut tick_behavior, pauses) in &mut area_timers {
         match *tick_behavior {
             TickBehavior::Individual(ref mut individual_timers) => {
                 // tick per-target timer and retain it if not finished

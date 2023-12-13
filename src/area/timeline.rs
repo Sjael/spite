@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::ability::{timeline::{AreaLifetime, AreaTimeline}, FiringInterval, TickBehavior};
+use crate::ability::{
+    timeline::{AreaLifetime, AreaTimeline},
+    FiringInterval, TickBehavior,
+};
 
 pub fn tick_area_lifetime(
     mut commands: Commands,

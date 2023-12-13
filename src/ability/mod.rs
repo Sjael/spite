@@ -24,17 +24,18 @@ use self::{
     bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
     cast::CastPlugin,
     crowd_control::{CCInfo, CCPlugin, CCType},
-    shape::AbilityShape, timeline::{AreaTimeline, DeployAreaStage},
+    shape::AbilityShape,
+    timeline::{AreaTimeline, DeployAreaStage},
 };
 
 pub mod buff;
+pub mod builder;
 pub mod bundles;
 pub mod cast;
 pub mod collector;
 pub mod crowd_control;
 pub mod rank;
 pub mod shape;
-pub mod builder;
 pub mod timeline;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -215,7 +216,6 @@ impl Ability {
         }
     }
 }
-
 
 #[derive(Component, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]

@@ -10,12 +10,18 @@ use crate::{
     },
     prelude::*,
     session::director::InGameSet,
-    stats::{Bounty, HealthMitigatedEvent},
+    stats::HealthMitigatedEvent,
     ui::scoreboard::Scoreboard,
 };
 
-use self::{controller::*, minion::MinionPlugin, player::*};
+use self::{
+    bounty::{increment_bounty, Bounty},
+    controller::*,
+    minion::MinionPlugin,
+    player::*,
+};
 
+pub mod bounty;
 pub mod controller;
 pub mod minion;
 pub mod player;
@@ -23,6 +29,7 @@ pub mod player;
 pub struct ActorPlugin;
 impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Bounty>();
         //Resources
         app.insert_resource(PlayerInput::default());
         app.register_type::<PlayerInput>()
@@ -41,7 +48,10 @@ impl Plugin for ActorPlugin {
                 .chain()
                 .in_set(InGameSet::Post),
         );
-        app.add_systems(FixedUpdate, update_damage_logs.in_set(InGameSet::Update));
+        app.add_systems(
+            FixedUpdate,
+            (update_damage_logs, increment_bounty).in_set(InGameSet::Update),
+        );
         //app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }

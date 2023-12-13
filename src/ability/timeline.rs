@@ -1,5 +1,5 @@
-use std::{collections::HashMap, time::Duration};
 use bevy::prelude::*;
+use std::{collections::HashMap, time::Duration};
 
 use super::Ability;
 
@@ -53,7 +53,6 @@ impl DeployAreaStage {
 
 #[derive(Component)]
 pub struct OutlineDelay(pub f32);
-
 
 #[derive(Component, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]

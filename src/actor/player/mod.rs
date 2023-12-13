@@ -11,11 +11,10 @@ use crate::{
         crowd_control::CCMap,
         rank::AbilityRanks,
     },
-    actor::{controller::Controller, IncomingDamageLog, OutgoingDamageLog},
+    actor::{controller::Controller, IncomingDamageLog, OutgoingDamageLog, bounty::Bounty},
     camera::Spectatable,
     input::SlotBundle,
     prelude::*,
-    stats::Bounty,
     ui::{
         store::{StoreBuffer, StoreHistory},
         Trackable,
