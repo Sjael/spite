@@ -3,15 +3,12 @@ use bevy_tweening::TweenCompleted;
 use ui_bundles::team_thumbs_holder;
 
 use crate::{
-    ability::AbilityTooltip,
-    actor::{
-        player::Player,
-        stats::{Attributes, Stat},
-        view::{PlayerCam, Spectating},
-        HasHealthBar,
-    },
-    assets::{Fonts, Icons, Images},
-    game_manager::{DeathEvent, GameModeDetails, InGameSet, Scoreboard, TeamRoster, TEAM_1},
+    actor::{player::LocalPlayer, HasHealthBar},
+    assets::{Fonts, Images},
+    camera::PlayerCam,
+    prelude::ActorState,
+    session::director::{GameModeDetails, InGameSet},
+    stats::{Attributes, Stat},
     ui::{
         hud_editor::*, ingame_menu::*, main_menu::*, mouse::*, spectating::*, store::*, styles::*,
         ui_bundles::*,
@@ -19,8 +16,10 @@ use crate::{
     GameState,
 };
 
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SpectatingSet;
+use self::{
+    scoreboard::{populate_scoreboard, update_kda, Scoreboard},
+    tooltip::{hide_tooltip, load_tooltip, move_tooltip},
+};
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FreeMouseSet;
@@ -34,10 +33,10 @@ impl Plugin for UiPlugin {
             .add_state::<InGameMenu>()
             .add_state::<EditingHUD>();
 
-        app.add_event::<ResetUiEvent>()
-            .add_event::<MenuEvent>();
+        app.add_event::<ResetUiEvent>().add_event::<MenuEvent>();
 
         app.insert_resource(FocusedHealthEntity(None))
+            .insert_resource(Scoreboard::default())
             .insert_resource(CursorHolding(None));
 
         app.add_plugins(StorePlugin);
@@ -53,12 +52,6 @@ impl Plugin for UiPlugin {
 
         app.add_systems(OnEnter(GameState::InGame), (add_base_ui, add_ingame_menu));
 
-        app.configure_sets(
-            Update,
-            SpectatingSet
-                .run_if(resource_exists::<Spectating>())
-                .run_if(in_state(GameState::InGame)),
-        );
         app.configure_sets(
             Update,
             FreeMouseSet
@@ -78,8 +71,10 @@ impl Plugin for UiPlugin {
                 update_buff_stacks,
                 spawn_floating_damage,
                 update_damage_log_ui,
+                show_respawn_ui,
+                //tick_respawn_ui,
             )
-                .in_set(SpectatingSet),
+                .in_set(InGameSet::Update),
         );
         app.add_systems(
             Update,
@@ -124,11 +119,11 @@ impl Plugin for UiPlugin {
         app.add_systems(OnEnter(InGameMenu::Open), toggle_ingame_menu);
         app.add_systems(OnEnter(InGameMenu::Closed), toggle_ingame_menu);
 
+        app.add_systems(OnEnter(EditingHUD::Yes), give_editable_ui);
         app.add_systems(
-            OnEnter(EditingHUD::Yes),
-            (give_editable_ui, scale_ui, reset_editable_ui),
+            Update,
+            (scale_ui, reset_editable_ui).run_if(in_state(EditingHUD::Yes)),
         );
-
         app.add_systems(OnEnter(EditingHUD::No), remove_editable_ui);
     }
 }
@@ -150,42 +145,6 @@ fn button_hovers(
             Interaction::None => {
                 *color = NORMAL_BUTTON.into();
             }
-        }
-    }
-}
-
-fn populate_scoreboard(
-    roster: Res<TeamRoster>,
-    mut commands: Commands,
-    scoreboard: Query<Entity, Added<ScoreboardUI>>,
-    fonts: Res<Fonts>,
-) {
-    let Ok(scoreboard_ui) = scoreboard.get_single() else {
-        return;
-    }; // else spawn scoreboard?
-    commands.entity(scoreboard_ui).despawn_descendants();
-    for (team, players) in roster.teams.iter() {
-        let mut color = Color::rgba(0.3, 0.15, 0.1, 0.95);
-        if team == &TEAM_1 {
-            color = Color::rgba(0.15, 0.15, 0.2, 0.95);
-        }
-        for player in players.iter() {
-            println!("spawning");
-            dbg!(player);
-            commands.entity(scoreboard_ui).with_children(|parent| {
-                parent
-                    .spawn(scoreboard_entry(color))
-                    .with_children(|parent| {
-                        parent.spawn(plain_text(player.id.clone().to_string(), 14, &fonts));
-                    });
-                parent
-                    .spawn(scoreboard_entry(color))
-                    .with_children(|parent| {
-                        parent
-                            .spawn(plain_text("0 / 0 / 0", 14, &fonts))
-                            .insert(KDAText);
-                    });
-            });
         }
     }
 }
@@ -389,102 +348,53 @@ fn drop_holdable(
     }
 }
 
-fn move_tooltip(
-    mut tooltip: Query<&mut Style, With<Tooltip>>,
-    mut move_events: EventReader<CursorMoved>,
+fn show_respawn_ui(
+    mut death_timer: Query<&mut Visibility, With<RespawnHolder>>,
+    changed_states: Query<&ActorState, Changed<ActorState>>,
+    local_entity: Option<Res<LocalPlayer>>,
 ) {
-    let Ok(mut style) = tooltip.get_single_mut() else {
+    let Ok(mut vis) = death_timer.get_single_mut() else {
         return;
     };
-    if let Some(cursor_move) = move_events.read().next() {
-        style.left = Val::Px(cursor_move.position.x);
-        style.bottom = Val::Px(cursor_move.position.y);
+    let Some(player) = local_entity else {
+        return;
+    };
+    let Ok(actor_state) = changed_states.get(**player) else {
+        return;
+    };
+    if actor_state == &ActorState::Dead {
+        *vis = Visibility::Visible;
+    } else {
+        *vis = Visibility::Hidden;
     }
 }
 
-fn hide_tooltip(
-    // for when you close a menu when hovering, otherwise tooltip stays
-    mut tooltip: Query<&mut Visibility, With<Tooltip>>,
-) {
-    let Ok(mut vis) = tooltip.get_single_mut() else {
-        return;
-    };
-    *vis = Visibility::Hidden;
-}
-
-fn load_tooltip(
-    mut commands: Commands,
-    mut tooltip: Query<(&mut Tooltip, &mut Visibility, Option<&Children>, Entity)>,
-    hoverables: Query<(Entity, &AbilityTooltip, &Interaction), With<Hoverable>>,
-    icons: Res<Icons>,
-    fonts: Res<Fonts>,
-) {
-    let Ok((mut tooltip, mut vis, children, tooltip_entity)) = tooltip.get_single_mut() else {
-        return;
-    };
-    let mut hovered_info: Option<AbilityTooltip> = None;
-    for (hovering_entity, ability_info, interaction) in &hoverables {
-        match interaction {
-            Interaction::None => {
-                if tooltip.0.is_some() {
-                    tooltip.0 = None;
-                }
-            }
-            Interaction::Hovered | Interaction::Pressed => {
-                if let Some(last_hovered) = tooltip.0 {
-                    if last_hovered == hovering_entity {
-                        return;
-                    }
-                }
-                tooltip.0 = Some(hovering_entity.clone());
-                hovered_info = Some(ability_info.clone());
-            }
-        }
-    }
-    match hovered_info {
-        Some(info) => {
-            if let Some(children) = children {
-                for child in children.iter() {
-                    commands.entity(*child).despawn_recursive();
-                }
-            }
-            let child = spawn_ability_tooltip(&mut commands, &icons, &fonts, &info.clone());
-            commands.entity(tooltip_entity).add_child(child);
-            *vis = Visibility::Visible;
-        }
-        _ => {
-            *vis = Visibility::Hidden;
-        }
-    }
-}
-
-fn update_kda(
-    mut kda_query: Query<&mut Text, With<PersonalKDA>>,
-    //mut scoreboard_kda_query: Query<&mut Text, (With<KDAText>, Without<PersonalKDA>)>,
-    scoreboard: Res<Scoreboard>,
-    local_player: Res<Player>,
-) {
-    if scoreboard.is_changed() {
-        let Ok(mut kda_text) = kda_query.get_single_mut() else {
-            return;
-        };
-        for (player, info) in scoreboard.0.iter() {
-            if *player == *local_player {
-                kda_text.sections[0].value = format!(
-                    "{} / {} / {}",
-                    info.kda.kills, info.kda.deaths, info.kda.assists
-                );
-            }
-        }
-    }
-}
+// fn tick_respawn_ui(
+//     mut death_timer: Query<&mut Text, With<RespawnText>>,
+//     respawning: Query<&Respawn>,
+//     local_entity: Option<Res<LocalPlayer>>,
+// ) {
+//     let Ok(mut respawn_text) = death_timer.get_single_mut() else {
+//         return;
+//     };
+//     let Some(local) = local_entity else { return };
+//     let Ok(respawn) = respawning.get(**local) else {
+//         return;
+//     };
+//     let new_text =
+//         (respawn.0.duration().as_secs() as f32 - respawn.0.elapsed_secs()).floor() as u64;
+//     respawn_text.sections[1].value = new_text.to_string();
+// }
 
 pub fn killfeed_update(
     mut commands: Commands,
-    mut death_events: EventReader<DeathEvent>,
+    changed_states: Query<&ActorState, Changed<ActorState>>, // Add player id so we can increment kda for that player
     killfeed_query: Query<Entity, With<Killfeed>>,
 ) {
-    for _death in death_events.read() {
+    for actor_state in changed_states.iter() {
+        if actor_state == &ActorState::Alive {
+            continue;
+        }
         let Ok(killfeed) = killfeed_query.get_single() else {
             return;
         };
@@ -554,7 +464,7 @@ pub fn button_actions(
     mut reset_ui_events: EventWriter<ResetUiEvent>,
     mut store_events: EventWriter<StoreEvent>,
     mut undo_events: EventWriter<UndoPressEvent>,
-    player: Option<Res<Spectating>>,
+    player: Option<Res<LocalPlayer>>,
     item_inspected: Res<ItemInspected>,
 ) {
     for (button_action, interaction) in &mut interaction_query {
@@ -563,6 +473,7 @@ pub fn button_actions(
         }
         match button_action {
             ButtonAction::Play => {
+                info!("play");
                 game_state_next.set(GameState::InGame);
             }
             ButtonAction::Settings => {}
@@ -583,9 +494,13 @@ pub fn button_actions(
                 reset_ui_events.send(ResetUiEvent);
             }
             ButtonAction::BuyItem => {
-                if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()) {
+                let Some(player) = player.as_deref() else {
+                    continue;
+                };
+
+                if let Some(inspected) = item_inspected.0.clone() {
                     store_events.send(StoreEvent {
-                        player: spectating.0.clone(),
+                        player: **player,
                         item: inspected,
                         direction: TransactionType::Buy,
                         fresh: true,
@@ -593,9 +508,13 @@ pub fn button_actions(
                 }
             }
             ButtonAction::SellItem => {
-                if let (Some(spectating), Some(inspected)) = (&player, item_inspected.0.clone()) {
+                let Some(player) = player.as_deref() else {
+                    continue;
+                };
+
+                if let Some(inspected) = item_inspected.0.clone() {
                     store_events.send(StoreEvent {
-                        player: spectating.0.clone(),
+                        player: **player,
                         item: inspected,
                         direction: TransactionType::Sell,
                         fresh: true,
@@ -603,10 +522,10 @@ pub fn button_actions(
                 }
             }
             ButtonAction::UndoStore => {
-                let Some(spectating) = &player else { continue };
-                undo_events.send(UndoPressEvent {
-                    entity: spectating.0.clone(),
-                });
+                let Some(player) = player.as_deref() else {
+                    continue;
+                };
+                undo_events.send(UndoPressEvent { entity: **player });
             }
             _ => (),
         }
@@ -731,8 +650,10 @@ pub mod hud_editor;
 pub mod ingame_menu;
 pub mod main_menu;
 pub mod mouse;
+pub mod scoreboard;
 pub mod spectating;
 pub mod store;
 pub mod styles;
+pub mod tooltip;
 #[allow(unused_parens)]
 pub mod ui_bundles;

@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use derive_more::Display;
 use lazy_static::lazy_static;
 
-use crate::{actor::stats::Stat, assets::Items, inventory::Inventory};
+use crate::{assets::Items, inventory::Inventory, stats::Stat};
 
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 #[reflect(Component)]

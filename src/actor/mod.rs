@@ -1,86 +1,46 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use crate::{
-    ability::{rank::Rank, Ability, DamageType},
-    actor::view::{Spectatable, SpectateEvent, Spectating},
-    game_manager::{AbilityFireEvent, Bounty, InGameSet, PLAYER_LAYER, TEAM_1},
-    input::{copy_action_state, SlotBundle},
-    inventory::Inventory,
-    prelude::*,
-    ui::{
-        store::{StoreBuffer, StoreHistory},
-        Trackable,
+    ability::{
+        cast::{DamageSum, LogHit, LogSide, LogType},
+        crowd_control::{CCMap, CCType},
     },
-    GameState,
+    prelude::*,
+    session::director::InGameSet,
+    stats::HealthMitigatedEvent,
+    ui::scoreboard::Scoreboard,
 };
-use oxidized_navigation::NavMeshAffector;
 
 use self::{
-    buff::{BuffMap, BuffPlugin},
-    crowd_control::{CCMap, CCPlugin, CCType},
+    bounty::{increment_bounty, Bounty},
+    controller::*,
     minion::MinionPlugin,
     player::*,
-    stats::{AttributeTag, Attributes, HealthMitigatedEvent, Modifier, Stat, StatsPlugin},
 };
 
-pub mod buff;
-pub mod crowd_control;
+pub mod bounty;
+pub mod controller;
 pub mod minion;
 pub mod player;
-pub mod stats;
-pub mod view;
 
-pub struct CharacterPlugin;
-impl Plugin for CharacterPlugin {
+pub struct ActorPlugin;
+impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Bounty>();
         //Resources
         app.insert_resource(PlayerInput::default());
         app.register_type::<PlayerInput>()
-            .register_type::<CooldownMap>()
-            .register_type::<HoveredAbility>()
-            .register_type::<Attributes>()
             .register_type::<Stat>()
             .register_type::<Modifier>()
             .register_type::<AttributeTag>();
 
-        app.add_event::<InputCastEvent>()
-            .add_event::<CastEvent>()
-            .add_event::<InitSpawnEvent>()
-            .add_event::<RespawnEvent>()
-            .add_event::<LogHit>();
-
         //Plugins
-        app.add_plugins((StatsPlugin, BuffPlugin, CCPlugin, MinionPlugin));
+        app.add_plugins((MinionPlugin, ControllerPlugin, PlayerPlugin));
 
         //Systems
-        app.add_systems(OnEnter(GameState::InGame), setup_player);
-        app.add_systems(
-            PreUpdate,
-            (
-                player_keys_input,
-                player_mouse_input,
-                select_ability.after(copy_action_state),
-                respawn_entity,
-                update_local_player_inputs,
-            )
-                .in_set(InGameSet::Pre),
-        );
-        app.add_systems(
-            Update,
-            (
-                cast_ability,
-                normal_casting,
-                show_targetter.after(normal_casting),
-                change_targetter_color,
-                trigger_cooldown.after(cast_ability),
-                tick_cooldowns.after(trigger_cooldown),
-                start_ability_windup.after(cast_ability),
-                tick_windup_timer,
-                init_player,
-                update_damage_logs,
-            )
-                .in_set(InGameSet::Update),
-        );
         // Process transforms always after inputs, and translations after rotations
         app.add_systems(
             PostUpdate,
@@ -88,6 +48,11 @@ impl Plugin for CharacterPlugin {
                 .chain()
                 .in_set(InGameSet::Post),
         );
+        app.add_systems(
+            FixedUpdate,
+            (update_damage_logs, increment_bounty).in_set(InGameSet::Update),
+        );
+        //app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
     }
 }
 
@@ -109,145 +74,17 @@ pub enum ActorState {
     Dead,
 }
 
+#[derive(Component, Deref, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
+pub struct PreviousActorState(ActorState);
+
+pub fn update_previous_actor(mut actors: Query<(&mut PreviousActorState, &ActorState)>) {
+    for (mut previous, current) in &mut actors {
+        previous.0 = current.clone();
+    }
+}
+
 #[derive(Component)]
 pub struct HasHealthBar;
-
-#[derive(Event)]
-pub struct InitSpawnEvent {
-    pub actor: ActorType,
-    pub transform: Transform,
-}
-
-#[derive(Event)]
-pub struct RespawnEvent {
-    pub entity: Entity,
-    pub actor: ActorType,
-}
-
-fn init_player(
-    mut commands: Commands,
-    mut _meshes: ResMut<Assets<Mesh>>,
-    mut spawn_events: EventReader<InitSpawnEvent>,
-    mut spectate_events: EventWriter<SpectateEvent>,
-    local_player: Res<Player>,
-) {
-    for event in spawn_events.read() {
-        let player = match event.actor {
-            ActorType::Player(player) => player,
-            _ => continue,
-        };
-        let spawning_id = player.id.clone();
-        info!("spawning player {}", spawning_id);
-        // reset the rotation so you dont spawn looking the other way
-
-        let player_entity = commands
-            .spawn(SpatialBundle::from_transform(event.transform.clone()))
-            .insert((
-                event.actor.clone(), // ActorType
-                player,              // Player
-                Name::new(format!("Player {}", spawning_id.to_string())),
-                ActorState::Alive,
-            ))
-            /*.insert(ControllerBundle {
-                controller: Controller {
-                    float: Float {
-                        spring: Spring {
-                            strength: SpringStrength::AngularFrequency(25.0),
-                            damping: 0.8,
-                        },
-                        ..default()
-                    },
-                    ..default()
-                },
-                ..default()
-            })
-            */
-            .insert((
-                // physics
-                Collider::capsule(1.0, 0.5),
-                RigidBody::Dynamic,
-                LockedAxes::ROTATION_LOCKED,
-                PLAYER_LAYER,
-            ))
-            .insert((
-                // Inventory/store
-                Inventory::default(),
-                StoreHistory::default(),
-                StoreBuffer::default(),
-            ))
-            .insert({
-                let mut attrs = Attributes::default();
-                attrs
-                    .set(Stat::Health, 33.0)
-                    .set_base(Stat::Speed, 16.0)
-                    .set(Stat::CharacterResource, 33.0)
-                    .set(Stat::Gold, 20_000.0);
-                attrs
-            })
-            .insert((
-                TEAM_1,
-                AbilityCastSettings::default(),
-                AbilityRanks::default(),
-                IncomingDamageLog::default(),
-                OutgoingDamageLog::default(),
-                Bounty::default(),
-                CooldownMap::default(),
-                CCMap::default(),
-                BuffMap::default(),
-                Spectatable,
-                Casting(None),
-                WindupTimer(Timer::default()),
-                PlayerInput::default(),
-                SlotBundle::new(), // Has all the keybinding -> action logic
-                HoveredAbility::default(),
-            ))
-            //.insert(NavMeshAffector)
-            .id();
-
-        let player_is_owned = event.actor == ActorType::Player(*local_player); // make it check if you are that player
-        if player_is_owned {
-            spectate_events.send(SpectateEvent {
-                entity: player_entity,
-            });
-            commands.insert_resource(PlayerEntity(Some(player_entity)));
-            commands.insert_resource(Spectating(player_entity));
-            commands.insert_resource(PlayerInput::default());
-            commands.entity(player_entity).insert((Trackable,));
-        }
-    }
-}
-
-fn respawn_entity(
-    mut respawn_events: EventReader<RespawnEvent>,
-    mut the_damned: Query<(&mut Visibility, &mut ActorState)>,
-    local_player: Res<Player>,
-    mut spectate_events: EventWriter<SpectateEvent>,
-) {
-    for event in respawn_events.read() {
-        let Ok((mut vis, mut state)) = the_damned.get_mut(event.entity) else {
-            continue;
-        };
-        *vis = Visibility::Visible;
-        *state = ActorState::Alive;
-        if event.actor == ActorType::Player(*local_player) {
-            spectate_events.send(SpectateEvent {
-                entity: event.entity,
-            });
-        }
-    }
-}
-
-fn setup_player(mut spawn_events: EventWriter<InitSpawnEvent>, local_player: Res<Player>) {
-    dbg!();
-    spawn_events.send(InitSpawnEvent {
-        actor: ActorType::Player(local_player.clone()),
-        transform: Transform {
-            translation: Vec3::new(0.0, 0.5, 0.0),
-            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
-            ..default()
-        },
-    });
-}
 
 pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), With<Player>>) {
     for (mut player_transform, inputs, cc_map) in players.iter_mut() {
@@ -258,16 +95,8 @@ pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), 
     }
 }
 
-pub fn player_movement(
-    mut query: Query<(
-        &Attributes,
-        //&mut ControllerInput,
-        //&mut Movement,
-        &PlayerInput,
-        &CCMap,
-    )>,
-) {
-    for (attributes, /*mut controller, mut movement,*/ player_input, cc_map) in query.iter_mut() {
+pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerInput, &CCMap)>) {
+    for (attributes, mut controller, player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
             //controller.movement = Vec3::ZERO;
             continue;
@@ -292,144 +121,115 @@ pub fn player_movement(
         let movement_vector =
             Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
 
-        //controller.movement = movement_vector;
-        //movement.max_speed = speed;
+        controller.direction = movement_vector;
+        controller.max_speed = speed;
     }
 }
 
-pub fn cast_ability(
-    mut players: Query<(&CooldownMap, &CCMap, &mut HoveredAbility)>,
-    mut attempt_cast_event: EventReader<InputCastEvent>,
-    mut cast_event: EventWriter<CastEvent>,
+fn give_kill_credit(
+    changed_states: Query<(Option<&Bounty>, &ActorState, &IncomingDamageLog), Changed<ActorState>>,
+    mut victors: Query<(&mut Attributes, &ActorType)>,
+    mut scoreboard: ResMut<Scoreboard>,
 ) {
-    for event in attempt_cast_event.read() {
-        let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else {
+    const TIME_FOR_KILL_CREDIT: u64 = 30;
+    for (bounty, state, log) in changed_states.iter() {
+        if state == &ActorState::Alive {
             continue;
-        };
-        if ccmap.map.contains_key(&CCType::Silence) || ccmap.map.contains_key(&CCType::Stun) {
-            continue;
-        } // play erro sound for silenced
-        if cooldowns.map.contains_key(&event.ability) {
-            continue;
-        } // play error sound for on CD
-        hovered.0 = None;
-        cast_event.send(CastEvent {
-            caster: event.caster,
-            ability: event.ability,
-        });
-    }
-}
+        }
 
-#[derive(Event)]
-pub struct InputCastEvent {
-    pub caster: Entity,
-    pub ability: Ability,
-}
+        let mut killers = Vec::new();
+        for instance in log.list.iter().rev() {
+            if Instant::now().duration_since(instance.when)
+                > Duration::from_secs(TIME_FOR_KILL_CREDIT)
+            {
+                break;
+            }
+            //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
+            killers.push(instance.attacker);
+        }
+        for (index, awardee) in killers.iter().enumerate() {
+            let Ok((mut attributes, awardee_actor)) = victors.get_mut(*awardee) else {
+                continue;
+            };
 
-#[derive(Event)]
-pub struct CastEvent {
-    pub caster: Entity,
-    pub ability: Ability,
-}
+            if let Some(bounty) = bounty {
+                let gold = attributes.get_mut(Stat::Gold);
+                *gold += bounty.gold;
+                let xp = attributes.get_mut(Stat::Xp);
+                *xp += bounty.xp;
+            }
 
-#[derive(Component)]
-pub struct WindupTimer(pub Timer);
-pub enum CastingStage {
-    Charging(Timer),
-    Windup(Timer),
-    None,
-}
-
-fn start_ability_windup(
-    mut players: Query<(&mut WindupTimer, &mut Casting)>,
-    mut cast_events: EventReader<CastEvent>,
-) {
-    for event in cast_events.read() {
-        let Ok((mut winduptimer, mut casting)) = players.get_mut(event.caster) else {
-            continue;
-        };
-        let windup = event.ability.get_actor_times();
-        winduptimer.0 = Timer::new(
-            Duration::from_millis((windup * 1000.) as u64),
-            TimerMode::Once,
-        );
-        casting.0 = Some(event.ability);
-    }
-}
-
-fn tick_windup_timer(
-    time: Res<Time>,
-    mut players: Query<(Entity, &mut WindupTimer, &mut Casting)>,
-    mut fire_event: EventWriter<AbilityFireEvent>,
-) {
-    for (entity, mut timer, mut casting) in players.iter_mut() {
-        let Some(ability) = casting.0 else { continue };
-        timer.0.tick(time.delta());
-        if timer.0.finished() {
-            fire_event.send(AbilityFireEvent {
-                caster: entity,
-                ability: ability.clone(),
-            });
-            casting.0 = None;
+            if let ActorType::Player(killer) = awardee_actor {
+                let killer_scoreboard = scoreboard.0.entry(*killer).or_default();
+                if index == 0 {
+                    killer_scoreboard.kda.kills += 1;
+                } else {
+                    killer_scoreboard.kda.assists += 1;
+                }
+            }
         }
     }
 }
 
-fn trigger_cooldown(
-    mut cast_events: EventReader<AbilityFireEvent>,
-    mut query: Query<(&mut CooldownMap, &Attributes)>,
+#[derive(Component)]
+pub struct DeathDelay(pub Timer);
+
+fn start_death_timer(
+    mut commands: Commands,
+    changed_states: Query<(Entity, &ActorState), Changed<ActorState>>,
 ) {
-    for event in cast_events.read() {
-        let Ok((mut cooldowns, attributes)) = query.get_mut(event.caster) else {
+    let respawn_timer = 8.0;
+    for (entity, state) in changed_states.iter() {
+        if state == &ActorState::Alive {
             continue;
-        };
-        let cdr = 1.0 - (attributes.get(Stat::CooldownReduction) / 100.0);
+        }
+        // Add respawn timer to director
 
-        cooldowns.map.insert(
-            event.ability.clone(),
-            Timer::new(
-                Duration::from_millis((event.ability.get_cooldown() * cdr * 1000.) as u64),
-                TimerMode::Once,
-            ),
-        );
+        // Add despawn delay component to dead thing
+        let death_delay = DeathDelay(Timer::from_seconds(10.0, TimerMode::Once));
+        commands.entity(entity).insert(death_delay);
     }
 }
 
-// Move these to character file, since mobs will be cc'd and buffed/cooldowns
-// too AND MAKE GENERIC ⬇️⬇️⬇️
-
-fn tick_cooldowns(
+fn tick_death_timer(
+    mut respawning: Query<(Entity, &mut DeathDelay, &mut Visibility)>,
+    mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<&mut CooldownMap>,
-    //mut cd_events: EventWriter<CooldownFreeEvent>,
 ) {
-    for mut cooldowns in &mut query {
-        // remove if finished
-        cooldowns.map.retain(|_, timer| {
-            timer.tick(time.delta());
-            !timer.finished()
-        });
+    for (entity, mut timer, mut vis) in respawning.iter_mut() {
+        timer.0.tick(time.delta());
+        if timer.0.percent() > 0.7 {
+            *vis = Visibility::Hidden;
+        }
+        if timer.0.finished() {
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
 
-#[derive(Component, Reflect, Default, Debug, Clone)]
-#[reflect]
-pub struct AbilityMap {
-    pub ranks: HashMap<Ability, u32>,
-    pub cds: HashMap<Ability, Timer>,
-}
-
-#[derive(Component, Reflect, Default, Debug, Clone)]
-#[reflect]
-pub struct AbilityRanks {
-    pub map: HashMap<Ability, Rank>,
-}
-
-#[derive(Component, Reflect, Default, Debug, Clone)]
-#[reflect]
-pub struct CooldownMap {
-    pub map: HashMap<Ability, Timer>,
-}
+// probably want to change this respawn system to just despawn the entity instead of hiding it
+//
+// it makes sense to just move players back to spawn at first, but what about minions?
+// the hiding + moving way works for players cus u will have just 1
+// like is there supposed to be a cap for minions then? we def despawn them so i think having a unified way of respawning thing too
+// and should do the same for players, fully despawning and setting a respawn in something managed by the director instead of component
+// fn respawn_entity(
+//     mut commands: Commands,
+//     mut the_damned: Query<(&mut Visibility, &ActorState, Entity, &ActorType), Changed<ActorState>>,
+//     local_player: Res<Player>,
+//     //mut spectate_events: EventWriter<SpectateEvent>,
+// ) {
+//     for (mut vis, state, entity, actor_type) in the_damned.iter_mut(){
+//         if state == ActorState::Dead { continue }
+//         commands.entity(entity).remove::<Respawn>();
+//         *vis = Visibility::Visible;
+//         if actor_type == ActorType::Player(*local_player) {
+//             spectate_events.send(SpectateEvent {
+//                 entity: event.entity,
+//             });
+//         }
+//     }
+// }
 
 #[derive(Component, Default)]
 pub struct OutgoingDamageLog {
@@ -442,42 +242,6 @@ pub struct IncomingDamageLog {
     pub list: Vec<HealthMitigatedEvent>,
     pub sums: HashMap<Entity, DamageSum>,
 }
-
-pub struct DamageSum {
-    total_change: i32,
-    total_mitigated: u32,
-    hit_amount: u32,
-    sub_list: Vec<HealthMitigatedEvent>,
-}
-
-impl DamageSum {
-    pub fn add_damage(&mut self, instance: HealthMitigatedEvent) {
-        self.total_change += instance.change;
-        self.total_mitigated += instance.mitigated;
-        self.hit_amount += 1;
-        self.sub_list.push(instance);
-    }
-
-    pub fn from_instance(instance: HealthMitigatedEvent) -> Self {
-        DamageSum {
-            total_change: instance.change,
-            total_mitigated: instance.mitigated,
-            hit_amount: 1,
-            sub_list: vec![instance.clone()],
-        }
-    }
-
-    pub fn total_change(&self) -> i32 {
-        self.total_change
-    }
-    pub fn total_mitigated(&self) -> u32 {
-        self.total_mitigated
-    }
-    pub fn hit_amount(&self) -> u32 {
-        self.hit_amount
-    }
-}
-
 // change mitigated function to round properly, dont need to cast to ints here
 fn update_damage_logs(
     mut damage_events: EventReader<HealthMitigatedEvent>,
@@ -555,48 +319,3 @@ fn update_damage_logs(
         }
     }
 }
-
-#[derive(PartialEq, Eq, Debug)]
-pub enum LogSide {
-    Incoming,
-    Outgoing,
-}
-
-#[derive(PartialEq, Eq, Debug)]
-pub enum LogType {
-    Add,
-    Stack,
-}
-
-// Change attacker to caster?
-#[derive(Event, Debug)]
-pub struct LogHit {
-    pub sensor: Entity,
-    pub attacker: Entity,
-    pub defender: Entity,
-    pub damage_type: DamageType,
-    pub ability: Ability,
-    pub change: i32,
-    pub mitigated: u32,
-    pub log_type: LogType,
-    pub log_direction: LogSide,
-}
-
-impl LogHit {
-    fn new(event: HealthMitigatedEvent, log_type: LogType, log_direction: LogSide) -> Self {
-        LogHit {
-            sensor: event.sensor,
-            attacker: event.attacker,
-            defender: event.defender,
-            damage_type: event.damage_type,
-            ability: event.ability,
-            change: event.change,
-            mitigated: event.mitigated,
-            log_type,
-            log_direction,
-        }
-    }
-}
-
-#[derive(Component)]
-pub struct Tower;

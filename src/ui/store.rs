@@ -2,21 +2,21 @@ use bevy::prelude::*;
 
 use crate::{
     ability::TargetsInArea,
-    actor::{
-        player::PlayerEntity,
-        stats::{Attributes, Stat, Stat::*},
+    actor::player::LocalPlayer,
+    area::{
+        queue::{AreaOverlapEvent, AreaOverlapType},
+        Fountain,
     },
-    area::{AreaOverlapEvent, AreaOverlapType},
     assets::Items,
-    game_manager::Fountain,
     inventory::Inventory,
     item::Item,
+    prelude::InGameSet,
+    stats::{Attributes, Stat, Stat::*},
 };
 
 use super::{
     styles::{NORMAL_BUTTON, PRESSED_BUTTON},
     ui_bundles::*,
-    SpectatingSet,
 };
 
 pub struct StorePlugin;
@@ -27,7 +27,6 @@ impl Plugin for StorePlugin {
         app.add_event::<StoreEvent>();
         app.add_event::<UndoPressEvent>();
 
-        /*
         app.add_systems(
             Update,
             (
@@ -40,9 +39,8 @@ impl Plugin for StorePlugin {
                 leave_store,
                 update_discounts.after(inspect_item),
             )
-                .in_set(SpectatingSet),
+                .in_set(InGameSet::Update),
         );
-        */
     }
 }
 
@@ -118,13 +116,15 @@ fn update_discounts(
         Query<(&mut Text, &ItemDiscount), Changed<ItemDiscount>>,
         Query<(&mut Text, &ItemDiscount)>,
     )>,
-    player_entity: Res<PlayerEntity>,
+    local_player: Option<Res<LocalPlayer>>,
     changed_inventories: Query<(&Inventory, Entity), Changed<Inventory>>,
     inventories: Query<&Inventory>,
 ) {
-    let Some(local) = player_entity.0 else { return };
+    let Some(local) = local_player else {
+        return;
+    };
     for (inv, entity) in changed_inventories.iter() {
-        if entity != local {
+        if entity != **local {
             continue;
         }
         for (mut text, discounted_item) in query.p1().iter_mut() {
@@ -132,7 +132,7 @@ fn update_discounts(
         }
     }
     for (mut text, discounted_item) in query.p0().iter_mut() {
-        let Ok(inv) = inventories.get(local) else {
+        let Ok(inv) = inventories.get(**local) else {
             continue;
         };
         discount_style(discounted_item.0.clone(), &inv, &mut text);
@@ -329,21 +329,23 @@ fn try_undo_store(
 
 fn leave_store(
     mut buyers: Query<&mut StoreBuffer>,
-    local_entity: Res<PlayerEntity>,
+    local_player: Option<Res<LocalPlayer>>,
     mut area_events: EventReader<AreaOverlapEvent>,
     sensors: Query<&TargetsInArea, With<Fountain>>,
 ) {
+    let Some(local) = local_player else {
+        return;
+    };
     let Some(event) = area_events.read().next() else {
         return;
     };
-    let Some(local) = local_entity.0 else { return };
-    if event.target != local || event.overlap == AreaOverlapType::Entered {
+    if event.target != **local || event.overlap == AreaOverlapType::Entered {
         return;
     }
     let Ok(_) = sensors.get(event.sensor) else {
         return;
     };
-    let Ok(mut buffer) = buyers.get_mut(local) else {
+    let Ok(mut buffer) = buyers.get_mut(**local) else {
         return;
     };
 

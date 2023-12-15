@@ -1,25 +1,97 @@
+//! Construction of abilities.
+//!
+//! Basic premise of all abilities is there are `collectors`, `filters`, and `appliers`.
+//!
+//! `Collectors` use colliders/auto-targetters/etc. to determine potential targets for an ability.
+//! `Filters` take collectors and disqualify them if they shouldn't be affected.
+//! `Appliers` finalize the effects of the ability on the target entity, most commonly damaging or
+//! debuffing.
+
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    actor::{
-        buff::BuffInfo,
-        crowd_control::{CCInfo, CCType},
-        stats::Stat,
-    },
     assets::Icons,
+    prelude::*,
+    stats::{Stat, StatsPlugin},
 };
+
 use bevy::prelude::*;
 use derive_more::Display;
 use leafwing_input_manager::Actionlike;
 
 use self::{
+    buff::{BuffInfo, BuffPlugin},
     bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
+    cast::CastPlugin,
+    crowd_control::{CCInfo, CCPlugin, CCType},
     shape::AbilityShape,
+    timeline::{AreaTimeline, DeployAreaStage},
 };
 
+pub mod buff;
+pub mod builder;
 pub mod bundles;
+pub mod cast;
+pub mod collector;
+pub mod crowd_control;
 pub mod rank;
 pub mod shape;
+pub mod timeline;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AbilitySet {
+    /// Gather entities that should be considered for ability application.
+    CollectorUpdate,
+    /// Filter/disqualify entities that were collected.
+    Filter,
+    /// Apply ability effects to entities.
+    Apply,
+    /// Update filters based on previously collected entities.
+    FilterUpdate,
+    /// Clear the collected entities for next tick.
+    ClearCollected,
+}
+
+pub struct AbilityPlugin;
+
+impl Plugin for AbilityPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(BuffPlugin);
+        app.add_plugins(StatsPlugin);
+        app.add_plugins(CCPlugin);
+        app.add_plugins(CastPlugin);
+
+        app.configure_sets(
+            FixedUpdate,
+            (
+                AbilitySet::CollectorUpdate,
+                AbilitySet::Filter,
+                AbilitySet::Apply,
+                AbilitySet::FilterUpdate,
+                AbilitySet::ClearCollected,
+            )
+                .chain()
+                .in_set(InGameSet::Update),
+        );
+
+        /*
+        app.add_systems(
+            FixedUpdate,
+            (filter_already_hit, filter_timed_hit).in_set(AbilitySet::Filter),
+        );
+
+        app.add_systems(
+            FixedUpdate,
+            (update_already_hit, update_timed_hit).in_set(AbilitySet::FilterUpdate),
+        );
+
+        app.add_systems(
+            FixedUpdate,
+            clear_collected.in_set(AbilitySet::ClearCollected),
+        );
+        */
+    }
+}
 
 #[derive(
     Actionlike, Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash,
@@ -145,169 +217,12 @@ impl Ability {
     }
 }
 
-pub struct AbilityBlueprint {
-    pub base_ability: Ability,
-    pub name: String,
-    pub stages: HashMap<Trigger, AbilityStage>,
-    pub cooldown: Cooldown,
-}
-
-pub struct AbilityStage {
-    pub effects: HashMap<AbilityComp, RankNumbers>,
-    pub shape: AbilityShape,
-    pub path: Path,
-}
-
-#[derive(PartialEq, PartialOrd)]
-pub enum Trigger {
-    Cast(TransformOrigin),
-    Collision, // Merlin Frostbolt explosion // change to be the bitmask of walls/allies/enemies
-    Detonate,  // Isis Spirit ball, Thor 1
-    TimeDelay(f32),
-}
-
-#[derive(PartialEq, PartialOrd)]
-pub enum TransformOrigin {
-    Player,
-    Reticle,
-}
-
-pub enum Path {
-    Static,
-    Straight { lifetime: f32, speed: f32 },
-}
-
-pub enum AbilityComp {
-    Scaling(Stat),
-    BaseDamage,
-    Cooldown,
-    Cost,
-    CC(CCType),
-}
-
-pub struct RankNumbers {
-    pub base: u32,
-    pub per_rank: u32,
-}
-
-pub struct Scaling {
-    pub base: u32,
-    pub per_rank: u32,
-    pub stat: Stat,
-}
-pub struct BaseDamage {
-    pub base: u32,
-    pub per_rank: u32,
-}
-pub struct Cooldown {
-    pub base: u32,
-    pub per_rank: u32,
-}
-
-trait AbilityFactory {
-    fn build(ability: Ability) -> u32;
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct AbilityBuilder {
-    //base_ability: Ability,
-    scaling: Option<u32>,
-}
-
-impl AbilityBuilder {
-    pub fn new(_ability: Ability) -> AbilityBuilder {
-        Self {
-            //base_ability: ability,
-            scaling: None,
-        }
-    }
-    pub fn with_scaling(&mut self, scaling: u32) -> &mut Self {
-        self.scaling = Some(scaling);
-        self
-    }
-    pub fn build(&mut self, commands: &mut Commands) -> Entity {
-        dbg!(self);
-        let ability = FireballInfo::fire_bundle(&Transform::default());
-        commands.spawn(ability).id()
-    }
-}
-
 #[derive(Component, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]
 pub struct AbilityTooltip {
     pub title: String,
     pub image: String,
     pub description: String,
-}
-
-// Maybe we should have a "general" lifetime too even if the thing isn't being
-// casted...?
-#[derive(Component, Debug, Clone, Default, Reflect)]
-#[reflect(Component)]
-pub struct AreaLifetime {
-    pub seconds: f64,
-}
-// Ticks, TickInterval, TickBehavior, and DeployAreaStage::Firing all interlink data
-
-#[derive(Component, Clone, Debug, Default, Reflect, PartialEq)]
-#[reflect(Component)]
-pub struct AreaTimeline {
-    pub stage: DeployAreaStage,
-    pub timer: Timer,
-    pub blueprint: HashMap<DeployAreaStage, f32>,
-}
-
-impl AreaTimeline {
-    pub fn new(bp: HashMap<DeployAreaStage, f32>) -> Self {
-        let x = bp.get(&DeployAreaStage::Windup).unwrap_or(&0.0).clone();
-        Self {
-            blueprint: bp,
-            stage: DeployAreaStage::Windup,
-            timer: Timer::new(Duration::from_secs_f32(x), TimerMode::Once),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Reflect, PartialEq, Eq, Hash, Default)]
-pub enum DeployAreaStage {
-    Windup,  // between fire from player, to spawned in world
-    Outline, // between fire and shown to enemies, change to different component?
-    #[default]
-    Firing, // active in world
-    Recovery, // delay before despawn
-}
-
-impl DeployAreaStage {
-    pub fn get_next_stage(&mut self) -> Self {
-        use DeployAreaStage::*;
-        match self {
-            Windup => Outline,
-            Outline => Firing,
-            Firing | Recovery => Recovery,
-        }
-    }
-}
-
-#[derive(Component)]
-pub struct OutlineDelay(pub f32);
-
-#[derive(Component, Clone, Debug, Default, Reflect)]
-#[reflect(Component)]
-struct CastingStages(HashMap<Ability, CastTimeline>);
-
-#[derive(Reflect, Clone, Debug)]
-struct CastTimeline {
-    stage: ActorCastStage,
-    timer: Timer,
-    blueprint: HashMap<ActorCastStage, f32>,
-}
-
-#[derive(Clone, Debug, Reflect, PartialEq, Eq, Hash)]
-pub enum ActorCastStage {
-    Charging,   // if ability has a charge before even getting a targetter (athena dash, tia 1)
-    Prefire,    // between press and firing/goes on CD
-    Channeling, // if channelling an ability, like anubis 1
-    Postfire,   // recovery time after going on CD
 }
 
 #[derive(Component, Default, Debug, Clone, Reflect)]

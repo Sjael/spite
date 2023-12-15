@@ -9,19 +9,20 @@ use bevy::{
 use bevy_tweening::TweenCompleted;
 
 use crate::{
-    ability::Ability,
-    actor::{
+    ability::{
         buff::{BuffAddEvent, BuffStackEvent, BuffType},
+        cast::{
+            AbilityFireEvent, CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer, AbilitySlots,
+        },
         crowd_control::{CCMap, CCType},
-        player::Player,
-        stats::*,
-        view::Spectating,
-        CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer,
+        Ability,
+        //view::Spectating,
     },
+    actor::player::{LocalPlayer, Player},
     assets::{Fonts, Icons, Images, Items},
-    game_manager::{AbilityFireEvent, Team},
-    input::SlotAbilityMap,
     item::{Item, ITEM_DB},
+    session::team::*,
+    stats::*,
     ui::ui_bundles::*,
 };
 
@@ -50,7 +51,7 @@ pub fn spawn_spectator_camera(mut commands: Commands) {
 pub fn add_player_ui(
     mut commands: Commands,
     ui_query: Query<Entity, With<RootUI>>,
-    player_query: Query<(Entity, &SlotAbilityMap), Added<Player>>,
+    player_query: Query<(Entity, &AbilitySlots), Added<Player>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
     items: Res<Items>,
@@ -58,7 +59,7 @@ pub fn add_player_ui(
     let Ok(root_ui) = ui_query.get_single() else {
         return;
     };
-    for (entity, ability_map) in player_query.iter() {
+    for (entity, ability_slots) in player_query.iter() {
         commands.entity(root_ui).with_children(|parent| {
             parent.spawn(character_ui()).with_children(|parent| {
                 // Bottom Container
@@ -95,7 +96,7 @@ pub fn add_player_ui(
                             });
                         });
                         // CDs
-                        parent.spawn((ability_holder(), ability_map.clone()));
+                        parent.spawn((ability_holder(), ability_slots.clone()));
                     });
                 // CC on self
                 parent.spawn(cc_holder()).with_children(|parent| {
@@ -260,12 +261,12 @@ pub fn add_player_ui(
 
 pub fn add_ability_icons(
     mut commands: Commands,
-    query: Query<(Entity, &SlotAbilityMap), (With<AbilityHolder>, Changed<SlotAbilityMap>)>, // Changed<AbilityHolder> for changing spells midgame
+    query: Query<(Entity, &AbilitySlots), (With<AbilityHolder>, Changed<AbilitySlots>)>, // Changed<AbilityHolder> for changing spells midgame
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ) {
-    for (entity, ability_map) in query.iter() {
-        for (_, ability) in &ability_map.map {
+    for (entity, ability_slots) in query.iter() {
+        for ability in ability_slots.abilities() {
             let ability_icon = commands
                 .spawn((
                     ability_image(ability.get_image(&icons)),
@@ -383,12 +384,16 @@ pub fn bar_track(
     }
 }
 
+// TODO: Fix all of these to update based on the focused entity.
 pub fn update_cc_bar(
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     cc_maps: Query<&CCMap>,
     mut cc_bar_fill: Query<&mut Style, With<CCBarSelfFill>>,
 ) {
-    let Ok(cc_of_spectating) = cc_maps.get(spectating.0) else {
+    let Some(player) = player else {
+        return;
+    };
+    let Ok(cc_of_spectating) = cc_maps.get(**player) else {
         return;
     };
     let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
@@ -402,11 +407,14 @@ pub fn update_cc_bar(
 }
 
 pub fn update_cast_bar(
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     windup_query: Query<&WindupTimer>,
     mut cast_bar_fill: Query<&mut Style, With<CastBarFill>>,
 ) {
-    let Ok(windup) = windup_query.get(spectating.0) else {
+    let Some(player) = player else {
+        return;
+    };
+    let Ok(windup) = windup_query.get(**player) else {
         return;
     };
     let Ok(mut style) = cast_bar_fill.get_single_mut() else {
@@ -416,14 +424,18 @@ pub fn update_cast_bar(
 }
 
 pub fn toggle_cc_bar(
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     cc_maps: Query<&CCMap, Changed<CCMap>>,
     mut cc_bar: Query<&mut Visibility, With<CCSelf>>,
     mut cc_icon: Query<&mut UiImage, With<CCIconSelf>>,
     mut cc_text: Query<&mut Text, With<CCSelfLabel>>,
     icons: Res<Icons>,
 ) {
-    let Ok(cc_of_spectating) = cc_maps.get(spectating.0) else {
+    let Some(player) = player else {
+        return;
+    };
+
+    let Ok(cc_of_spectating) = cc_maps.get(**player) else {
         return;
     };
     let Ok(mut vis) = cc_bar.get_single_mut() else {
@@ -449,22 +461,25 @@ pub fn toggle_cc_bar(
 }
 
 pub fn toggle_cast_bar(
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     mut bar: Query<&mut Visibility, With<CastBar>>,
     mut cast_events: EventReader<CastEvent>,
     mut fire_events: EventReader<AbilityFireEvent>,
 ) {
+    let Some(player) = player else {
+        return;
+    };
     let Ok(mut vis) = bar.get_single_mut() else {
         return;
     };
     for event in cast_events.read() {
-        if event.caster != spectating.0 {
+        if event.caster != *player {
             continue;
         }
         *vis = Visibility::Visible;
     }
     for event in fire_events.read() {
-        if event.caster != spectating.0 {
+        if event.caster != *player {
             continue;
         }
         *vis = Visibility::Hidden;
@@ -472,14 +487,17 @@ pub fn toggle_cast_bar(
 }
 
 pub fn update_cooldowns(
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     cooldown_query: Query<&CooldownMap>,
     cooldown_changed_query: Query<&CooldownMap, Changed<CooldownMap>>,
     mut text_query: Query<(&mut Text, &Ability, &Parent), With<CooldownIconText>>,
     mut image_query: Query<&mut BackgroundColor, With<UiImage>>,
 ) {
+    let Some(player) = player else {
+        return;
+    };
     // tick existing cooldowns
-    let Ok(cooldowns) = cooldown_query.get(spectating.0) else {
+    let Ok(cooldowns) = cooldown_query.get(**player) else {
         return;
     };
     for (mut text, ability, _) in text_query.iter_mut() {
@@ -492,7 +510,7 @@ pub fn update_cooldowns(
         }
     }
     // set bg color only when cooldowns change
-    if let Ok(cooldowns_changed) = cooldown_changed_query.get(spectating.0) {
+    if let Ok(cooldowns_changed) = cooldown_changed_query.get(**player) {
         for (mut text, ability, parent) in text_query.iter_mut() {
             let Ok(mut background_color) = image_query.get_mut(parent.get()) else {
                 continue;
@@ -522,14 +540,17 @@ pub fn update_buff_timers(
 }
 
 pub fn update_buff_stacks(
+    player: Option<Res<LocalPlayer>>,
     mut stack_events: EventReader<BuffStackEvent>,
-    spectating: Res<Spectating>,
     mut buff_holders: Query<(Entity, &BuffId, &mut DespawnTimer)>,
     children_query: Query<&Children>,
     mut stacks: Query<(&mut Text, &mut Visibility), With<BuffStackNumber>>,
 ) {
+    let Some(player) = player else {
+        return;
+    };
     for stack_change in stack_events.read() {
-        if stack_change.target != spectating.0 {
+        if stack_change.target != *player {
             continue;
         }
         for (buff_ui_entity, buff_id, mut despawn_timer) in buff_holders.iter_mut() {
@@ -555,15 +576,18 @@ pub fn update_buff_stacks(
 pub fn add_buffs(
     mut commands: Commands,
     mut buff_events: EventReader<BuffAddEvent>,
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     targets_query: Query<Entity, With<Player>>,
     buff_bar_ui: Query<Entity, With<BuffBar>>,
     debuff_bar_ui: Query<Entity, With<DebuffBar>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
 ) {
+    let Some(player) = player else {
+        return;
+    };
     for event in buff_events.read() {
-        if event.target != spectating.0 {
+        if event.target != *player {
             continue;
         }
         let Ok(_) = targets_query.get(event.target) else {
@@ -629,20 +653,23 @@ pub fn toggle_objective_health(
 
 pub fn spawn_floating_damage(
     mut damage_events: EventReader<HealthMitigatedEvent>,
-    spectating: Res<Spectating>,
+    local_player: Option<Res<LocalPlayer>>,
     mut commands: Commands,
     damaged_query: Query<Entity>,
     fonts: Res<Fonts>,
 ) {
+    let Some(player) = local_player else {
+        return;
+    };
     for damage_instance in damage_events.read() {
-        if damage_instance.attacker != spectating.0 && damage_instance.defender != spectating.0 {
+        if damage_instance.attacker != *player && damage_instance.defender != *player {
             continue;
         }
         let Ok(damaged) = damaged_query.get(damage_instance.defender) else {
             continue;
         };
         let mut color = Color::WHITE;
-        if damage_instance.defender == spectating.0 {
+        if damage_instance.defender == *player {
             color = Color::RED;
         }
         commands
@@ -679,7 +706,7 @@ pub fn floating_damage_cleanup(
 pub fn update_damage_log_ui(
     mut commands: Commands,
     mut damage_events: EventReader<LogHit>,
-    spectating: Res<Spectating>,
+    player: Option<Res<LocalPlayer>>,
     incoming_ui: Query<Entity, With<IncomingLogUi>>,
     outgoing_ui: Query<Entity, With<OutgoingLogUi>>,
     fonts: Res<Fonts>,
@@ -690,10 +717,13 @@ pub fn update_damage_log_ui(
     children_query: Query<&Children>,
     mut entry_text: Query<(&mut Text, &mut StoredNumber, &EntryText, &DamageLogId)>,
 ) {
+    let Some(player) = player else {
+        return;
+    };
     for event in damage_events.read() {
         let (log_ui, other_party, direction) = match event.log_direction {
             LogSide::Incoming => {
-                if spectating.0 != event.defender {
+                if *player != event.defender {
                     continue;
                 }
                 let Ok(incoming_ui) = incoming_ui.get_single() else {
@@ -702,7 +732,7 @@ pub fn update_damage_log_ui(
                 (incoming_ui, event.attacker, "from".to_string())
             }
             LogSide::Outgoing => {
-                if spectating.0 != event.attacker {
+                if *player != event.attacker {
                     continue;
                 }
                 let Ok(outgoing_ui) = outgoing_ui.get_single() else {
