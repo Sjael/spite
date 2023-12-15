@@ -1,14 +1,17 @@
 use std::f32::consts::PI;
 
-use bevy::input::mouse::MouseMotion;
+use bevy::{ecs::query::WorldQuery, input::mouse::MouseMotion};
 use serde::{Deserialize, Serialize};
 
-use crate::{input::MouseSensitivity, prelude::*, ui::mouse::MouseState};
+use crate::{prelude::*, ui::mouse::MouseState};
 
 use super::{LocalPlayerId, Player};
 
+#[derive(Resource)]
+pub struct MouseSensitivity(pub f32);
+
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InputSet;
+pub struct InputCollectionSet;
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
@@ -16,8 +19,9 @@ impl Plugin for InputPlugin {
         app.register_type::<PlayerInput>();
 
         app.insert_resource(PlayerInput::default());
+        app.insert_resource(MouseSensitivity(1.0));
 
-        app.configure_sets(PreUpdate, InputSet.in_set(InGameSet::Pre));
+        app.configure_sets(PreUpdate, InputCollectionSet.in_set(InGameSet::Pre));
 
         app.add_systems(
             PreUpdate,
@@ -27,8 +31,38 @@ impl Plugin for InputPlugin {
                 update_local_player_inputs,
             )
                 .chain()
-                .in_set(InputSet),
+                .in_set(InputCollectionSet),
         );
+
+        app.add_systems(
+            FixedUpdate,
+            (previous::<PlayerInput>,).in_set(InGameSet::Post),
+        );
+    }
+}
+
+/// Query information about the changing state of player inputs.
+#[derive(WorldQuery)]
+pub struct PlayerInputQuery {
+    current: &'static PlayerInput,
+    previous: &'static Previous<PlayerInput>,
+}
+
+impl<'w> PlayerInputQueryItem<'w> {
+    pub fn pressed(&self, action: PlayerInputKeys) -> bool {
+        self.current.pressed(action)
+    }
+
+    pub fn just_pressed(&self, action: PlayerInputKeys) -> bool {
+        self.current.pressed(action) && !self.previous.pressed(action)
+    }
+
+    pub fn just_released(&self, action: PlayerInputKeys) -> bool {
+        !self.current.pressed(action) && self.previous.pressed(action)
+    }
+
+    pub fn slots(&self) -> &[PlayerInputKeys] {
+        self.current.slots()
     }
 }
 
@@ -83,6 +117,7 @@ pub fn player_keys_input(
         .set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
     player_input
         .set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+
     player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
     player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
     player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
@@ -101,7 +136,6 @@ pub struct PlayerInput {
     pub pitch: f32,
     /// Horizontal rotation of camera
     pub yaw: f32,
-    //pub casted: [Option<CastInput>; 4],
 }
 
 impl PlayerInput {
@@ -110,7 +144,6 @@ impl PlayerInput {
             binary_inputs: PlayerInputKeys::empty(),
             pitch: 0.0,
             yaw: 0.0,
-            //casted: [None; 4],
         }
     }
 
@@ -127,16 +160,16 @@ impl PlayerInput {
         self.binary_inputs.set(PlayerInputKeys::RIGHT, right);
     }
     pub fn forward(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::FORWARD)
+        self.pressed(PlayerInputKeys::FORWARD)
     }
     pub fn back(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::BACK)
+        self.pressed(PlayerInputKeys::BACK)
     }
     pub fn left(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::LEFT)
+        self.pressed(PlayerInputKeys::LEFT)
     }
     pub fn right(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::RIGHT)
+        self.pressed(PlayerInputKeys::RIGHT)
     }
     pub fn set_ability1(&mut self, pressed: bool) {
         self.binary_inputs.set(PlayerInputKeys::ABILITY_1, pressed);
@@ -151,16 +184,24 @@ impl PlayerInput {
         self.binary_inputs.set(PlayerInputKeys::ABILITY_4, pressed);
     }
     pub fn ability1(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::ABILITY_1)
+        self.pressed(PlayerInputKeys::ABILITY_1)
     }
     pub fn ability2(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::ABILITY_2)
+        self.pressed(PlayerInputKeys::ABILITY_2)
     }
     pub fn ability3(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::ABILITY_3)
+        self.pressed(PlayerInputKeys::ABILITY_3)
     }
     pub fn ability4(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::ABILITY_4)
+        self.pressed(PlayerInputKeys::ABILITY_4)
+    }
+    pub fn slots(&self) -> &[PlayerInputKeys] {
+        &[
+            PlayerInputKeys::ABILITY_1,
+            PlayerInputKeys::ABILITY_2,
+            PlayerInputKeys::ABILITY_3,
+            PlayerInputKeys::ABILITY_4,
+        ]
     }
     pub fn set_left_click(&mut self, clicked: bool) {
         self.binary_inputs.set(PlayerInputKeys::LEFT_CLICK, clicked);
@@ -170,10 +211,14 @@ impl PlayerInput {
             .set(PlayerInputKeys::RIGHT_CLICK, clicked);
     }
     pub fn left_click(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::LEFT_CLICK)
+        self.pressed(PlayerInputKeys::LEFT_CLICK)
     }
     pub fn right_click(&self) -> bool {
-        self.binary_inputs.contains(PlayerInputKeys::RIGHT_CLICK)
+        self.pressed(PlayerInputKeys::RIGHT_CLICK)
+    }
+
+    pub fn pressed(&self, key: PlayerInputKeys) -> bool {
+        self.binary_inputs.contains(key)
     }
 }
 

@@ -12,7 +12,7 @@ use crate::{
     ability::{
         buff::{BuffAddEvent, BuffStackEvent, BuffType},
         cast::{
-            AbilityFireEvent, CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer,
+            AbilityFireEvent, CastEvent, CooldownMap, LogHit, LogSide, LogType, Tower, WindupTimer, AbilitySlots,
         },
         crowd_control::{CCMap, CCType},
         Ability,
@@ -20,7 +20,6 @@ use crate::{
     },
     actor::player::{LocalPlayer, Player},
     assets::{Fonts, Icons, Images, Items},
-    input::SlotAbilityMap,
     item::{Item, ITEM_DB},
     session::team::*,
     stats::*,
@@ -52,7 +51,7 @@ pub fn spawn_spectator_camera(mut commands: Commands) {
 pub fn add_player_ui(
     mut commands: Commands,
     ui_query: Query<Entity, With<RootUI>>,
-    player_query: Query<(Entity, &SlotAbilityMap), Added<Player>>,
+    player_query: Query<(Entity, &AbilitySlots), Added<Player>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
     items: Res<Items>,
@@ -60,7 +59,7 @@ pub fn add_player_ui(
     let Ok(root_ui) = ui_query.get_single() else {
         return;
     };
-    for (entity, ability_map) in player_query.iter() {
+    for (entity, ability_slots) in player_query.iter() {
         commands.entity(root_ui).with_children(|parent| {
             parent.spawn(character_ui()).with_children(|parent| {
                 // Bottom Container
@@ -97,7 +96,7 @@ pub fn add_player_ui(
                             });
                         });
                         // CDs
-                        parent.spawn((ability_holder(), ability_map.clone()));
+                        parent.spawn((ability_holder(), ability_slots.clone()));
                     });
                 // CC on self
                 parent.spawn(cc_holder()).with_children(|parent| {
@@ -262,12 +261,12 @@ pub fn add_player_ui(
 
 pub fn add_ability_icons(
     mut commands: Commands,
-    query: Query<(Entity, &SlotAbilityMap), (With<AbilityHolder>, Changed<SlotAbilityMap>)>, // Changed<AbilityHolder> for changing spells midgame
+    query: Query<(Entity, &AbilitySlots), (With<AbilityHolder>, Changed<AbilitySlots>)>, // Changed<AbilityHolder> for changing spells midgame
     icons: Res<Icons>,
     fonts: Res<Fonts>,
 ) {
-    for (entity, ability_map) in query.iter() {
-        for (_, ability) in &ability_map.map {
+    for (entity, ability_slots) in query.iter() {
+        for ability in ability_slots.abilities() {
             let ability_icon = commands
                 .spawn((
                     ability_image(ability.get_image(&icons)),

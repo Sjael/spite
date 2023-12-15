@@ -13,7 +13,6 @@ use ability::{shape::load_ability_shape, AbilityPlugin};
 use actor::ActorPlugin;
 use area::AreaPlugin;
 use assets::GameAssetPlugin;
-use input::InputPlugin;
 use ui::{spectating::spawn_spectator_camera, UiPlugin};
 
 pub mod ability;
@@ -22,11 +21,11 @@ pub mod area;
 pub mod assets;
 pub mod camera;
 pub mod debug;
-pub mod input;
 pub mod inventory;
 pub mod item;
 pub mod map;
 pub mod physics;
+pub mod previous;
 pub mod session;
 pub mod stats;
 pub mod ui;
@@ -39,6 +38,7 @@ pub mod prelude {
         inventory::Inventory,
         item::Item,
         physics::*,
+        previous::*,
         session::director::InGameSet,
         session::team::*,
         stats::{AttributeTag, Attributes, Modifier, Stat},
@@ -88,7 +88,6 @@ impl Plugin for GamePlugin {
             AbilityPlugin,
             ActorPlugin,
             AreaPlugin,
-            InputPlugin,
         ))
         .add_systems(PostUpdate, load_ability_shape); // after systems that spawn ability_shape components
     }

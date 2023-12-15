@@ -1,11 +1,13 @@
 use std::time::Duration;
 
 use bevy::utils::HashMap;
-use leafwing_input_manager::prelude::*;
 
 use crate::{
     ability::Ability,
-    actor::player::{reticle::Reticle, PlayerInput},
+    actor::player::{
+        input::{PlayerInputKeys, PlayerInputQuery},
+        reticle::Reticle,
+    },
     area::{homing::Homing, AbilityBehavior},
     assets::MaterialPresets,
     camera::OuterGimbal,
@@ -32,8 +34,7 @@ impl Plugin for CastPlugin {
         app.add_systems(
             FixedUpdate,
             (
-                select_ability,
-                normal_casting,
+                hover_and_cast,
                 cast_ability,
                 trigger_cooldown.after(cast_ability),
                 tick_cooldowns.after(trigger_cooldown),
@@ -51,25 +52,81 @@ impl Plugin for CastPlugin {
 
 // Make this local only? would be weird to sync other players cast settings, but
 // sure?
-pub fn select_ability(
+pub fn hover_and_cast(
     mut query: Query<(
         &mut HoveredAbility,
-        &ActionState<Ability>,
+        &AbilitySlots,
         &AbilityCastSettings,
+        PlayerInputQuery,
         Entity,
     )>,
     mut cast_event: EventWriter<InputCastEvent>,
 ) {
-    for (mut hover, ab_state, cast_settings, caster_entity) in &mut query {
-        for ability in ab_state.get_just_pressed() {
+    for (mut hover, ability_slots, cast_settings, input, caster_entity) in &mut query {
+        let confirmed = input.just_released(PlayerInputKeys::LEFT_CLICK);
+        let rejected = input.just_pressed(PlayerInputKeys::RIGHT_CLICK);
+        if rejected {
+            continue;
+        }
+
+        for (index, ability_key) in input.slots().iter().enumerate() {
+            let Some(slot) = Slot::from_index(index) else {
+                continue;
+            };
+            let Some(ability) = ability_slots.get(slot) else {
+                continue;
+            };
+            let hovered = match hover.0 {
+                Some(hovered) if hovered == ability => true,
+                _ => false,
+            };
+
+            enum Action {
+                None,
+                Hover,
+                Cast,
+            }
+
             let cast_type = cast_settings.0.get(&ability).unwrap_or(&CastType::Normal);
-            if *cast_type == CastType::Normal {
-                hover.0 = Some(ability.clone());
-            } else if *cast_type == CastType::Instant {
-                cast_event.send(InputCastEvent {
-                    caster: caster_entity,
-                    ability: ability,
-                });
+            let action = match cast_type {
+                CastType::Normal => {
+                    if hovered && confirmed {
+                        Action::Cast
+                    } else if input.just_pressed(*ability_key) {
+                        Action::Hover
+                    } else {
+                        Action::None
+                    }
+                }
+                CastType::Quick => {
+                    if hovered && input.just_released(*ability_key) {
+                        Action::Cast
+                    } else if input.just_pressed(*ability_key) {
+                        Action::Hover
+                    } else {
+                        Action::None
+                    }
+                }
+                CastType::Instant => {
+                    if input.just_pressed(*ability_key) {
+                        Action::Cast
+                    } else {
+                        Action::None
+                    }
+                }
+            };
+
+            match action {
+                Action::Cast => {
+                    cast_event.send(InputCastEvent {
+                        caster: caster_entity,
+                        ability: ability,
+                    });
+                }
+                Action::Hover => {
+                    hover.0 = Some(ability.clone());
+                }
+                _ => {}
             }
         }
     }
@@ -158,37 +215,75 @@ pub fn change_targetter_color(
     }
 }
 
-pub fn normal_casting(
-    mut query: Query<(&PlayerInput, &mut HoveredAbility, Entity)>,
-    mut cast_event: EventWriter<InputCastEvent>,
-) {
-    for (input, mut hovered, player) in &mut query {
-        let Some(hovered_ability) = hovered.0 else {
-            continue;
-        };
-        if input.left_click() {
-            cast_event.send(InputCastEvent {
-                caster: player,
-                ability: hovered_ability,
-            });
-        }
-        if input.right_click() {
-            hovered.0 = None;
+#[derive(Component, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct HoveredAbility(pub Option<Ability>);
+
+#[derive(Component, Debug, Default)]
+pub struct Casting(pub Option<Ability>);
+
+/// Modes of inputting abilities casts.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CastType {
+    /// Press and release ability slot to select ability,
+    /// then confirm cast with left click (primary action).
+    Normal,
+    /// Press and release ability slot to cast.
+    Quick,
+    /// Press ability slot to cast.
+    Instant,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct AbilitySlots {
+    abilities: Vec<Ability>,
+}
+
+#[derive(Copy, Clone)]
+pub enum Slot {
+    Primary = 0,
+    Slot1 = 1,
+    Slot2 = 2,
+    Slot3 = 3,
+    Slot4 = 4,
+}
+
+impl Slot {
+    pub fn from_index(index: usize) -> Option<Slot> {
+        match index {
+            0 => Some(Slot::Primary),
+            1 => Some(Slot::Slot1),
+            2 => Some(Slot::Slot2),
+            3 => Some(Slot::Slot3),
+            4 => Some(Slot::Slot4),
+            _ => None,
         }
     }
 }
 
-#[derive(Component, Debug, Default, Reflect)]
-#[reflect(Component)]
-pub struct HoveredAbility(pub Option<Ability>);
-#[derive(Component, Debug, Default)]
-pub struct Casting(pub Option<Ability>);
+impl AbilitySlots {
+    pub fn new() -> Self {
+        Self {
+            abilities: Vec::with_capacity(6),
+        }
+    }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum CastType {
-    Normal,
-    Quick,
-    Instant,
+    pub fn set(&mut self, slot: Slot, ability: Ability) {
+        self.abilities.insert(slot as usize, ability);
+    }
+
+    pub fn with(mut self, slot: Slot, ability: Ability) -> Self {
+        self.set(slot, ability);
+        self
+    }
+
+    pub fn get(&self, slot: Slot) -> Option<Ability> {
+        self.abilities.get(slot as usize).copied()
+    }
+
+    pub fn abilities(&self) -> impl Iterator<Item = Ability> + '_ {
+        self.abilities.iter().copied()
+    }
 }
 
 #[derive(Component, Debug)]
@@ -207,15 +302,19 @@ pub fn cast_ability(
     mut cast_event: EventWriter<CastEvent>,
 ) {
     for event in attempt_cast_event.read() {
+        info!("event: {:?}", event);
         let Ok((cooldowns, ccmap, mut hovered)) = players.get_mut(event.caster) else {
             continue;
         };
+
         if ccmap.map.contains_key(&CCType::Silence) || ccmap.map.contains_key(&CCType::Stun) {
             continue;
         } // play erro sound for silenced
+
         if cooldowns.map.contains_key(&event.ability) {
             continue;
         } // play error sound for on CD
+
         hovered.0 = None;
         cast_event.send(CastEvent {
             caster: event.caster,
@@ -224,13 +323,13 @@ pub fn cast_ability(
     }
 }
 
-#[derive(Event)]
+#[derive(Event, Debug)]
 pub struct InputCastEvent {
     pub caster: Entity,
     pub ability: Ability,
 }
 
-#[derive(Event)]
+#[derive(Event, Debug)]
 pub struct CastEvent {
     pub caster: Entity,
     pub ability: Ability,

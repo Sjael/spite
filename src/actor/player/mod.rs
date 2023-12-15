@@ -7,13 +7,16 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ability::{
         buff::BuffMap,
-        cast::{AbilityCastSettings, Casting, CooldownMap, HoveredAbility, WindupTimer},
+        cast::{
+            AbilityCastSettings, AbilitySlots, Casting, CooldownMap, HoveredAbility, Slot,
+            WindupTimer,
+        },
         crowd_control::CCMap,
         rank::AbilityRanks,
+        Ability,
     },
     actor::{controller::Controller, IncomingDamageLog, OutgoingDamageLog, bounty::Bounty},
     camera::Spectatable,
-    input::SlotBundle,
     prelude::*,
     ui::{
         store::{StoreBuffer, StoreHistory},
@@ -119,9 +122,16 @@ pub fn init_player(
                 attrs
             })
             .insert((
-                TEAM_1,
+                AbilitySlots::new()
+                    .with(Slot::Primary, Ability::BasicAttack)
+                    .with(Slot::Slot1, Ability::Frostbolt)
+                    .with(Slot::Slot2, Ability::Fireball)
+                    .with(Slot::Slot3, Ability::Bomb),
                 AbilityCastSettings::default(),
                 AbilityRanks::default(),
+            ))
+            .insert((
+                TEAM_1,
                 IncomingDamageLog::default(),
                 OutgoingDamageLog::default(),
                 Bounty::default(),
@@ -132,7 +142,6 @@ pub fn init_player(
                 Casting(None),
                 WindupTimer(Timer::default()),
                 PlayerInput::default(),
-                SlotBundle::new(), // Has all the keybinding -> action logic
                 HoveredAbility::default(),
             ))
             //.insert(NavMeshAffector)

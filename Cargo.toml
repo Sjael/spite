@@ -41,6 +41,7 @@ path = "src/local.rs"
 [patch.crates-io]
 #bevy_xpbd_3d = { path = "../bevy_xpbd/crates/bevy_xpbd_3d" }
 bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd" }
+
 # Replacing the entirety of bevy, sed replace "hash" with revision you want.
 #bevy = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_animation = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
@@ -56,6 +57,7 @@ bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd" }
 #bevy_ecs = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 ##bevy_ecs_compile_fail_tests = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_encase_derive = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
+#bevy_gizmos = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_gilrs = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_gltf = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_hierarchy = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
@@ -79,41 +81,3 @@ bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd" }
 #bevy_utils = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_window = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
 #bevy_winit = { git = "https://github.com/bevyengine/bevy", rev = "hash" }
-
-bevy = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_animation = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_app = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_asset = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_audio = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_core = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_core_pipeline = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_derive = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_diagnostic = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-#bevy_dylib = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-#bevy_dynamic_plugin = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-#bevy_ecs_compile_fail_tests = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_encase_derive = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_gilrs = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_gltf = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_hierarchy = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_input = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_internal = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_log = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_macro_utils = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_math = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_mikktspace = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_pbr = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_ptr = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_reflect = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_render = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_scene = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_sprite = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_tasks = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_text = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_time = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_transform = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_ui = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_utils = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_window = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
-bevy_winit = { git = "https://github.com/bevyengine/bevy", rev = "3a1275b" }
