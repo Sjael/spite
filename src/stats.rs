@@ -382,8 +382,8 @@ pub fn calculate_attributes(mut attributes: Query<&mut Attributes, Changed<Attri
                         //Modifier::Scale => *target_attr + level * modifier_attr,
                         Modifier::Add => *target_attr + modifier_attr,
                         Modifier::Sub => *target_attr - modifier_attr,
-                        Modifier::Mul => *target_attr * modifier_attr,
-                        Modifier::Div => *target_attr / modifier_attr,
+                        Modifier::Mul => *target_attr * (modifier_attr + 100.0) / 100.0,
+                        Modifier::Div => *target_attr / (modifier_attr + 100.0) * 100.0,
                         Modifier::Min => target_attr.max(modifier_attr),
                         Modifier::Max => target_attr.min(modifier_attr),
                     };

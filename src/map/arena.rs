@@ -243,7 +243,7 @@ pub fn setup_arena(
                             modifier: Modifier::Mul,
                             target: Box::new(Stat::Speed.into()),
                         },
-                        amount: 20.0,
+                        amount: 10.0,
                         max_stacks: 3,
                         duration: 10.0,
                         ..default()

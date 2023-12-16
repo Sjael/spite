@@ -98,7 +98,8 @@ pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), 
 pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerInput, &CCMap)>) {
     for (attributes, mut controller, player_input, cc_map) in query.iter_mut() {
         if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
-            //controller.movement = Vec3::ZERO;
+            controller.direction = Vec3::ZERO;
+            // need to set to zero otherwise once stunned you 'skate' in that direction
             continue;
         }
 
@@ -119,7 +120,7 @@ pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerIn
 
         let direction_normalized = direction.normalize_or_zero();
         let movement_vector =
-            Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized * speed;
+            Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized;
 
         controller.direction = movement_vector;
         controller.max_speed = speed;

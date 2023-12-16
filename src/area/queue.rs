@@ -124,7 +124,6 @@ pub fn area_apply_tags(
                         let debuffing_enemy =
                             (buffinfo.bufftargets == BuffTargets::Enemies) && !on_same_team;
                         let buffing_anyone = buffinfo.bufftargets == BuffTargets::All;
-
                         let buff_to_send = BuffEvent {
                             info: buffinfo.clone(),
                             ability: *ability,
@@ -310,7 +309,6 @@ pub fn catch_collisions(
     mut area_events: EventWriter<AreaOverlapEvent>,
 ) {
     for CollisionStarted(entity1, entity2) in collision_starts.read() {
-        println!("collided");
         let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(*entity1) {
             (sensor, entity2)
         } else if let Ok(sensor) = sensor_query.get_mut(*entity2) {
@@ -331,13 +329,12 @@ pub fn catch_collisions(
             target: target_entity,
             overlap: AreaOverlapType::Entered,
         });
-        if !targets_in_area.list.is_empty() {
-            dbg!(target_entity);
-            dbg!(area_entity);
-        }
+        // if !targets_in_area.list.is_empty() {
+        //     dbg!(target_entity);
+        //     dbg!(area_entity);
+        // }
     }
     for CollisionEnded(entity1, entity2) in collision_ends.read() {
-        println!("stopped");
         let (sensor, potential) = if let Ok(sensor) = sensor_query.get_mut(*entity1) {
             (sensor, entity2)
         } else if let Ok(sensor) = sensor_query.get_mut(*entity2) {
@@ -364,8 +361,6 @@ pub fn catch_collisions(
                 overlap: AreaOverlapType::Exited,
             });
         }
-        dbg!(target_entity);
-        dbg!(area_entity);
     }
 }
 
