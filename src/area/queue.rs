@@ -124,7 +124,6 @@ pub fn area_apply_tags(
                         let debuffing_enemy =
                             (buffinfo.bufftargets == BuffTargets::Enemies) && !on_same_team;
                         let buffing_anyone = buffinfo.bufftargets == BuffTargets::All;
-                        dbg!(buffinfo.clone());
                         let buff_to_send = BuffEvent {
                             info: buffinfo.clone(),
                             ability: *ability,
