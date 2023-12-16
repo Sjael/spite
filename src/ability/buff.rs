@@ -146,6 +146,8 @@ pub fn apply_buffs(
             }
             if added_stack {
                 let stat = attributes.get_mut(event.info.stat.clone());
+                dbg!(event.info.stat.clone());
+                dbg!(event.info.amount.clone());
                 *stat += event.info.amount;
             }
         }
@@ -158,6 +160,9 @@ pub fn tick_buffs(time: Res<Time>, mut query: Query<(&mut BuffMap, &mut Attribut
             buff.timer.tick(time.delta());
             if buff.timer.finished() {
                 let stat = attributes.get_mut(buff.info.stat.clone());
+                dbg!(buff.info.stat.clone());
+                println!("stakcs {}", buff.stacks);
+                println!("amount {}", buff.info.amount);
                 *stat -= buff.stacks as f32 * buff.info.amount;
                 false
             } else {
