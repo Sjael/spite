@@ -23,8 +23,7 @@ use self::{
     buff::{BuffInfo, BuffPlugin},
     bundles::{BombInfo, DefaultAbilityInfo, FireballInfo, FrostboltInfo},
     cast::CastPlugin,
-    crowd_control::{CCInfo, CCPlugin, CCType},
-    shape::AbilityShape,
+    crowd_control::{CCInfo, CCPlugin},
     timeline::{AreaTimeline, DeployAreaStage},
 };
 

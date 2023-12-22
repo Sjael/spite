@@ -1,3 +1,9 @@
+//! Game director
+//!
+//! Controller of the match over time.
+
+use std::time::Duration;
+
 use bevy::{prelude::*, utils::HashMap};
 
 use super::team::*;
@@ -8,9 +14,6 @@ use crate::{
 };
 
 use super::mode::GameMode;
-// Game director
-//
-// Controller of the match over time.
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InGameSet {
@@ -24,7 +27,20 @@ impl Plugin for DirectorPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameModeDetails::default());
         app.insert_resource(LocalPlayerId::new(Player::new(1507)));
-        app.insert_resource(TeamRoster::default());
+
+        app.world.spawn((
+            Name::new("Team 1"),
+            TEAM_1,
+            TeamRoster::new(vec![Player::new(1507), Player::new(404)]),
+            TeamRespawn::new(Duration::from_secs(10)),
+        ));
+
+        app.world.spawn((
+            Name::new("Team 2"),
+            TEAM_2,
+            TeamRoster::new(vec![Player::new(420), Player::new(1)]),
+            TeamRespawn::new(Duration::from_secs(10)),
+        ));
 
         app.configure_sets(
             Update,
@@ -47,20 +63,6 @@ impl Plugin for DirectorPlugin {
                 .before(PhysicsSet::Prepare)
                 .before(PhysicsSet::Sync),
         );
-    }
-}
-
-#[derive(Resource)]
-pub struct TeamRoster {
-    pub teams: HashMap<Team, Vec<Player>>,
-}
-impl Default for TeamRoster {
-    fn default() -> Self {
-        let team1 = vec![Player::new(1507), Player::new(404)];
-        let team2 = vec![Player::new(420), Player::new(1)];
-
-        let inner = HashMap::from([(TEAM_1, team1), (TEAM_2, team2)]);
-        Self { teams: inner }
     }
 }
 

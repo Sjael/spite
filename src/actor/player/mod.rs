@@ -15,7 +15,7 @@ use crate::{
         rank::AbilityRanks,
         Ability,
     },
-    actor::{controller::Controller, IncomingDamageLog, OutgoingDamageLog, bounty::Bounty},
+    actor::{bounty::Bounty, controller::Controller, IncomingDamageLog, OutgoingDamageLog},
     camera::Spectatable,
     prelude::*,
     ui::{
@@ -39,7 +39,10 @@ pub struct SpawnPlayerEvent {
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<Player>();
+        app
+            .register_type::<Player>()
+            .register_type::<Players>()
+            .register_type::<ActorState>();
 
         app.add_event::<SpawnPlayerEvent>();
 
@@ -75,20 +78,6 @@ pub fn init_player(
                 Name::new(format!("Player {}", spawning_id.to_string())),
                 ActorState::Alive,
             ))
-            /*.insert(ControllerBundle {
-                controller: Controller {
-                    float: Float {
-                        spring: Spring {
-                            strength: SpringStrength::AngularFrequency(25.0),
-                            damping: 0.8,
-                        },
-                        ..default()
-                    },
-                    ..default()
-                },
-                ..default()
-            })
-            */
             .insert(Controller::default())
             .insert((
                 // physics

@@ -39,7 +39,7 @@ pub fn controller_movement(
         &Controller,
     )>,
 ) {
-    for (mut impulse, mut velocity, mass, controller) in &mut controllers {
+    for (mut impulse, velocity, mass, controller) in &mut controllers {
         let mass = mass.0;
 
         let strength = 0.4;

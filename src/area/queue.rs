@@ -67,7 +67,7 @@ pub fn area_apply_tags(
         ability,
     ) in &mut sensor_query
     {
-        let mut targets_that_got_hit: Vec<Entity> = Vec::new();
+        let mut hit_targets: Vec<Entity> = Vec::new();
         let ability = ability.unwrap_or(&Ability::BasicAttack);
         let damage_type = damage_type.unwrap_or(&DamageType::True);
         for target_entity in targets_hittable.list.iter() {
@@ -156,7 +156,7 @@ pub fn area_apply_tags(
                 }
             }
             if hit_a_target {
-                targets_that_got_hit.push(*target_entity);
+                hit_targets.push(*target_entity);
                 if let Some(ref mut max_hits) = max_targets_hit {
                     max_hits.current += 1;
                     if max_hits.current >= max_hits.max {
@@ -168,7 +168,7 @@ pub fn area_apply_tags(
         if let Some(mut tick_behavior) = tick_behavior {
             if let Some(interval) = interval {
                 if let TickBehavior::Individual(ref mut individual_timers) = *tick_behavior {
-                    for got_hit in targets_that_got_hit.iter() {
+                    for got_hit in hit_targets.iter() {
                         individual_timers.map.insert(
                             *got_hit,
                             Timer::new(Duration::from_secs_f32(interval.0), TimerMode::Once),
@@ -177,7 +177,7 @@ pub fn area_apply_tags(
                 }
             }
         }
-        for got_hit in targets_that_got_hit.iter() {
+        for got_hit in hit_targets.iter() {
             if let Some(ref mut unique_targets_hit) = unique_targets_hit {
                 unique_targets_hit.already_hit.push(*got_hit);
             }

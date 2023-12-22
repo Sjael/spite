@@ -52,7 +52,7 @@ impl Plugin for ActorPlugin {
             FixedUpdate,
             (update_damage_logs, increment_bounty).in_set(InGameSet::Update),
         );
-        //app.add_systems(Last, despawn_dead.run_if(in_state(GameState::InGame)));
+        app.add_systems(FixedUpdate, hide_dead.in_set(InGameSet::Post));
     }
 }
 
@@ -67,7 +67,8 @@ pub enum ActorType {
     Minion,
 }
 
-#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
+#[derive(Component, Debug, Clone, Copy, Default, Eq, PartialEq, Hash, Reflect)]
+#[reflect(Component)]
 pub enum ActorState {
     Alive,
     #[default]
@@ -204,6 +205,16 @@ fn tick_death_timer(
         }
         if timer.0.finished() {
             commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+pub fn hide_dead(
+    mut actors: Query<(&ActorState, &mut Visibility), Changed<ActorState>>,
+) {
+    for (actor_state, mut visibility) in &mut actors {
+        if *actor_state == ActorState::Dead {
+            *visibility = Visibility::Hidden;
         }
     }
 }

@@ -7,7 +7,7 @@ use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::prelude::*;
 use camera::CameraPlugin;
 use inventory::InventoryPlugin;
-use session::director::DirectorPlugin;
+use session::SessionPlugin;
 
 use ability::{shape::load_ability_shape, AbilityPlugin};
 use actor::ActorPlugin;
@@ -82,7 +82,7 @@ impl Plugin for GamePlugin {
 
         app.add_plugins((
             GameAssetPlugin,
-            DirectorPlugin,
+            SessionPlugin,
             CameraPlugin,
             UiPlugin,
             AbilityPlugin,

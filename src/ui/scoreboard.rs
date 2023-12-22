@@ -1,15 +1,13 @@
-use std::collections::HashMap;
-
-use bevy::prelude::*;
-
 use crate::{
     actor::player::{LocalPlayerId, Player},
     assets::Fonts,
     inventory::Inventory,
-    prelude::TEAM_1,
-    session::director::TeamRoster,
+    prelude::*,
+    session::team::TeamRoster,
     ui::ui_bundles::{plain_text, scoreboard_entry, KDAText},
 };
+
+use bevy::utils::HashMap;
 
 use super::ui_bundles::{PersonalKDA, ScoreboardUI};
 
@@ -44,7 +42,7 @@ pub struct LoggedNumbers {
 }
 
 pub fn populate_scoreboard(
-    roster: Res<TeamRoster>,
+    teams: Query<(&Team, &TeamRoster)>,
     mut commands: Commands,
     scoreboard: Query<Entity, Added<ScoreboardUI>>,
     fonts: Res<Fonts>,
@@ -53,14 +51,13 @@ pub fn populate_scoreboard(
         return;
     }; // else spawn scoreboard?
     commands.entity(scoreboard_ui).despawn_descendants();
-    for (team, players) in roster.teams.iter() {
+    for (team, players) in &teams {
         let mut color = Color::rgba(0.3, 0.15, 0.1, 0.95);
         if team == &TEAM_1 {
             color = Color::rgba(0.15, 0.15, 0.2, 0.95);
         }
         for player in players.iter() {
-            println!("spawning");
-            dbg!(player);
+            println!("spawned scoreboard: {:?}", player);
             commands.entity(scoreboard_ui).with_children(|parent| {
                 parent
                     .spawn(scoreboard_entry(color))
