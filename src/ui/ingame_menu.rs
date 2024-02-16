@@ -1,25 +1,20 @@
-use crate::assets::Fonts;
-
-use super::{ui_bundles::*, ButtonAction};
 use bevy::prelude::*;
 
-#[derive(States, Clone, Copy, Default, Debug, Eq, PartialEq, Hash)]
-pub enum InGameMenu {
-    Open,
-    #[default]
-    Closed,
-}
+use crate::{
+    assets::Fonts,
+    ui::{hud_editor::EditingHUD, mouse::OpenMenus, ui_bundles::*, ButtonAction},
+    GameState,
+};
 
-impl InGameMenu {
-    pub fn toggle(&self) -> Self {
-        match self {
-            Self::Open => Self::Closed,
-            Self::Closed => Self::Open,
-        }
+pub struct InGameMenuPlugin;
+impl Plugin for InGameMenuPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::InGame), add_ingame_menu);
+        app.add_systems(Update, show_ingame_menu);
     }
 }
 
-pub fn add_ingame_menu(mut commands: Commands, fonts: Res<Fonts>) {
+fn add_ingame_menu(mut commands: Commands, fonts: Res<Fonts>) {
     commands.spawn(ingame_menu()).with_children(|parent| {
         parent
             .spawn(ingame_menu_button())
@@ -57,26 +52,20 @@ pub fn add_ingame_menu(mut commands: Commands, fonts: Res<Fonts>) {
     });
 }
 
-pub fn toggle_ingame_menu(
-    mut ingame_menu: Query<&mut Visibility, With<InGameMenuUi>>,
-    state: Res<State<InGameMenu>>,
-) {
-    let Ok(mut vis) = ingame_menu.get_single_mut() else {
-        return;
-    };
-    if *state == InGameMenu::Closed {
-        *vis = Visibility::Hidden;
-    } else {
-        *vis = Visibility::Visible;
-    }
-}
-
-pub fn state_ingame_menu(
+fn show_ingame_menu(
     kb: Res<Input<KeyCode>>,
-    mut next_state: ResMut<NextState<InGameMenu>>,
-    state: Res<State<InGameMenu>>,
+    menu_state: Res<State<OpenMenus>>,
+    mut next_state: ResMut<NextState<OpenMenus>>,
+    editing_hud: Res<State<EditingHUD>>,
+    mut editing_hud_next: ResMut<NextState<EditingHUD>>,
 ) {
     if kb.just_pressed(KeyCode::Escape) {
-        next_state.set(state.toggle());
+        // check if editing hud first
+        if *editing_hud == EditingHUD::Yes {
+            editing_hud_next.set(EditingHUD::No);
+            // TODO make escape rollback changes to as they were, in case of accidentally editing hud
+            return
+        }
+        next_state.set(menu_state.toggle_ingamemenu());
     }
 }

@@ -1,25 +1,34 @@
 use std::time::Duration;
 
+use ability::{shape::load_ability_shape, AbilityPlugin};
+use actor::ActorPlugin;
+use area::AreaPlugin;
+use assets::GameAssetPlugin;
 use bevy::prelude::*;
 use bevy_debug_texture::DebugTexturePlugin;
 use bevy_editor_pls::prelude::*;
 use bevy_tweening::TweeningPlugin;
 use bevy_xpbd_3d::prelude::*;
-use camera::CameraPlugin;
+use buff::BuffPlugin;
+use camera::{spawn_spectator_camera, CameraPlugin};
+use crowd_control::CCPlugin;
 use inventory::InventoryPlugin;
-use session::SessionPlugin;
+use stats::StatsPlugin;
+use ui::UiPlugin;
 
-use ability::{shape::load_ability_shape, AbilityPlugin};
-use actor::ActorPlugin;
-use area::AreaPlugin;
-use assets::GameAssetPlugin;
-use ui::{spectating::spawn_spectator_camera, UiPlugin};
+use crate::{
+    classes::{hunter::HunterPlugin, warrior::WarriorPlugin},
+    session::SessionPlugin,
+};
 
 pub mod ability;
 pub mod actor;
 pub mod area;
 pub mod assets;
+pub mod buff;
 pub mod camera;
+pub mod classes;
+pub mod crowd_control;
 pub mod debug;
 pub mod inventory;
 pub mod item;
@@ -29,8 +38,13 @@ pub mod previous;
 pub mod session;
 pub mod stats;
 pub mod ui;
+pub mod utils;
 
 pub mod prelude {
+    pub use bevy::prelude::*;
+    pub use bevy_xpbd_3d::prelude::*;
+    pub use oxidized_navigation::NavMeshAffector;
+
     pub use crate::{
         actor::{ActorState, ActorType},
         area::*,
@@ -39,13 +53,9 @@ pub mod prelude {
         item::Item,
         physics::*,
         previous::*,
-        session::director::InGameSet,
-        session::team::*,
+        session::{director::InGameSet, team::*},
         stats::{AttributeTag, Attributes, Modifier, Stat},
     };
-    pub use bevy::prelude::*;
-    pub use bevy_xpbd_3d::prelude::*;
-    pub use oxidized_navigation::NavMeshAffector;
 }
 
 pub struct GamePlugin;
@@ -66,30 +76,42 @@ impl Plugin for GamePlugin {
         //Resources + States
         let tick_hz = 64.0;
         app.insert_resource(Time::<Fixed>::from_hz(tick_hz))
-            .insert_resource(Time::<Physics>::new_with(Physics::fixed_once_hz(tick_hz)));
+            .insert_resource(Time::<Physics>::new_with(Physics::fixed_once_hz(tick_hz)))
+            .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)));
 
-        app.insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)))
-            .add_state::<GameState>();
-
-        app.add_plugins(EditorPlugin::default());
-        app.add_plugins(PhysicsPlugins::new(FixedUpdate));
-        app.add_plugins(TweeningPlugin);
-        app.add_plugins(InventoryPlugin);
-        app.add_plugins(DebugTexturePlugin);
-
-        app.add_systems(PostUpdate, crate::debug::physics_mesh::init_physics_meshes);
-        app.add_systems(Startup, spawn_spectator_camera);
+        app.add_state::<GameState>();
 
         app.add_plugins((
-            GameAssetPlugin,
+            EditorPlugin::default(),
+            PhysicsPlugins::new(FixedUpdate),
+            TweeningPlugin,
+            DebugTexturePlugin,
+        ));
+
+        app.add_plugins((
             SessionPlugin,
+            GameAssetPlugin,
             CameraPlugin,
+            InventoryPlugin,
             UiPlugin,
             AbilityPlugin,
             ActorPlugin,
             AreaPlugin,
-        ))
-        .add_systems(PostUpdate, load_ability_shape); // after systems that spawn ability_shape components
+            BuffPlugin,
+            StatsPlugin,
+            CCPlugin,
+            WarriorPlugin,
+            HunterPlugin,
+        ));
+
+        app.add_systems(Startup, spawn_spectator_camera);
+        app.add_systems(
+            PostUpdate,
+            (
+                crate::debug::physics_mesh::init_physics_meshes,
+                load_ability_shape, // after systems that spawn ability_shape components
+            ),
+        );
     }
 }
 

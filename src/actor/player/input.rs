@@ -3,9 +3,11 @@ use std::f32::consts::PI;
 use bevy::{ecs::query::WorldQuery, input::mouse::MouseMotion};
 use serde::{Deserialize, Serialize};
 
-use crate::{prelude::*, ui::mouse::MouseState};
-
-use super::{LocalPlayerId, Player};
+use crate::{
+    actor::{LocalPlayerId, Player},
+    prelude::*,
+    ui::mouse::MouseState,
+};
 
 #[derive(Resource)]
 pub struct MouseSensitivity(pub f32);
@@ -75,7 +77,7 @@ pub fn update_local_player_inputs(
 ) {
     for (mut input, player) in &mut query {
         if *player != **local_player {
-            continue;
+            continue
         }
         *input = player_input.clone();
         //info!("setting local player inputs: {:?}", player_input);
@@ -90,7 +92,7 @@ pub fn player_mouse_input(
     mouse_state: Res<State<MouseState>>,
 ) {
     if *mouse_state == MouseState::Free {
-        return;
+        return
     } // if mouse is free, dont turn character
     let mut cumulative_delta = Vec2::ZERO;
     for ev in ev_mouse.read() {
@@ -109,14 +111,10 @@ pub fn player_keys_input(
     mouse_input: Res<Input<MouseButton>>,
     mut player_input: ResMut<PlayerInput>,
 ) {
-    player_input
-        .set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
-    player_input
-        .set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
-    player_input
-        .set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
-    player_input
-        .set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
+    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
+    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
+    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
 
     player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
     player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
@@ -207,8 +205,7 @@ impl PlayerInput {
         self.binary_inputs.set(PlayerInputKeys::LEFT_CLICK, clicked);
     }
     pub fn set_right_click(&mut self, clicked: bool) {
-        self.binary_inputs
-            .set(PlayerInputKeys::RIGHT_CLICK, clicked);
+        self.binary_inputs.set(PlayerInputKeys::RIGHT_CLICK, clicked);
     }
     pub fn left_click(&self) -> bool {
         self.pressed(PlayerInputKeys::LEFT_CLICK)

@@ -4,6 +4,9 @@ tracy/*
 
 Cargo.lock
 
+# the saved hud layout 
+hud_layout.ron
+
 messages/
 
 # vim swap file

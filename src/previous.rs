@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 #[derive(Component, Deref)]
-pub struct Previous<T>(T);
+pub struct Previous<T>(pub T);
 
 pub fn previous<T>(mut commands: Commands, mut query: Query<(Entity, Option<&mut Previous<T>>, &T)>)
 where
@@ -13,9 +13,7 @@ where
                 previous.0 = current.clone();
             }
             None => {
-                commands
-                    .entity(entity)
-                    .insert(Previous::<T>(current.clone()));
+                commands.entity(entity).insert(Previous::<T>(current.clone()));
             }
         }
     }

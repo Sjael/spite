@@ -11,12 +11,15 @@ use crate::{
     inventory::Inventory,
     item::Item,
     prelude::InGameSet,
-    stats::{Attributes, Stat, Stat::*},
-};
-
-use super::{
-    styles::{NORMAL_BUTTON, PRESSED_BUTTON},
-    ui_bundles::*,
+    stats::{
+        Attributes,
+        Stat::{self, *},
+    },
+    ui::{
+        mouse::{MenuType, OpenMenus},
+        styles::{NORMAL_BUTTON, PRESSED_BUTTON},
+        ui_bundles::*,
+    },
 };
 
 pub struct StorePlugin;
@@ -30,6 +33,7 @@ impl Plugin for StorePlugin {
         app.add_systems(
             Update,
             (
+                show_store,
                 sort_items,
                 click_category,
                 inspect_item,
@@ -44,7 +48,7 @@ impl Plugin for StorePlugin {
     }
 }
 
-pub const CATEGORIES: [Stat; 7] = [
+pub const CATEGORIES: [Stat; 8] = [
     Health,
     CharacterResourceRegen,
     CharacterResourceMax,
@@ -52,6 +56,7 @@ pub const CATEGORIES: [Stat; 7] = [
     MagicalPower,
     MagicalPenetration,
     PhysicalPenetration,
+    Speed,
 ];
 
 #[derive(Resource, Default)]
@@ -60,54 +65,52 @@ pub struct CategorySorted(pub Vec<Stat>);
 #[derive(Resource, Default)]
 pub struct ItemInspected(pub Option<Item>);
 
-pub fn sort_items(
-    mut item_query: Query<(&ItemAttributes, &mut Style)>,
-    categories_toggled: Res<CategorySorted>,
+fn show_store(
+    kb: Res<Input<KeyCode>>,
+    menu_state: Res<State<OpenMenus>>,
+    mut next_state: ResMut<NextState<OpenMenus>>,
 ) {
+    if kb.just_pressed(KeyCode::R) {
+        next_state.set(menu_state.toggle(MenuType::Store));
+    }
+}
+
+fn sort_items(mut item_query: Query<(&ItemAttributes, &mut Style)>, categories_toggled: Res<CategorySorted>) {
     if !categories_toggled.is_changed() {
-        return;
+        return
     }
     for (attributes, mut style) in item_query.iter_mut() {
         style.display = Display::default();
         if categories_toggled.0.is_empty() {
-            continue;
+            continue
         }
-        if attributes
-            .0
-            .iter()
-            .any(|stat| categories_toggled.0.contains(stat))
-        {
-            continue;
+        if attributes.0.iter().any(|stat| categories_toggled.0.contains(stat)) {
+            continue
         }
         style.display = Display::None;
     }
 }
 
-pub fn click_category(
-    interaction_query: Query<
-        (&Category, &Interaction, Entity),
-        (Changed<Interaction>, With<Button>),
-    >,
+fn click_category(
+    interaction_query: Query<(&Category, &Interaction, Entity), (Changed<Interaction>, With<Button>)>,
     mut button_query: Query<&mut BackgroundColor, With<Category>>,
     mut categories_toggled: ResMut<CategorySorted>,
 ) {
     for (category, interaction, entity) in &interaction_query {
         if *interaction != Interaction::Pressed {
-            continue;
+            continue
         };
         for mut color in &mut button_query {
             *color = NORMAL_BUTTON.into();
         }
-        let Ok(mut color) = button_query.get_mut(entity) else {
-            continue;
-        };
+        let Ok(mut color) = button_query.get_mut(entity) else { continue };
         if !categories_toggled.0.contains(&category.0) {
             categories_toggled.0 = vec![category.0.clone()];
             *color = PRESSED_BUTTON.into();
         } else {
             categories_toggled.0 = Vec::new();
         }
-        return;
+        return
     }
 }
 
@@ -120,21 +123,17 @@ fn update_discounts(
     changed_inventories: Query<(&Inventory, Entity), Changed<Inventory>>,
     inventories: Query<&Inventory>,
 ) {
-    let Some(local) = local_player else {
-        return;
-    };
+    let Some(local) = local_player else { return };
     for (inv, entity) in changed_inventories.iter() {
         if entity != **local {
-            continue;
+            continue
         }
         for (mut text, discounted_item) in query.p1().iter_mut() {
             discount_style(discounted_item.0.clone(), &inv, &mut text);
         }
     }
     for (mut text, discounted_item) in query.p0().iter_mut() {
-        let Ok(inv) = inventories.get(**local) else {
-            continue;
-        };
+        let Ok(inv) = inventories.get(**local) else { continue };
         discount_style(discounted_item.0.clone(), &inv, &mut text);
     }
 }
@@ -150,7 +149,7 @@ fn discount_style(item: Item, inv: &Inventory, text: &mut Text) {
     }
 }
 
-pub fn inspect_item(
+fn inspect_item(
     mut commands: Commands,
     mut interaction_query: Query<(&Item, &Interaction), (Changed<Interaction>, With<StoreItem>)>,
     mut item_inspected: ResMut<ItemInspected>,
@@ -165,15 +164,13 @@ pub fn inspect_item(
 ) {
     for (item, interaction) in &mut interaction_query {
         if *interaction != Interaction::Pressed {
-            continue;
+            continue
         }
         if item_inspected.0 == Some(item.clone()) {
-            continue;
+            continue
         } // already inspecting item
 
-        let Ok((tree_entity, tree_children)) = tree_holder.get_single() else {
-            return;
-        };
+        let Ok((tree_entity, tree_children)) = tree_holder.get_single() else { return };
         item_inspected.0 = Some(item.clone());
         if let Some(children) = tree_children {
             for child in children.iter() {
@@ -183,9 +180,7 @@ pub fn inspect_item(
         let tree = spawn_tree(&mut commands, item.clone(), &items);
         commands.entity(tree_entity).push_children(&[tree]);
 
-        let Ok((parents_entity, parents_children)) = parents_holder.get_single() else {
-            return;
-        };
+        let Ok((parents_entity, parents_children)) = parents_holder.get_single() else { return };
         if let Some(children) = parents_children {
             for child in children.iter() {
                 commands.entity(*child).despawn_recursive();
@@ -237,12 +232,10 @@ fn try_buy_item(
 ) {
     for event in events.read() {
         if event.direction != TransactionType::Buy {
-            continue;
+            continue
         }
-        let Ok((mut attributes, mut inventory, mut buffer, mut history)) =
-            buyers.get_mut(event.player)
-        else {
-            continue;
+        let Ok((mut attributes, mut inventory, mut buffer, mut history)) = buyers.get_mut(event.player) else {
+            continue
         };
         let wallet = attributes.get(Stat::Gold);
         let discounted_price = event.item.discounted_price(&inventory);
@@ -259,6 +252,7 @@ fn try_buy_item(
                 let gold = attributes.get_mut(Stat::Gold);
                 *gold -= discounted_price;
                 buffer.insert(event.item);
+                attributes.add_stats(event.item.info().stats.into_iter());
                 if event.fresh {
                     history.insert(*event);
                 }
@@ -282,12 +276,10 @@ fn try_sell_item(
 ) {
     for event in events.read() {
         if event.direction != TransactionType::Sell {
-            continue;
+            continue
         }
-        let Ok((mut attributes, mut inventory, mut buffer, mut history)) =
-            buyers.get_mut(event.player)
-        else {
-            continue;
+        let Ok((mut attributes, mut inventory, mut buffer, mut history)) = buyers.get_mut(event.player) else {
+            continue
         };
 
         let refund = event.item.total_price();
@@ -311,14 +303,12 @@ fn try_sell_item(
 fn try_undo_store(
     mut undo_events: EventReader<UndoPressEvent>,
     mut store_events: EventWriter<StoreEvent>,
-    mut buyers: Query<&mut StoreHistory>,
+    mut shoppers: Query<&mut StoreHistory>,
 ) {
     for event in undo_events.read() {
         info!("undo event");
-        let Ok(mut store_history) = buyers.get_mut(event.entity) else {
-            continue;
-        };
-        info!("has history: {:?}", store_history);
+        let Ok(mut store_history) = shoppers.get_mut(event.entity) else { continue };
+        println!("has history: {:?}", store_history);
 
         if let Some(mut last) = store_history.pop_last() {
             last.fresh = false;
@@ -333,21 +323,13 @@ fn leave_store(
     mut area_events: EventReader<AreaOverlapEvent>,
     sensors: Query<&TargetsInArea, With<Fountain>>,
 ) {
-    let Some(local) = local_player else {
-        return;
-    };
-    let Some(event) = area_events.read().next() else {
-        return;
-    };
+    let Some(local) = local_player else { return };
+    let Some(event) = area_events.read().next() else { return };
     if event.target != **local || event.overlap == AreaOverlapType::Entered {
-        return;
+        return
     }
-    let Ok(_) = sensors.get(event.sensor) else {
-        return;
-    };
-    let Ok(mut buffer) = buyers.get_mut(**local) else {
-        return;
-    };
+    let Ok(_) = sensors.get(event.sensor) else { return };
+    let Ok(mut buffer) = buyers.get_mut(**local) else { return };
 
     buffer.clear();
 }

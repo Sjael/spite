@@ -19,16 +19,9 @@ fn main() {
     app.run();
 }
 
-fn set_window_icon(
-    windows: NonSend<WinitWindows>,
-    primary_window: Query<Entity, With<PrimaryWindow>>,
-) {
-    let Ok(primary_entity) = primary_window.get_single() else {
-        return;
-    };
-    let Some(primary) = windows.get_window(primary_entity) else {
-        return;
-    };
+fn set_window_icon(windows: NonSend<WinitWindows>, primary_window: Query<Entity, With<PrimaryWindow>>) {
+    let Ok(primary_entity) = primary_window.get_single() else { return };
+    let Some(primary) = windows.get_window(primary_entity) else { return };
     let icon_buf = Cursor::new(include_bytes!("../assets/icons/fireball.png"));
     if let Ok(image) = image::load(icon_buf, image::ImageFormat::Png) {
         let image = image.into_rgba8();

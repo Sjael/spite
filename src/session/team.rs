@@ -100,8 +100,7 @@ pub fn team_respawn(
                     };
                     if let Ok(actor_state) = actor_states.get(entity) {
                         if *actor_state == ActorState::Dead {
-                            respawn_timer.timer =
-                                Some(Timer::new(respawn_timer.start_time, TimerMode::Once));
+                            respawn_timer.timer = Some(Timer::new(respawn_timer.start_time, TimerMode::Once));
                         }
                     }
                 }

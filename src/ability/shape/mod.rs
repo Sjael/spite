@@ -5,9 +5,11 @@ pub use arc::*;
 pub use rectangle::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{assets::MaterialPresets, prelude::*};
-
-use super::{bundles::Targetter, TargetsHittable, TargetsInArea};
+use crate::{
+    ability::{TargetsHittable, TargetsInArea, Targetter},
+    assets::MaterialPresets,
+    prelude::*,
+};
 
 #[derive(Component, Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[reflect_value(Component, PartialEq, Serialize, Deserialize)]
@@ -19,8 +21,8 @@ pub enum AbilityShape {
 impl Default for AbilityShape {
     fn default() -> Self {
         AbilityShape::Rectangle {
-            length: 2.0,
-            width: 3.0,
+            length: 1.0,
+            width: 1.0,
         }
     }
 }
@@ -36,6 +38,13 @@ impl AbilityShape {
                 let rect = Rectangle::flat(length, width);
                 (rect.mesh(), rect.collider())
             }
+        }
+    }
+
+    pub fn get_width(&self) -> f32 {
+        match *self {
+            AbilityShape::Arc { radius, .. } => radius * 2.0,
+            AbilityShape::Rectangle { width, .. } => width,
         }
     }
 }

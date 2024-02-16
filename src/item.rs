@@ -4,7 +4,11 @@ use bevy::prelude::*;
 use derive_more::Display;
 use lazy_static::lazy_static;
 
-use crate::{assets::Items, inventory::Inventory, stats::Stat};
+use crate::{
+    assets::Items,
+    inventory::Inventory,
+    stats::{AttributeTag, Stat},
+};
 
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 #[reflect(Component)]
@@ -26,8 +30,8 @@ pub struct ItemInfo {
     pub price: f32,
     /// Direct parts to this item.
     pub parts: Vec<Item>,
-    pub stats: HashMap<Stat, f32>,
-    // pub passives: Vec<ItemPassive>,
+    pub stats: HashMap<AttributeTag, f32>, // should be Attribute Tag probably
+                                           // pub passives: Vec<ItemPassive>,
 }
 
 // stuff that isn't per 'stage' of an item, downstream of hierarchy
@@ -53,8 +57,9 @@ lazy_static! {
                     price: 100.0,
                     parts: vec![SoulReaver],
                     stats: HashMap::from([
-                        (PhysicalPower, 60.0),
-                        (CooldownReduction, 15.0),
+                        (PhysicalPower.add(), 60.0),
+                        (CooldownReduction.add(), 15.0),
+                        (CharacterResourceMax.add(), 1.0),
                     ]),
                 }
             ),
@@ -64,8 +69,8 @@ lazy_static! {
                     price: 100.0,
                     parts: vec![Polynomicon, Polynomicon],
                     stats: HashMap::from([
-                        (PhysicalPower, 60.0),
-                        (CooldownReduction, 15.0),
+                        (PhysicalPower.add(), 60.0),
+                        (CooldownReduction.add(), 15.0),
                     ]),
                 }
             ),
@@ -75,8 +80,9 @@ lazy_static! {
                     price: 900.0,
                     parts: vec![HiddenDagger, HiddenDagger],
                     stats: HashMap::from([
-                        (PhysicalPower, 60.0),
-                        (PhysicalPenetration, 15.0),
+                        (PhysicalPower.add(), 60.0),
+                        (PhysicalPenetration.add(), 15.0),
+                        (Speed.add(), 1.0),
                     ]),
                 }
             ),
@@ -85,7 +91,7 @@ lazy_static! {
                 ItemInfo{
                     price: 500.0,
                     stats: HashMap::from([
-                        (PhysicalPower, 15.0),
+                        (PhysicalPower.add(), 15.0),
                     ]),
                     ..default()
                 }
@@ -95,7 +101,7 @@ lazy_static! {
                 ItemInfo{
                     price: 100.0,
                     stats: HashMap::from([
-                        (MagicalPower, 30.0),
+                        (MagicalPower.add(), 30.0),
                     ]),
                     ..default()
                 }
@@ -105,8 +111,8 @@ lazy_static! {
                 ItemInfo{
                     price: 300.0,
                     stats: HashMap::from([
-                        (PhysicalProtection, 20.0),
-                        (Health, 100.0),
+                        (PhysicalProtection.add(), 20.0),
+                        (Health.add(), 100.0),
                     ]),
                     ..default()
                 }
@@ -116,8 +122,8 @@ lazy_static! {
                 ItemInfo{
                     price: 100.0,
                     stats: HashMap::from([
-                        (MagicalPower, 80.0),
-                        (CooldownReduction, 20.0),
+                        (MagicalPower.add(), 80.0),
+                        (CooldownReduction.add(), 20.0),
                     ]),
                     parts: vec![BookOfSouls, BookOfSouls],
                 }
@@ -146,17 +152,28 @@ impl Item {
     pub fn get_image(&self, images: &Res<Items>) -> UiImage {
         use Item::*;
         let image = match self {
-            Arondight => images.arondight.clone(),
-            SoulReaver => images.soul_reaver.clone(),
-            HiddenDagger => images.hidden_dagger.clone(),
-            Witchblade => images.witchblade.clone(),
-            BookOfSouls => images.book_of_souls.clone(),
-            Polynomicon => images.polynomicon.clone(),
-            DruidStone => images.druid_stone.clone(),
-            Deathbringer => images.witchblade.clone(),
-            //_ => images.hidden_dagger.clone(),
+            Arondight => &images.arondight,
+            SoulReaver => &images.soul_reaver,
+            HiddenDagger => &images.hidden_dagger,
+            Witchblade => &images.witchblade,
+            BookOfSouls => &images.book_of_souls,
+            Polynomicon => &images.polynomicon,
+            DruidStone => &images.druid_stone,
+            Deathbringer => &images.witchblade,
+            //_ => images.hidden_dagger,
         };
-        image.into()
+        image.clone().into()
+    }
+
+    pub fn name(&self) -> String {
+        let result = match self {
+            Item::SoulReaver => "Soul Reaver",
+            Item::HiddenDagger => "Hidden Dagger",
+            Item::BookOfSouls => "Book of Souls",
+            Item::DruidStone => "Druid Stone",
+            _ => return self.to_string(),
+        };
+        result.to_string()
     }
 
     /// List of common parts between this item's set of flat parts and a list of
@@ -176,7 +193,7 @@ impl Item {
                 items.remove(item_index);
             } else {
                 // Don't remove subparts
-                continue;
+                continue
             };
 
             common.push(component);

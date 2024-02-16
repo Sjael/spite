@@ -31,14 +31,7 @@ impl Controller {
     }
 }
 
-pub fn controller_movement(
-    mut controllers: Query<(
-        &mut ExternalImpulse,
-        &mut LinearVelocity,
-        &Mass,
-        &Controller,
-    )>,
-) {
+pub fn controller_movement(mut controllers: Query<(&mut ExternalImpulse, &LinearVelocity, &Mass, &Controller)>) {
     for (mut impulse, velocity, mass, controller) in &mut controllers {
         let mass = mass.0;
 

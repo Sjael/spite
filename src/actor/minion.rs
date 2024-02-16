@@ -7,10 +7,7 @@ use oxidized_navigation::{
 };
 */
 
-use crate::actor::controller::Controller;
-use crate::prelude::*;
-use crate::session::team::TEAM_1;
-use crate::stats::Attributes;
+use crate::{actor::controller::Controller, prelude::*, session::team::TEAM_1, stats::Attributes};
 
 pub struct MinionPlugin;
 impl Plugin for MinionPlugin {
@@ -45,9 +42,7 @@ impl Plugin for MinionPlugin {
 
         app.add_systems(
             FixedUpdate,
-            (spawn_single_minion, spawn_minion)
-                .chain()
-                .in_set(InGameSet::Pre),
+            (spawn_single_minion, spawn_minion).chain().in_set(InGameSet::Pre),
         );
         app.add_systems(
             FixedUpdate,
@@ -73,9 +68,7 @@ fn toggle_nav_mesh_system(keys: Res<Input<KeyCode>>, mut show_navmesh: ResMut<Dr
 
 fn spawn_single_minion(keys: Res<Input<KeyCode>>, mut events: EventWriter<SpawnMinionEvent>) {
     if keys.just_pressed(KeyCode::Semicolon) {
-        events.send(SpawnMinionEvent {
-            location: Vec3::ZERO,
-        });
+        events.send(SpawnMinionEvent { location: Vec3::ZERO });
     }
 }
 
@@ -93,7 +86,7 @@ fn run_blocking_pathfinding(
     nav_mesh: Res<NavMesh>,
 ) {
     if !keys.just_pressed(KeyCode::B) {
-        return;
+        return
     }
 
     // Get the underlying nav_mesh.
@@ -184,9 +177,7 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
                 defined_path,
                 //circle_patrol,
                 MinionProgress::default(),
-                MinionControl {
-                    movement: Vec3::ZERO,
-                },
+                MinionControl { movement: Vec3::ZERO },
             ))
             .insert(
                 // physics
@@ -199,9 +190,7 @@ pub fn spawn_minion(mut commands: Commands, mut spawns: EventReader<SpawnMinionE
             .add_child(minion_collider)
             .insert({
                 let mut attrs = Attributes::default();
-                attrs
-                    .set_base(Stat::Health, 50.0)
-                    .set_base(Stat::Speed, 3.0);
+                attrs.set_base(Stat::Health, 50.0).set_base(Stat::Speed, 3.0);
                 attrs
             })
             .insert((
@@ -262,7 +251,6 @@ pub fn minion_follow_path(
         &MinionProgress,
         &Attributes,
     )>,
-
     mut gizmos: Gizmos,
 ) {
     for (position, mut control, path, progress, attributes) in &mut minions {
@@ -277,9 +265,7 @@ pub fn minion_follow_path(
 
         control.direction = Vec3::ZERO;
 
-        let Some(next_point) = path.points.get(progress.next) else {
-            continue;
-        };
+        let Some(next_point) = path.points.get(progress.next) else { continue };
         let difference = *next_point - position;
         let direction = difference.normalize_or_zero();
         //info!("direction: {:.1?}", direction);
@@ -288,26 +274,18 @@ pub fn minion_follow_path(
     }
 }
 
-pub fn minion_update_progress(
-    mut minions: Query<(&GlobalTransform, &MinionPath, &mut MinionProgress)>,
-) {
+pub fn minion_update_progress(mut minions: Query<(&GlobalTransform, &MinionPath, &mut MinionProgress)>) {
     for (position, path, mut progress) in &mut minions {
         let mut position = position.translation();
         position.y = 0.0;
 
         let (prev_point, next_point) = if progress.next == progress.previous {
-            let Some(next_point) = path.points.get(progress.next) else {
-                continue;
-            };
+            let Some(next_point) = path.points.get(progress.next) else { continue };
 
             (position, *next_point)
         } else {
-            let Some(prev_point) = path.points.get(progress.previous) else {
-                continue;
-            };
-            let Some(next_point) = path.points.get(progress.next) else {
-                continue;
-            };
+            let Some(prev_point) = path.points.get(progress.previous) else { continue };
+            let Some(next_point) = path.points.get(progress.next) else { continue };
 
             (*prev_point, *next_point)
         };

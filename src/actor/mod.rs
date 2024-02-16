@@ -4,47 +4,50 @@ use std::{
 };
 
 use crate::{
-    ability::{
-        cast::{DamageSum, LogHit, LogSide, LogType},
-        crowd_control::{CCMap, CCType},
+    actor::{
+        bounty::{increment_bounty, Bounty},
+        cast::CastPlugin,
+        controller::*,
+        log::{DamageSum, LogHit, LogSide, LogType},
+        minion::MinionPlugin,
+        player::*,
     },
+    crowd_control::CCMap,
     prelude::*,
     session::director::InGameSet,
     stats::HealthMitigatedEvent,
     ui::scoreboard::Scoreboard,
 };
 
-use self::{
-    bounty::{increment_bounty, Bounty},
-    controller::*,
-    minion::MinionPlugin,
-    player::*,
-};
-
 pub mod bounty;
+pub mod cast;
 pub mod controller;
+pub mod log;
 pub mod minion;
 pub mod player;
+pub mod rank;
 
 pub struct ActorPlugin;
 impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Bounty>();
         //Resources
-        app.insert_resource(PlayerInput::default());
-        app.register_type::<PlayerInput>()
-            .register_type::<Stat>()
-            .register_type::<Modifier>()
-            .register_type::<AttributeTag>();
+        app.add_event::<LogHit>();
+        app.add_event::<KillEvent>();
 
         //Plugins
-        app.add_plugins((MinionPlugin, ControllerPlugin, PlayerPlugin));
+        app.add_plugins((MinionPlugin, ControllerPlugin, PlayerPlugin, CastPlugin));
 
         //Systems
         // Process transforms always after inputs, and translations after rotations
         app.add_systems(
             PostUpdate,
-            (player_swivel, player_movement)
+            (
+                player_swivel,
+                player_movement,
+                give_kill_credit,
+                start_death_animation,
+            )
                 .chain()
                 .in_set(InGameSet::Post),
         );
@@ -52,16 +55,11 @@ impl Plugin for ActorPlugin {
             FixedUpdate,
             (update_damage_logs, increment_bounty).in_set(InGameSet::Update),
         );
-        app.add_systems(FixedUpdate, hide_dead.in_set(InGameSet::Post));
+        app.add_systems(Last, (tick_death_animation).in_set(InGameSet::Update));
     }
 }
 
-pub struct ActorInfo {
-    pub entity: Entity,
-    pub actor: ActorType,
-}
-
-#[derive(Component, Clone, Hash, PartialEq, Eq)]
+#[derive(Component, Clone, Hash, PartialEq, Eq, Reflect)]
 pub enum ActorType {
     Player(Player),
     Minion,
@@ -73,6 +71,15 @@ pub enum ActorState {
     Alive,
     #[default]
     Dead,
+}
+
+impl ActorState {
+    pub fn is_alive(&self) -> bool {
+        self == &ActorState::Alive
+    }
+    pub fn is_dead(&self) -> bool {
+        self == &ActorState::Dead
+    }
 }
 
 #[derive(Component, Deref, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
@@ -87,21 +94,29 @@ pub fn update_previous_actor(mut actors: Query<(&mut PreviousActorState, &ActorS
 #[derive(Component)]
 pub struct HasHealthBar;
 
-pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap), With<Player>>) {
-    for (mut player_transform, inputs, cc_map) in players.iter_mut() {
-        if cc_map.map.contains_key(&CCType::Stun) {
-            continue;
+pub fn player_swivel(mut players: Query<(&mut Transform, &PlayerInput, &CCMap, &ActorState), With<Player>>) {
+    for (mut player_transform, inputs, cc_map, state) in players.iter_mut() {
+        if cc_map.is_stunned() || !state.is_alive() {
+            continue
         }
         player_transform.rotation = Quat::from_axis_angle(Vec3::Y, inputs.yaw as f32).into();
     }
 }
 
-pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerInput, &CCMap)>) {
-    for (attributes, mut controller, player_input, cc_map) in query.iter_mut() {
-        if cc_map.map.contains_key(&CCType::Root) || cc_map.map.contains_key(&CCType::Stun) {
+pub fn player_movement(
+    mut query: Query<(
+        &Attributes,
+        &mut Controller,
+        &PlayerInput,
+        &CCMap,
+        &ActorState,
+    )>,
+) {
+    for (attributes, mut controller, player_input, cc_map, state) in query.iter_mut() {
+        if cc_map.is_rooted() || cc_map.is_stunned() || !state.is_alive() {
             controller.direction = Vec3::ZERO;
             // need to set to zero otherwise once stunned you 'skate' in that direction
-            continue;
+            continue
         }
 
         let speed = attributes.get(Stat::Speed);
@@ -120,8 +135,7 @@ pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerIn
         }
 
         let direction_normalized = direction.normalize_or_zero();
-        let movement_vector =
-            Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized;
+        let movement_vector = Quat::from_axis_angle(Vec3::Y, player_input.yaw as f32) * direction_normalized;
 
         controller.direction = movement_vector;
         controller.max_speed = speed;
@@ -129,30 +143,27 @@ pub fn player_movement(mut query: Query<(&Attributes, &mut Controller, &PlayerIn
 }
 
 fn give_kill_credit(
-    changed_states: Query<(Option<&Bounty>, &ActorState, &IncomingDamageLog), Changed<ActorState>>,
+    changed_states: Query<(Option<&Bounty>, &ActorState, &IncomingDamageLog, Entity), Changed<ActorState>>,
     mut victors: Query<(&mut Attributes, &ActorType)>,
     mut scoreboard: ResMut<Scoreboard>,
+    mut kill_events: EventWriter<KillEvent>,
 ) {
     const TIME_FOR_KILL_CREDIT: u64 = 30;
-    for (bounty, state, log) in changed_states.iter() {
-        if state == &ActorState::Alive {
-            continue;
+    for (bounty, state, log, damned) in changed_states.iter() {
+        if state.is_alive() {
+            continue
         }
 
         let mut killers = Vec::new();
         for instance in log.list.iter().rev() {
-            if Instant::now().duration_since(instance.when)
-                > Duration::from_secs(TIME_FOR_KILL_CREDIT)
-            {
-                break;
+            if Instant::now().duration_since(instance.when) > Duration::from_secs(TIME_FOR_KILL_CREDIT) {
+                break
             }
             //let Ok(attacker) = the_guilty.get(instance.attacker) else {continue};
             killers.push(instance.attacker);
         }
         for (index, awardee) in killers.iter().enumerate() {
-            let Ok((mut attributes, awardee_actor)) = victors.get_mut(*awardee) else {
-                continue;
-            };
+            let Ok((mut attributes, awardee_actor)) = victors.get_mut(*awardee) else { continue };
 
             if let Some(bounty) = bounty {
                 let gold = attributes.get_mut(Stat::Gold);
@@ -170,30 +181,43 @@ fn give_kill_credit(
                 }
             }
         }
+        let Some(killer) = killers.get(0) else { continue };
+        kill_events.send(KillEvent {
+            killer: *killer,
+            accomplices: killers[1..].to_vec(),
+            damned: damned,
+        })
     }
 }
+
+#[derive(Event)]
+pub struct KillEvent {
+    pub killer: Entity,
+    pub accomplices: Vec<Entity>,
+    pub damned: Entity,
+}
+
+#[derive(Component)]
+pub struct DespectateDelay(pub Timer);
 
 #[derive(Component)]
 pub struct DeathDelay(pub Timer);
 
-fn start_death_timer(
-    mut commands: Commands,
-    changed_states: Query<(Entity, &ActorState), Changed<ActorState>>,
-) {
-    let respawn_timer = 8.0;
+fn start_death_animation(mut commands: Commands, changed_states: Query<(Entity, &ActorState), Changed<ActorState>>) {
+    let delay_time = 3.0;
     for (entity, state) in changed_states.iter() {
-        if state == &ActorState::Alive {
-            continue;
+        if state.is_alive() {
+            continue
         }
-        // Add respawn timer to director
 
+        // Start death animation
         // Add despawn delay component to dead thing
-        let death_delay = DeathDelay(Timer::from_seconds(10.0, TimerMode::Once));
+        let death_delay = DeathDelay(Timer::from_seconds(delay_time, TimerMode::Once));
         commands.entity(entity).insert(death_delay);
     }
 }
 
-fn tick_death_timer(
+fn tick_death_animation(
     mut respawning: Query<(Entity, &mut DeathDelay, &mut Visibility)>,
     mut commands: Commands,
     time: Res<Time>,
@@ -209,21 +233,11 @@ fn tick_death_timer(
     }
 }
 
-pub fn hide_dead(
-    mut actors: Query<(&ActorState, &mut Visibility), Changed<ActorState>>,
-) {
-    for (actor_state, mut visibility) in &mut actors {
-        if *actor_state == ActorState::Dead {
-            *visibility = Visibility::Hidden;
-        }
-    }
-}
-
-// probably want to change this respawn system to just despawn the entity instead of hiding it
+// probably want to change this respawn system to just despawn the entity instead of hiding + moving it
 //
 // it makes sense to just move players back to spawn at first, but what about minions?
 // the hiding + moving way works for players cus u will have just 1
-// like is there supposed to be a cap for minions then? we def despawn them so i think having a unified way of respawning thing too
+// obv we cant just keep adding minions, we def despawn them so i think having a unified way of de/respawning things too
 // and should do the same for players, fully despawning and setting a respawn in something managed by the director instead of component
 // fn respawn_entity(
 //     mut commands: Commands,
@@ -265,9 +279,7 @@ fn update_damage_logs(
         if let Ok(mut defender_log) = incoming_logs.get_mut(damage_instance.defender) {
             defender_log.list.push(damage_instance.clone());
             if defender_log.sums.contains_key(&damage_instance.sensor) {
-                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else {
-                    continue;
-                };
+                let Some(hits) = defender_log.sums.get_mut(&damage_instance.sensor) else { continue };
                 hits.add_damage(damage_instance.clone());
                 log_hit_events.send(LogHit::new(
                     damage_instance.clone(),
@@ -290,13 +302,9 @@ fn update_damage_logs(
         if let Ok(mut attacker_log) = outgoing_logs.get_mut(damage_instance.attacker) {
             attacker_log.list.push(damage_instance.clone());
             if attacker_log.sums.contains_key(&damage_instance.sensor) {
-                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else {
-                    continue;
-                };
+                let Some(targets_hit) = attacker_log.sums.get_mut(&damage_instance.sensor) else { continue };
                 if targets_hit.contains_key(&damage_instance.defender) {
-                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else {
-                        continue;
-                    };
+                    let Some(hits) = targets_hit.get_mut(&damage_instance.defender) else { continue };
                     hits.add_damage(damage_instance.clone());
                     log_hit_events.send(LogHit::new(
                         damage_instance.clone(),
@@ -319,9 +327,7 @@ fn update_damage_logs(
                     damage_instance.defender,
                     DamageSum::from_instance(damage_instance.clone()),
                 )]);
-                attacker_log
-                    .sums
-                    .insert(damage_instance.sensor.clone(), init);
+                attacker_log.sums.insert(damage_instance.sensor.clone(), init);
                 log_hit_events.send(LogHit::new(
                     damage_instance.clone(),
                     LogType::Add,

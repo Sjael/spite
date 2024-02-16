@@ -5,28 +5,27 @@ use bevy::utils::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ability::{
-        buff::BuffMap,
-        cast::{
-            AbilityCastSettings, AbilitySlots, Casting, CooldownMap, HoveredAbility, Slot,
-            WindupTimer,
-        },
-        crowd_control::CCMap,
+    ability::Ability,
+    actor::{
+        bounty::Bounty,
+        cast::{AbilityCastSettings, AbilitySlots, Casting, CooldownMap, HoveredAbility, Slot},
+        controller::Controller,
         rank::AbilityRanks,
-        Ability,
+        IncomingDamageLog, OutgoingDamageLog,
     },
-    actor::{bounty::Bounty, controller::Controller, IncomingDamageLog, OutgoingDamageLog},
+    buff::BuffMap,
     camera::Spectatable,
+    classes::warrior::Warrior,
+    crowd_control::CCMap,
     prelude::*,
     ui::{
+        hud::Trackable,
         store::{StoreBuffer, StoreHistory},
-        Trackable,
     },
     GameState,
 };
 
 pub mod input;
-pub mod reticle;
 
 pub use input::PlayerInput;
 
@@ -39,10 +38,9 @@ pub struct SpawnPlayerEvent {
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .register_type::<Player>()
-            .register_type::<Players>()
-            .register_type::<ActorState>();
+        app.register_type::<Player>();
+        app.register_type::<Players>();
+        app.register_type::<LocalPlayer>();
 
         app.add_event::<SpawnPlayerEvent>();
 
@@ -74,6 +72,7 @@ pub fn init_player(
             .spawn(SpatialBundle::from_transform(event.transform.clone()))
             .insert((
                 //event.actor.clone(), // ActorType
+                ActorType::Player(player.clone()),
                 player, // Player
                 Name::new(format!("Player {}", spawning_id.to_string())),
                 ActorState::Alive,
@@ -100,13 +99,15 @@ pub fn init_player(
                 Inventory::default(),
                 StoreHistory::default(),
                 StoreBuffer::default(),
+                Warrior,
             ))
             .insert({
                 let mut attrs = Attributes::default();
                 attrs
                     .set(Stat::Health, 33.0)
                     .set_base(Stat::Speed, 6.0)
-                    .set(Stat::CharacterResource, 33.0)
+                    .set_base(Stat::CharacterResourceRegen, 0.0)
+                    .set(Stat::CharacterResource, 0.0)
                     .set(Stat::Gold, 20_000.0);
                 attrs
             })
@@ -128,8 +129,7 @@ pub fn init_player(
                 CCMap::default(),
                 BuffMap::default(),
                 Spectatable,
-                Casting(None),
-                WindupTimer(Timer::default()),
+                Casting::default(),
                 PlayerInput::default(),
                 HoveredAbility::default(),
             ))
@@ -138,7 +138,6 @@ pub fn init_player(
 
         let player_is_owned = event.player_id == **local_player_id;
         if player_is_owned {
-            commands.insert_resource(PlayerInput::default());
             commands.entity(player_entity).insert((Trackable,));
         }
     }
@@ -151,7 +150,7 @@ pub fn respawn_player(
 ) {
     for event in respawn_events.read() {
         let Ok((mut vis, mut state)) = players.get_mut(event.entity) else {
-            continue;
+            continue
         };
         *vis = Visibility::Visible;
         *state = ActorState::Alive;
@@ -162,10 +161,7 @@ pub fn respawn_player(
 }
 */
 
-pub fn spawn_local_player(
-    mut spawn_events: EventWriter<SpawnPlayerEvent>,
-    local_player_id: Res<LocalPlayerId>,
-) {
+pub fn spawn_local_player(mut spawn_events: EventWriter<SpawnPlayerEvent>, local_player_id: Res<LocalPlayerId>) {
     info!("spawning local player");
     spawn_events.send(SpawnPlayerEvent {
         player_id: **local_player_id,
@@ -177,8 +173,15 @@ pub fn spawn_local_player(
     });
 }
 
-#[derive(Resource, Deref)]
+#[derive(Resource, Deref, Reflect)]
+#[reflect(Resource)]
 pub struct LocalPlayer(Entity);
+
+impl Default for LocalPlayer {
+    fn default() -> Self {
+        Self(Entity::from_raw(1))
+    }
+}
 
 impl LocalPlayer {
     pub fn new(entity: Entity) -> Self {
@@ -220,6 +223,7 @@ impl Players {
 pub fn update_players(
     mut commands: Commands,
     local_player_id: Res<LocalPlayerId>,
+    local_player: Option<Res<LocalPlayer>>,
     mut cache: ResMut<Players>,
     truth: Query<(&Player, Entity)>,
 ) {
@@ -230,9 +234,15 @@ pub fn update_players(
     }
 
     if let Some(player_entity) = cache.get(&local_player_id.0) {
-        commands.insert_resource(LocalPlayer(player_entity));
+        if local_player.is_none() {
+            println!("updating player");
+            commands.insert_resource(LocalPlayer(player_entity));
+        }
     } else {
-        commands.remove_resource::<LocalPlayer>();
+        if local_player.is_some() {
+            println!("removing player");
+            commands.remove_resource::<LocalPlayer>();
+        }
     }
 }
 
@@ -258,19 +268,7 @@ impl PartialEq<LocalPlayerId> for Player {
 }
 
 #[derive(
-    Component,
-    Reflect,
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    Eq,
-    Hash,
-    Deref,
-    DerefMut,
+    Component, Reflect, Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Eq, Hash, Deref, DerefMut,
 )]
 #[reflect(Component)]
 pub struct Player {

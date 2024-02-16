@@ -1,8 +1,12 @@
-use crate::{ability::bundles::FireballInfo, stats::Stat};
-use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::{crowd_control::CCType, shape::AbilityShape, Ability};
+use bevy::prelude::*;
+
+use crate::{
+    ability::{shape::AbilityShape, Ability},
+    crowd_control::CCKind,
+    stats::Stat,
+};
 
 pub struct AbilityBlueprint {
     pub base_ability: Ability,
@@ -41,7 +45,7 @@ pub enum AbilityComp {
     BaseDamage,
     Cooldown,
     Cost,
-    CC(CCType),
+    CC(CCKind),
 }
 
 pub struct RankNumbers {
@@ -86,7 +90,7 @@ impl AbilityBuilder {
     }
     pub fn build(&mut self, commands: &mut Commands) -> Entity {
         dbg!(self);
-        let ability = FireballInfo::fire_bundle(&Transform::default());
+        let ability = Ability::Fireball;
         commands.spawn(ability).id()
     }
 }

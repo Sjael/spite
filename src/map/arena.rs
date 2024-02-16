@@ -5,17 +5,17 @@ use bevy::{
 
 use crate::{
     ability::{
-        buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
-        cast::Caster,
-        cast::Tower,
-        crowd_control::{CCInfo, CCMap, CCType},
-        timeline::{AreaTimeline, DeployAreaStage},
-        Ability, FilteredTargets, FiringInterval, PausesWhenEmpty, TagInfo, Tags, TargetFilter,
-        TargetSelection, TargetsHittable, TargetsInArea, TickBehavior, Ticks,
+        ticks::{PausesWhenEmpty, TickBehavior},
+        Ability, TagInfo, Tags, TargetFilter, TargetSelection, TargetsHittable, TargetsInArea,
     },
-    actor::{HasHealthBar, IncomingDamageLog},
+    actor::{
+        cast::{Caster, Tower},
+        HasHealthBar, IncomingDamageLog,
+    },
     area::Fountain,
+    buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
     camera::Spectatable,
+    crowd_control::{CCInfo, CCKind, CCMap},
     prelude::{non_damaging::ObjectiveHealthOwner, *},
     GameState,
 };
@@ -31,6 +31,7 @@ pub fn setup_arena(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    icons: Res<Icons>,
     //models: Res<Models>,
 ) {
     //ground
@@ -103,10 +104,11 @@ pub fn setup_arena(
             RigidBody::Static,
             CollisionLayers::WALL,
             TEAM_NEUTRAL,
+            ActorState::Alive,
             {
                 let mut attributes = Attributes::default();
                 attributes
-                    .set(Stat::Health, 33.0)
+                    .set(Stat::Health, 100.0)
                     .set(Stat::MagicalProtection, 60.0)
                     .set(Stat::PhysicalProtection, 60.0);
                 attributes
@@ -122,29 +124,21 @@ pub fn setup_arena(
         .id();
 
     let tower_range = commands
-        .spawn((
-            SpatialBundle::default(),
-            TEAM_NEUTRAL,
-            Name::new("Range Collider"),
-        ))
+        .spawn((SpatialBundle::default(), Name::new("Range Collider")))
         .insert((
             Collider::cylinder(1.0, 7.),
             Sensor,
-            TargetsInArea::default(),
-            FiringInterval(2.0),
-            Ticks::Unlimited,
-            TickBehavior::static_timer(),
+            TickBehavior::new_static(2.0),
             PausesWhenEmpty,
             Caster(tower),
             TargetFilter {
                 number_of_targets: 1,
                 target_selection: TargetSelection::Closest,
+                ..default()
             },
-            FilteredTargets::default(),
             TargetsHittable::default(),
-            Tags {
-                list: vec![TagInfo::Homing(Ability::Fireball)],
-            },
+            TargetsInArea::default(),
+            Tags(vec![TagInfo::Homing(Ability::Fireball)]),
         ))
         .id();
 
@@ -170,6 +164,7 @@ pub fn setup_arena(
             LockedAxes::ACTOR,
             CollisionLayers::PLAYER,
             TEAM_2,
+            ActorState::Alive,
             CCMap::default(),
             BuffMap::default(),
             HasHealthBar,
@@ -177,7 +172,15 @@ pub fn setup_arena(
             Spectatable,
             Name::new("Target Dummy"),
         ))
-        .insert((Attributes::default(),));
+        .insert((ActorType::Minion,))
+        .insert({
+            let mut attrs = Attributes::default();
+            attrs
+                .set(Stat::Health, 200.0)
+                .set_base(Stat::Speed, 6.0)
+                .set(Stat::CharacterResource, 0.0);
+            attrs
+        });
 
     // Scanning Damage zone RED
     commands
@@ -198,21 +201,17 @@ pub fn setup_arena(
             Collider::cuboid(4.0, 0.3, 4.0),
             CollisionLayers::ABILITY,
             Sensor,
-            FiringInterval(5.0),
-            Ticks::Unlimited,
-            TickBehavior::static_timer(),
+            TickBehavior::new_static(5.0),
             TargetsInArea::default(),
             TargetsHittable::default(),
             TEAM_NEUTRAL,
-            Tags {
-                list: vec![
-                    TagInfo::Damage(12.0),
-                    TagInfo::CC(CCInfo {
-                        cctype: CCType::Stun,
-                        duration: 3.0,
-                    }),
-                ],
-            },
+            Tags(vec![
+                TagInfo::Damage(0.0),
+                TagInfo::CC(CCInfo {
+                    cckind: CCKind::Stun,
+                    duration: 3.0,
+                }),
+            ]),
         ));
 
     // Damage zone YELLOW
@@ -235,28 +234,36 @@ pub fn setup_arena(
             CollisionLayers::ABILITY,
             Collider::cuboid(4.0, 0.3, 4.0),
             Sensor,
-            Tags {
-                list: vec![
-                    TagInfo::Damage(27.0),
-                    TagInfo::Buff(BuffInfo {
-                        stat: AttributeTag::Modifier {
-                            modifier: Modifier::Mul,
-                            target: Box::new(Stat::Speed.into()),
-                        },
-                        amount: 10.0,
-                        max_stacks: 3,
-                        duration: 10.0,
-                        ..default()
-                    }),
-                    TagInfo::CC(CCInfo {
-                        cctype: CCType::Silence,
-                        duration: 7.0,
-                    }),
-                ],
-            },
-            FiringInterval(1.0),
-            TickBehavior::individual(),
-            Ticks::Unlimited,
+            Tags(vec![
+                TagInfo::Damage(27.0),
+                TagInfo::Buff(BuffInfo {
+                    stat: AttributeTag::Modifier {
+                        modifier: Modifier::Mul,
+                        target: Box::new(Stat::Speed.into()),
+                    },
+                    amount: 20.0,
+                    max_stacks: 3,
+                    duration: 10.0,
+                    image: Ability::Fireball.get_image(&icons),
+                    ..default()
+                }),
+                TagInfo::Buff(BuffInfo {
+                    stat: AttributeTag::Modifier {
+                        modifier: Modifier::Add,
+                        target: Box::new(Stat::CharacterResourceMax.into()),
+                    },
+                    amount: 1.0,
+                    max_stacks: 3,
+                    duration: 10.0,
+                    image: Ability::Frostbolt.get_image(&icons),
+                    ..default()
+                }),
+                TagInfo::CC(CCInfo {
+                    cckind: CCKind::Silence,
+                    duration: 7.0,
+                }),
+            ]),
+            TickBehavior::new_individual(1.0),
             TEAM_NEUTRAL,
             TargetsInArea::default(),
             TargetsHittable::default(),
@@ -285,28 +292,25 @@ pub fn setup_arena(
             Sensor,
             TEAM_1,
             TargetsInArea::default(),
-            TickBehavior::individual(),
-            Ticks::Unlimited,
-            FiringInterval(1.0),
-            Tags {
-                list: vec![
-                    TagInfo::Heal(28.0),
-                    TagInfo::Damage(44.0),
-                    TagInfo::Buff(BuffInfo {
-                        stat: AttributeTag::Modifier {
-                            modifier: Modifier::Add,
-                            target: Box::new(Stat::PhysicalPenetration.into()),
-                        },
-                        amount: 5.0,
-                        max_stacks: 6,
-                        duration: 18.0,
-                        bufftargets: BuffTargets::Allies,
-                        bufftype: BuffType::Buff,
-                        ..default()
-                    }),
-                ],
-            },
             TargetsHittable::default(),
+            TickBehavior::new_individual(1.0),
+            Tags(vec![
+                TagInfo::Heal(28.0),
+                TagInfo::Damage(44.0),
+                TagInfo::Buff(BuffInfo {
+                    stat: AttributeTag::Modifier {
+                        modifier: Modifier::Add,
+                        target: Box::new(Stat::PhysicalPenetration.into()),
+                    },
+                    amount: 5.0,
+                    max_stacks: 6,
+                    duration: 18.0,
+                    bufftargets: BuffTargets::Allies,
+                    bufftype: BuffType::Buff,
+                    image: Ability::Dash.get_image(&icons),
+                    ..default()
+                }),
+            ]),
         ));
 
     // sky

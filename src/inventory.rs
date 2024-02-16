@@ -8,6 +8,39 @@ use crate::{
     ui::ui_bundles::{item_image_build, BuildSlotNumber},
 };
 
+pub struct InventoryPlugin;
+impl Plugin for InventoryPlugin {
+    fn build(&self, app: &mut App) {
+        app.register_type::<Inventory>();
+
+        app.add_systems(Update, (update_inventory_ui,).in_set(InGameSet::Update));
+    }
+}
+
+// TODO
+// HIDE ONLY ITEMS IN LIST node
+
+fn update_inventory_ui(
+    mut commands: Commands,
+    query: Query<(&Inventory, Entity), Changed<Inventory>>,
+    slot_query: Query<(Entity, &BuildSlotNumber)>,
+    items: Res<Items>,
+    local_entity: Option<Res<LocalPlayer>>,
+) {
+    let Some(local) = local_entity else { return };
+    for (inv, entity) in query.iter() {
+        if entity != *local {
+            continue
+        }
+        for (slot_e, index) in &slot_query {
+            commands.entity(slot_e).despawn_descendants();
+            let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else { continue };
+            let new_item = commands.spawn(item_image_build(&items, item.clone())).id();
+            commands.entity(new_item).set_parent(slot_e);
+        }
+    }
+}
+
 #[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
 #[reflect]
 pub struct Inventory {
@@ -37,41 +70,6 @@ impl Inventory {
             true
         } else {
             false
-        }
-    }
-}
-
-pub struct InventoryPlugin;
-impl Plugin for InventoryPlugin {
-    fn build(&self, app: &mut App) {
-        app.register_type::<Inventory>();
-
-        app.add_systems(Update, (update_inventory_ui,).in_set(InGameSet::Update));
-    }
-}
-
-// TODO
-// HIDE ONLY ITEMS IN LIST node
-
-fn update_inventory_ui(
-    mut commands: Commands,
-    query: Query<(&Inventory, Entity), Changed<Inventory>>,
-    slot_query: Query<(Entity, &BuildSlotNumber)>,
-    items: Res<Items>,
-    local_entity: Option<Res<LocalPlayer>>,
-) {
-    let Some(local) = local_entity else { return };
-    for (inv, entity) in query.iter() {
-        if entity != *local {
-            continue;
-        }
-        for (slot_e, index) in &slot_query {
-            commands.entity(slot_e).despawn_descendants();
-            let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else {
-                continue;
-            };
-            let new_item = commands.spawn(item_image_build(&items, item.clone())).id();
-            commands.entity(new_item).set_parent(slot_e);
         }
     }
 }

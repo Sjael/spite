@@ -4,7 +4,6 @@ use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
-
 use bevy_xpbd_3d::{
     parry::shape::{TriMesh, TypedShape},
     prelude::*,
@@ -21,10 +20,7 @@ pub trait AsMesh {
 pub fn trimesh_to_mesh(trimesh: &TriMesh) -> Mesh {
     let points = trimesh.vertices();
     let indices = trimesh.indices();
-    let points: Vec<[f32; 3]> = points
-        .iter()
-        .map(|point| [point.x, point.y, point.z])
-        .collect();
+    let points: Vec<[f32; 3]> = points.iter().map(|point| [point.x, point.y, point.z]).collect();
     let indices: Vec<u32> = indices.iter().flatten().cloned().collect();
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
@@ -133,10 +129,7 @@ pub fn init_physics_meshes(
     //ctx: Res<RapierContext>,
     materials: Query<&Handle<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    colliders: Query<
-        (Entity, &Collider, Option<&ColliderParent>),
-        (Changed<Collider>, Without<Sensor>),
-    >,
+    colliders: Query<(Entity, &Collider, Option<&ColliderParent>), (Changed<Collider>, Without<Sensor>)>,
     childrens: Query<&Children>,
     physics_mesh: Query<&PhysicsDebugMesh>,
     mut removed: RemovedComponents<Collider>,

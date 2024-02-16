@@ -18,9 +18,6 @@ pub struct Bounty {
 
 impl Default for Bounty {
     fn default() -> Self {
-        Self {
-            xp: 200.0,
-            gold: 250.0,
-        }
+        Self { xp: 200.0, gold: 250.0 }
     }
 }

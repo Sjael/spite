@@ -82,23 +82,17 @@ impl Arc {
                     // ELSE draw sides from center and skip
                     extruded.indices.push([0, total_points + 1, 1]);
                     extruded.indices.push([0, total_points, total_points + 1]);
-                    extruded
-                        .indices
-                        .push([0, total_points - 1, total_points * 2 - 1]);
-                    extruded
-                        .indices
-                        .push([0, total_points * 2 - 1, total_points]);
-                    continue;
+                    extruded.indices.push([0, total_points - 1, total_points * 2 - 1]);
+                    extruded.indices.push([0, total_points * 2 - 1, total_points]);
+                    continue
                 }
             }
             extruded
                 .indices
                 .push([current_point, current_point + total_points, next_point]);
-            extruded.indices.push([
-                next_point,
-                current_point + total_points,
-                next_point + total_points,
-            ]);
+            extruded
+                .indices
+                .push([next_point, current_point + total_points, next_point + total_points]);
         }
 
         extruded
@@ -132,9 +126,7 @@ impl Arc {
                 .positions
                 .iter()
                 .map(|position| {
-                    let pos: Vec3 =
-                        Vec3::new(position[0], position[1] - center_height / 2.0, position[2])
-                            .normalize();
+                    let pos: Vec3 = Vec3::new(position[0], position[1] - center_height / 2.0, position[2]).normalize();
                     [pos.x, pos.y, pos.z]
                 })
                 .collect::<Vec<_>>();
@@ -148,11 +140,7 @@ impl Arc {
                 .collect::<Vec<_>>(),
         );
         mesh.set_indices(Some(Indices::U32(
-            self.indices
-                .clone()
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>(),
+            self.indices.clone().into_iter().flatten().collect::<Vec<_>>(),
         )));
 
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);

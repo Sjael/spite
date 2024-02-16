@@ -1,8 +1,9 @@
-use crate::prelude::*;
 use bevy::render::{
     mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
+
+use crate::prelude::*;
 
 pub struct Rectangle {
     positions: Vec<[f32; 3]>,
@@ -39,11 +40,9 @@ impl Rectangle {
         );
 
         // make top tris
-        extruded.indices.extend(
-            flat.indices
-                .iter()
-                .map(|tri| [tri[0] + 4, tri[1] + 4, tri[2] + 4]),
-        );
+        extruded
+            .indices
+            .extend(flat.indices.iter().map(|tri| [tri[0] + 4, tri[1] + 4, tri[2] + 4]));
 
         // make side tris
         for i in 0..=3 {
@@ -64,11 +63,7 @@ impl Rectangle {
             .collect::<Vec<_>>();
 
         mesh.set_indices(Some(Indices::U32(
-            self.indices
-                .clone()
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>(),
+            self.indices.clone().into_iter().flatten().collect::<Vec<_>>(),
         )));
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,

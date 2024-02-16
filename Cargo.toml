@@ -21,6 +21,7 @@ bevy_xpbd_3d = "0.3"
 # for geometric shapes as sprites
 #bevy_prototype_lyon = "0.8.0" 
 bevy_asset_loader = "0.18"
+ron = "0.8"
 
 # Relatively stable crates down here
 bitflags = "1.3"

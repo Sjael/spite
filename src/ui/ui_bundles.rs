@@ -5,16 +5,22 @@ use bevy_tweening::{
     lens::{TextColorLens, UiBackgroundColorLens, UiPositionLens},
     Animator, Delay, EaseFunction, Tween,
 };
+use rand::Rng;
 
 use crate::{
-    ability::{crowd_control::CCType, Ability, AbilityTooltip},
     assets::{Fonts, Icons, Images, Items},
-    item::Item,
+    crowd_control::CCKind,
+    item::{Item, ITEM_DB},
     stats::Stat,
+    ui::{
+        holding::{DragHandle, DropSlot, DropType, HoverHoldStyle, Reposition},
+        mouse::MenuType,
+        store::CATEGORIES,
+        styles::*,
+        tooltip::{Hoverable, Tooltip},
+        BoundByParent, ButtonAction, TextTrack,
+    },
 };
-
-use super::styles::*;
-use rand::Rng;
 
 //
 // Player UI Components
@@ -22,18 +28,28 @@ use rand::Rng;
 // We impl Bundle so that we can chain any components together
 
 #[derive(Component, Debug)]
-pub struct Tooltip(pub Option<Entity>);
-impl Default for Tooltip {
-    fn default() -> Self {
-        Tooltip(None)
-    }
+pub enum EditableUI {
+    BottomLeft,
+    Map,
+    Header,
+    Killfeed,
+    TeamThumbs,
+    RespawnTimer,
 }
 
-#[derive(Component)]
-pub struct Hoverable;
-
-#[derive(Component, Debug)]
-pub struct EditableUI;
+impl EditableUI {
+    pub fn get_name(&self) -> String {
+        let str = match self {
+            EditableUI::BottomLeft => "stats",
+            EditableUI::Map => "map",
+            EditableUI::Header => "header",
+            EditableUI::Killfeed => "killfeed",
+            EditableUI::TeamThumbs => "teamthumbs",
+            EditableUI::RespawnTimer => "respawn",
+        };
+        str.to_owned()
+    }
+}
 
 #[derive(Component, Debug)]
 pub struct EditingUIHandle;
@@ -53,6 +69,7 @@ pub fn editing_ui_handle() -> impl Bundle {
             },
             background_color: Color::rgba(0.1, 0.2, 0.8, 0.5).into(),
             focus_policy: FocusPolicy::Block,
+            z_index: ZIndex::Global(100),
             ..default()
         },
         DragHandle,
@@ -94,12 +111,11 @@ pub fn editable_ui_wrapper() -> impl Bundle {
             },
             ..default()
         },
-        EditableUI,
         Name::new("Editable wrapper"),
     )
 }
 
-pub fn editing_ui() -> impl Bundle {
+pub fn editing_ui_buttons() -> impl Bundle {
     (
         NodeBundle {
             style: Style {
@@ -138,6 +154,26 @@ pub struct RespawnHolder;
 #[derive(Component, Debug)]
 pub struct RespawnText;
 
+#[derive(Component)]
+pub struct MainMenuRoot;
+pub fn main_menu() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                column_gap: Val::Percent(10.),
+                row_gap: Val::Px(20.),
+                ..default()
+            },
+            ..default()
+        },
+        MainMenuRoot,
+    )
+}
 pub fn respawn_holder() -> impl Bundle {
     (
         NodeBundle {
@@ -305,15 +341,15 @@ pub fn kill_notification() -> impl Bundle {
     let killfeed_offset = 200.;
     let delay_seconds = 8;
     let tween_pos = Tween::new(
-        EaseFunction::QuadraticIn,
+        EaseFunction::QuadraticInOut,
         Duration::from_millis(500),
         UiPositionLens {
             start: UiRect {
-                right: Val::Px(killfeed_offset),
+                left: Val::Px(-killfeed_offset),
                 ..default()
             },
             end: UiRect {
-                right: Val::Px(0.),
+                left: Val::Px(0.),
                 ..default()
             },
         },
@@ -397,7 +433,7 @@ pub fn follow_wrapper(entity: Entity) -> impl Bundle {
                 justify_content: JustifyContent::Center,
                 ..default()
             },
-            z_index: ZIndex::Global(-1),
+            z_index: ZIndex::Global(2),
             ..default()
         },
         FollowIn3d {
@@ -532,7 +568,7 @@ pub fn stats_ui() -> impl Bundle {
         Name::new("Stats"),
     )
 }
-pub fn build_and_kda() -> impl Bundle {
+pub fn inventory_and_kda() -> impl Bundle {
     (
         NodeBundle {
             style: Style {
@@ -548,7 +584,7 @@ pub fn build_and_kda() -> impl Bundle {
 }
 #[derive(Component)]
 pub struct BuildUI;
-pub fn build_ui() -> impl Bundle {
+pub fn inventory_ui() -> impl Bundle {
     (
         NodeBundle {
             style: Style {
@@ -584,15 +620,13 @@ pub fn build_slot(number: u32) -> impl Bundle {
         Interaction::None,
         Name::new("Build slot"),
         DropSlot,
+        DropType::BuildItem,
         BuildSlotNumber(number),
     )
 }
 
 #[derive(Component)]
 pub struct BuildSlotNumber(pub u32);
-
-#[derive(Component)]
-pub struct DropSlot;
 
 pub fn kda_ui() -> impl Bundle {
     (
@@ -738,7 +772,6 @@ pub fn root_ui() -> impl Bundle {
             ..default()
         },
         RootUI,
-        ZTracker::default(),
         Name::new("UI"),
     )
 }
@@ -756,15 +789,94 @@ pub fn character_ui() -> impl Bundle {
                 },
                 ..default()
             },
+            z_index: ZIndex::Local(1), // above root ui
             ..default()
         },
-        PlayerUI,
-        Name::new("Character UI"),
+        PossessedUI,
+        Name::new("Possessed Character UI"),
     )
 }
 
 #[derive(Component)]
-pub struct PlayerUI;
+pub struct PossessedUI;
+
+pub fn spawn_tab_panel(commands: &mut Commands) {
+    commands.spawn(tab_panel()).with_children(|parent| {
+        parent.spawn(damage_log()).with_children(|parent| {
+            parent.spawn(log_outgoing());
+            parent.spawn(log_incoming());
+        });
+        parent.spawn(scoreboard());
+        parent.spawn(death_recap());
+        parent.spawn(abilities_panel());
+    });
+}
+
+pub fn spawn_store(commands: &mut Commands, fonts: &Res<Fonts>, items: &Res<Items>, player: Entity) {
+    commands.spawn(store()).with_children(|parent| {
+        parent.spawn(drag_bar());
+        parent.spawn(gold_holder()).with_children(|parent| {
+            parent
+                .spawn(color_text("0", 20, fonts, Color::YELLOW))
+                .insert((TextTrack::new(player, Stat::Gold), ZIndex::Global(4)));
+        });
+        parent.spawn(list_categories()).with_children(|parent| {
+            for stat in CATEGORIES.iter() {
+                parent.spawn(category(stat.clone())).with_children(|parent| {
+                    parent.spawn(category_text(stat.to_string(), fonts));
+                });
+            }
+        });
+        parent.spawn(list_items()).with_children(|parent| {
+            for item in ITEM_DB.keys() {
+                parent.spawn(store_item_wrap(item.clone())).with_children(|parent| {
+                    parent.spawn(store_item(items, item.clone()));
+                    parent
+                        .spawn(color_text("", 16, fonts, Color::WHITE))
+                        .insert(ItemDiscount(item.clone()));
+                });
+            }
+        });
+        parent.spawn(inspector()).with_children(|parent| {
+            parent.spawn(item_parents());
+            parent.spawn(grow_wrap()).with_children(|parent| {
+                parent.spawn(item_tree());
+            });
+            parent.spawn(item_details()).with_children(|parent| {
+                parent
+                    .spawn(color_text("", 14, fonts, Color::YELLOW))
+                    .insert(ItemPriceText);
+                parent
+                    .spawn(color_text("", 16, fonts, Color::GREEN))
+                    .insert((ItemDiscount(Item::Arondight), ItemDiscountText));
+                parent
+                    .spawn(color_text("", 18, fonts, Color::WHITE))
+                    .insert(ItemNameText);
+                parent.spawn(hori()).with_children(|parent| {
+                    parent
+                        .spawn(button())
+                        .insert(ButtonAction::BuyItem)
+                        .with_children(|parent| {
+                            parent.spawn(plain_text("BUY", 20, fonts));
+                        });
+                    parent
+                        .spawn(button())
+                        .insert(ButtonAction::SellItem)
+                        .with_children(|parent| {
+                            parent.spawn(plain_text("SELL", 16, fonts));
+                        });
+                });
+                parent
+                    .spawn(button())
+                    .insert(ButtonAction::UndoStore)
+                    .with_children(|parent| {
+                        parent.spawn(plain_text("UNDO", 16, fonts));
+                    });
+            });
+        });
+    });
+}
+
 pub fn player_bottom_container() -> impl Bundle {
     (NodeBundle {
         style: Style {
@@ -859,10 +971,11 @@ pub fn buff_holder(time: f32, id: String) -> impl Bundle {
             Duration::from_millis((time * 1000.0) as u64),
             TimerMode::Once,
         )),
+        Interaction::default(),
     )
 }
 
-pub fn buff_border(is_buff: bool) -> impl Bundle {
+pub fn buff_wrap(size: u32, is_buff: bool) -> impl Bundle {
     let color: Color;
     if is_buff {
         color = ALLY_COLOR;
@@ -871,33 +984,37 @@ pub fn buff_border(is_buff: bool) -> impl Bundle {
     }
     (NodeBundle {
         style: Style {
-            width: Val::Px(28.),
-            height: Val::Px(28.),
+            width: Val::Px((size + 2) as f32),
+            height: Val::Px((size + 2) as f32),
+            border: UiRect::all(Val::Px(2.0)),
             ..default()
         },
-        background_color: color.into(),
+        border_color: color.into(),
         ..default()
     },)
 }
 
-pub fn buff_image(ability: Ability, icons: &Res<Icons>) -> impl Bundle {
+pub fn buff_image(image: UiImage, is_buff: bool) -> impl Bundle {
+    let color: Color;
+    if is_buff {
+        color = ALLY_COLOR;
+    } else {
+        color = ENEMY_COLOR;
+    }
     (
         ImageBundle {
             style: Style {
-                width: Val::Percent(90.),
-                height: Val::Percent(90.),
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
                 margin: UiRect::all(Val::Auto),
+                border: UiRect::all(Val::Px(3.0)),
                 ..default()
             },
-            image: match ability {
-                Ability::Frostbolt => icons.frostbolt.clone().into(),
-                Ability::Fireball => icons.fireball.clone().into(),
-                Ability::Dash => icons.dash.clone().into(),
-                _ => icons.basic_attack.clone().into(),
-            },
+            image,
             background_color: Color::rgba(1.0, 1.0, 1.0, 0.95).into(),
             ..default()
         },
+        BorderColor(color),
         Interaction::None,
         Name::new("Buff Image"),
     )
@@ -906,13 +1023,7 @@ pub fn buff_image(ability: Ability, icons: &Res<Icons>) -> impl Bundle {
 #[derive(Component)]
 pub struct BuffDurationText;
 
-pub fn buff_timer(fonts: &Res<Fonts>, is_buff: bool) -> impl Bundle {
-    let color: Color;
-    if is_buff {
-        color = ALLY_COLOR;
-    } else {
-        color = ENEMY_COLOR;
-    }
+pub fn buff_timer(fonts: &Res<Fonts>) -> impl Bundle {
     (
         TextBundle {
             style: Style {
@@ -927,7 +1038,7 @@ pub fn buff_timer(fonts: &Res<Fonts>, is_buff: bool) -> impl Bundle {
                 TextStyle {
                     font: fonts.exo_semibold.clone(),
                     font_size: 16.0,
-                    color,
+                    color: Color::WHITE,
                 },
             ),
             ..default()
@@ -976,11 +1087,55 @@ pub fn player_bars_wrapper() -> impl Bundle {
                 right: Val::Auto,
                 ..default()
             },
+            align_items: AlignItems::Center,
             row_gap: Val::Px(4.0),
             ..default()
         },
         ..default()
     })
+}
+
+#[derive(Component)]
+pub struct Pip(pub u32);
+
+pub fn resource_pip(index: u32) -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                width: Val::Px(30.0),
+                height: Val::Px(30.0),
+                ..default()
+            },
+            background_color: GRAY.into(),
+            ..default()
+        },
+        Pip(index),
+        Name::new("Pip"),
+    )
+}
+
+#[derive(Component, Debug)]
+pub struct ResourceHolder;
+
+pub fn resource_holder() -> impl Bundle {
+    (
+        NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::FlexStart,
+                margin: UiRect {
+                    bottom: Val::Px(30.),
+                    ..default()
+                },
+                column_gap: Val::Px(6.),
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            ..default()
+        },
+        ResourceHolder,
+        Name::new("Resource Holder"),
+    )
 }
 
 #[derive(Component, Debug)]
@@ -1006,7 +1161,7 @@ pub fn ability_holder() -> impl Bundle {
     )
 }
 
-pub fn ability_image(handle: Handle<Image>) -> impl Bundle {
+pub fn ability_image(image: UiImage) -> impl Bundle {
     (
         ImageBundle {
             style: Style {
@@ -1014,7 +1169,7 @@ pub fn ability_image(handle: Handle<Image>) -> impl Bundle {
                 height: Val::Px(40.),
                 ..default()
             },
-            image: handle.into(),
+            image,
             ..default()
         },
         Interaction::None,
@@ -1022,7 +1177,7 @@ pub fn ability_image(handle: Handle<Image>) -> impl Bundle {
     )
 }
 
-pub fn custom_image(handle: Handle<Image>, size: u32) -> impl Bundle {
+pub fn custom_image(image: UiImage, size: u32) -> impl Bundle {
     (
         ImageBundle {
             style: Style {
@@ -1030,7 +1185,7 @@ pub fn custom_image(handle: Handle<Image>, size: u32) -> impl Bundle {
                 height: Val::Px(size as f32),
                 ..default()
             },
-            image: handle.into(),
+            image,
             ..default()
         },
         Interaction::None,
@@ -1128,7 +1283,7 @@ pub struct CCSelfLabel;
 
 #[derive(Component)]
 pub struct CCIconSelf;
-pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle {
+pub fn cc_icon(cckind: CCKind, icons: &Res<Icons>) -> impl Bundle {
     (
         ImageBundle {
             style: Style {
@@ -1136,7 +1291,7 @@ pub fn cc_icon(cctype: CCType, icons: &Res<Icons>) -> impl Bundle {
                 height: Val::Px(22.),
                 ..default()
             },
-            image: cctype.get_icon(icons).into(),
+            image: cckind.get_icon(icons).into(),
             ..default()
         },
         Name::new("CC Icon"),
@@ -1151,132 +1306,114 @@ pub fn tooltip() -> impl Bundle {
         NodeBundle {
             style: Style {
                 position_type: PositionType::Absolute,
-                min_width: Val::Px(150.),
-                min_height: Val::Px(100.), // only cus adding to an empty makes it weird 1 frame
                 ..default()
             },
-            background_color: Color::NONE.into(),
             z_index: ZIndex::Global(10),
             ..default()
         },
         Tooltip::default(),
         Name::new("Tooltip"),
+        Reposition::default(),
+        BoundByParent(-30),
     )
 }
 
-pub fn spawn_ability_tooltip(
-    commands: &mut Commands,
-    icons: &Res<Icons>,
-    fonts: &Res<Fonts>,
-    info: &AbilityTooltip,
-) -> Entity {
-    commands
-        .spawn(tooltip_bg())
-        .with_children(|parent| {
-            parent.spawn(tooltip_desc(&fonts, info.description.clone()));
-            parent.spawn(tooltip_title(&fonts, info.title.clone()));
-            parent.spawn(tooltip_image(&icons, info.title.clone()));
-        })
-        .id()
-}
-
 pub fn tooltip_bg() -> impl Bundle {
+    let color = Color::rgb(0.08, 0.08, 0.11);
+    let tween_opac_in = Tween::new(
+        EaseFunction::QuadraticIn,
+        Duration::from_millis(80),
+        UiBackgroundColorLens {
+            start: *color.clone().set_a(0.0),
+            end: *color.clone().set_a(0.995),
+        },
+    );
     (
         NodeBundle {
             style: Style {
-                flex_direction: FlexDirection::ColumnReverse,
-                justify_content: JustifyContent::FlexEnd,
-                align_items: AlignItems::Baseline,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::FlexStart,
                 margin: UiRect {
                     bottom: Val::Px(10.),
                     ..default()
                 },
-                padding: UiRect::all(Val::Px(20.)),
+                row_gap: Val::Px(10.),
+                padding: UiRect::all(Val::Px(18.)),
                 ..default()
             },
-            background_color: Color::rgba(0., 0., 0., 1.0).into(),
+            background_color: Color::rgba(0.08, 0.08, 0.11, 0.995).into(),
             ..default()
         },
         Name::new("Background Tooltip"),
+        Animator::new(tween_opac_in),
     )
 }
 
-pub fn tooltip_title(fonts: &Res<Fonts>, text: String) -> impl Bundle {
-    (
-        TextBundle {
-            text: Text::from_section(
-                text,
-                TextStyle {
-                    font: fonts.exo_light.clone(),
-                    font_size: 30.0,
-                    color: Color::WHITE,
-                },
-            ),
-            ..default()
-        },
-        TooltipContents::Title,
-    )
+pub fn tooltip_title(text: String, fonts: &Res<Fonts>) -> impl Bundle {
+    (TextBundle {
+        text: Text::from_section(
+            text,
+            TextStyle {
+                font: fonts.exo_light.clone(),
+                font_size: 30.0,
+                color: Color::WHITE,
+            },
+        ),
+        ..default()
+    },)
 }
 
-pub fn tooltip_desc(fonts: &Res<Fonts>, text: String) -> impl Bundle {
-    (
-        TextBundle {
-            style: Style {
-                margin: UiRect {
-                    top: Val::Px(15.),
-                    left: Val::Px(0.),
-                    ..default()
-                },
-                max_width: Val::Px(320.),
-                max_height: Val::Auto,
+pub fn tooltip_desc(text: String, fonts: &Res<Fonts>) -> impl Bundle {
+    (TextBundle {
+        style: Style {
+            margin: UiRect {
+                top: Val::Px(15.),
+                left: Val::Px(0.),
                 ..default()
             },
-            text: Text::from_section(
-                text,
-                TextStyle {
-                    font: fonts.exo_light.clone(),
-                    font_size: 16.0,
-                    color: Color::WHITE,
-                },
-            ),
+            max_width: Val::Px(320.),
+            max_height: Val::Auto,
             ..default()
         },
-        TooltipContents::Description,
-    )
+        text: Text::from_section(
+            text,
+            TextStyle {
+                font: fonts.exo_light.clone(),
+                font_size: 16.0,
+                color: Color::WHITE,
+            },
+        ),
+        ..default()
+    },)
 }
 
-#[derive(Component, Debug)]
-pub enum TooltipContents {
-    Title,
-    Description,
-    Image,
-}
-
-pub fn tooltip_image(icons: &Res<Icons>, path: String) -> impl Bundle {
-    (
-        ImageBundle {
-            style: Style {
-                width: Val::Px(64.),
-                height: Val::Px(64.),
-                position_type: PositionType::Absolute,
-                left: Val::Px(-74.),
-                top: Val::Px(0.),
-                ..default()
-            },
-            image: match path.to_lowercase().as_str() {
-                "frostbolt" => icons.frostbolt.clone().into(),
-                "driving strike" => icons.dash.clone().into(),
-                "fireball" => icons.fireball.clone().into(),
-                _ => icons.basic_attack.clone().into(),
-            },
+pub fn tooltip_image(image: UiImage, size: u32) -> impl Bundle {
+    (ImageBundle {
+        style: Style {
+            width: Val::Px(size as f32),
+            height: Val::Px(size as f32),
+            position_type: PositionType::Absolute,
+            left: Val::Px(-10. - size as f32),
+            top: Val::Px(0.),
             ..default()
         },
-        TooltipContents::Image,
-    )
+        image,
+        ..default()
+    },)
 }
 
-#[derive(Component, Debug)]
-pub struct InGameMenuUi;
+pub fn tooltip_image_wrap(size: u32) -> impl Bundle {
+    (NodeBundle {
+        style: Style {
+            position_type: PositionType::Absolute,
+            left: Val::Px(-10. - size as f32),
+            top: Val::Px(0.),
+            ..default()
+        },
+        ..default()
+    },)
+}
+
 pub fn ingame_menu() -> impl Bundle {
     (
         NodeBundle {
@@ -1293,7 +1430,7 @@ pub fn ingame_menu() -> impl Bundle {
             visibility: Visibility::Hidden,
             ..default()
         },
-        InGameMenuUi,
+        MenuType::InGameMenu,
         Name::new("InGame Menu"),
     )
 }
@@ -1351,18 +1488,6 @@ pub fn tab_panel() -> impl Bundle {
     )
 }
 
-#[derive(Component)]
-pub struct TabMenuWrapper(pub TabMenuType);
-
-#[derive(Component, Default, Eq, PartialEq)]
-pub enum TabMenuType {
-    Scoreboard,
-    DamageLog,
-    DeathRecap,
-    Abilities,
-    #[default]
-    None,
-}
 pub fn damage_log() -> impl Bundle {
     (
         NodeBundle {
@@ -1374,7 +1499,7 @@ pub fn damage_log() -> impl Bundle {
             },
             ..default()
         },
-        TabMenuType::DamageLog,
+        MenuType::DamageLog,
         DamageLog,
     )
 }
@@ -1508,7 +1633,7 @@ pub fn scoreboard() -> impl Bundle {
             background_color: Color::rgba(0.14, 0.14, 0.2, 0.99).into(),
             ..default()
         },
-        TabMenuType::Scoreboard,
+        MenuType::Scoreboard,
         ScoreboardUI,
     )
 }
@@ -1539,7 +1664,7 @@ pub fn abilities_panel() -> impl Bundle {
             background_color: Color::rgba(0.8, 0.8, 0.5, 0.4).into(),
             ..default()
         },
-        TabMenuType::Abilities,
+        MenuType::Abilities,
     )
 }
 pub fn death_recap() -> impl Bundle {
@@ -1554,7 +1679,7 @@ pub fn death_recap() -> impl Bundle {
             background_color: Color::rgba(0.1, 0.3, 0.9, 0.4).into(),
             ..default()
         },
-        TabMenuType::DeathRecap,
+        MenuType::DeathRecap,
     )
 }
 
@@ -1583,23 +1708,13 @@ pub fn store() -> impl Bundle {
             z_index: ZIndex::Global(3),
             ..default()
         },
-        Draggable::BoundByParent(20),
+        Reposition::default(),
+        BoundByParent(20),
         StoreMain,
+        MenuType::Store,
         Name::new("Store"),
     )
 }
-
-#[derive(Component, Debug, PartialEq)]
-pub enum Draggable {
-    Unbound,
-    BoundByParent(i32), // so you can go outside if you want
-}
-
-#[derive(Component, Debug)]
-pub struct DragHandle;
-
-#[derive(Component, Debug, Default)]
-pub struct ZTracker(pub u32);
 
 pub fn drag_bar() -> impl Bundle {
     (
@@ -1614,7 +1729,6 @@ pub fn drag_bar() -> impl Bundle {
                 top: Val::Px(0.0),
                 ..default()
             },
-            z_index: ZIndex::Global(2),
             background_color: Color::rgba(0.6, 0.7, 0.4, 0.2).into(),
             transform: Transform {
                 translation: Vec3::new(0., 0., 1.),
@@ -1721,7 +1835,7 @@ pub fn inspector() -> impl Bundle {
             flex_direction: FlexDirection::Column,
             ..default()
         },
-        //background_color: Color::rgba(1., 0.1, 0.6, 0.3).into(),
+        background_color: Color::rgba(1., 0.1, 0.6, 0.1).into(),
         ..default()
     })
 }
@@ -1804,7 +1918,13 @@ pub fn hori() -> impl Bundle {
 }
 
 pub fn store_item_wrap(item: Item) -> impl Bundle {
-    let list = item.info().stats.keys().cloned().collect::<Vec<_>>();
+    let list = item
+        .info()
+        .stats
+        .keys()
+        .cloned()
+        .map(|tag| tag.target_stat())
+        .collect::<Vec<_>>();
     (
         NodeBundle {
             style: Style {
@@ -1822,6 +1942,7 @@ pub fn store_item_wrap(item: Item) -> impl Bundle {
         Interaction::default(),
         item,
         StoreItem,
+        Hoverable::Item(item),
     )
 }
 
@@ -1841,7 +1962,6 @@ pub fn store_item(item_images: &Res<Items>, item: Item) -> impl Bundle {
         item,
         StoreItem,
         // commentd cus i dont want dragging rn
-        //Draggable::Unbound,
         //DragHandle,
     )
 }
@@ -1859,7 +1979,7 @@ pub fn item_details() -> impl Bundle {
             style: Style {
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(8.0),
-                padding: UiRect::all(Val::Px(8.0)),
+                padding: UiRect::all(Val::Px(15.0)),
                 ..default()
             },
             ..default()
@@ -1879,7 +1999,10 @@ pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {
             image: item.get_image(item_images),
             ..default()
         },
-        Draggable::Unbound,
+        Hoverable::Item(item),
+        DropType::BuildItem,
+        HoverHoldStyle::Transparent,
+        Reposition::default(),
         DragHandle,
         Interaction::default(),
     )
@@ -1935,7 +2058,7 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
         text: Text::from_section(
             text,
             TextStyle {
-                font: fonts.exo_semibold.clone(),
+                font: fonts.exo_regular.clone(),
                 font_size: size as f32,
                 color: Color::WHITE.into(),
             },
@@ -1944,18 +2067,9 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
     },)
 }
 
-pub fn color_text(
-    text: impl Into<String>,
-    size: u32,
-    fonts: &Res<Fonts>,
-    color: Color,
-) -> impl Bundle {
+pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color: Color) -> impl Bundle {
     let text = text.into();
     (TextBundle {
-        style: Style {
-            align_self: AlignSelf::Center,
-            ..default()
-        },
         text: Text::from_section(
             text,
             TextStyle {
