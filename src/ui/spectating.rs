@@ -159,21 +159,9 @@ fn add_player_ui(
                                         parent.spawn(plain_text("0 / 0 / 0", 18, &fonts)).insert(PersonalKDA);
                                     });
                                     parent.spawn(inventory_ui()).with_children(|parent| {
-                                        parent.spawn(build_slot(1)).with_children(|_parent| {
-                                            //parent.spawn(item_image_build(&items,
-                                            // Item::Arondight));
-                                        });
-                                        parent.spawn(build_slot(2)).with_children(|_parent| {
-                                            //parent.spawn(item_image_build(&items,
-                                            // Item::HiddenDagger));
-                                        });
-                                        parent.spawn(build_slot(3));
-                                        parent.spawn(build_slot(4)).with_children(|_parent| {
-                                            //parent.spawn(item_image_build(&items,
-                                            // Item::SoulReaver));
-                                        });
-                                        parent.spawn(build_slot(5));
-                                        parent.spawn(build_slot(6));
+                                        for i in 1..6 {
+                                            parent.spawn(build_slot(i));
+                                        }
                                     });
                                 });
                             });

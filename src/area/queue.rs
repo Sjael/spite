@@ -52,7 +52,7 @@ pub fn area_apply_tags(
     mut cc_events: EventWriter<CCEvent>,
     mut cast_homing_events: EventWriter<AbilityFireEvent>,
 ) {
-    'area: for (
+    'area_loop: for (
         sensor_entity,
         sensor_team,
         targets_hittable,
@@ -167,7 +167,7 @@ pub fn area_apply_tags(
                     max_hits.current += 1;
                     // if reached max hits, go to next area as this one will be despawned
                     if max_hits.current >= max_hits.max {
-                        continue 'area
+                        continue 'area_loop
                     }
                 }
             }

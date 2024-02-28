@@ -5,7 +5,7 @@ use crate::{
     assets::Items,
     item::Item,
     prelude::InGameSet,
-    ui::ui_bundles::{item_image_build, BuildSlotNumber},
+    ui::{holding::DropType, ui_bundles::{item_image_build, BuildSlotNumber}},
 };
 
 pub struct InventoryPlugin;
@@ -13,7 +13,10 @@ impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Inventory>();
 
-        app.add_systems(Update, (update_inventory_ui,).in_set(InGameSet::Update));
+        app.add_systems(
+            Update,
+            (update_inventory_ui, ).in_set(InGameSet::Update),
+        );
     }
 }
 
@@ -29,6 +32,7 @@ fn update_inventory_ui(
 ) {
     let Some(local) = local_entity else { return };
     for (inv, entity) in query.iter() {
+        dbg!(inv.clone());
         if entity != *local {
             continue
         }
@@ -37,6 +41,25 @@ fn update_inventory_ui(
             let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else { continue };
             let new_item = commands.spawn(item_image_build(&items, item.clone())).id();
             commands.entity(new_item).set_parent(slot_e);
+        }
+    }
+}
+
+fn update_inventory_parents(
+    mut inventories: Query<&mut Inventory>,
+    local_entity: Option<Res<LocalPlayer>>,
+    ui_query: Query<&Parent, (With<Item>, With<DropType>, Changed<Parent>)>,
+    parent_query: Query<&BuildSlotNumber>,
+) {
+    let Some(local) = local_entity else { return };
+    let Ok(mut inv) = inventories.get_mut(**local) else { return };
+    let mut swapping = Vec::new();
+    for parent in &ui_query {
+        let Ok(index) = parent_query.get(parent.get()) else { continue };
+        swapping.push(index.0);
+        if swapping.len() == 2 {
+            inv.swap(swapping[0] as usize, swapping[1] as usize);
+            break
         }
     }
 }

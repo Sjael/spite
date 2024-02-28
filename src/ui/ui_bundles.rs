@@ -2000,6 +2000,7 @@ pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {
             ..default()
         },
         Hoverable::Item(item),
+        item,
         DropType::BuildItem,
         HoverHoldStyle::Transparent,
         Reposition::default(),
