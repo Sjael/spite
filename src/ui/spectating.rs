@@ -159,7 +159,7 @@ fn add_player_ui(
                                         parent.spawn(plain_text("0 / 0 / 0", 18, &fonts)).insert(PersonalKDA);
                                     });
                                     parent.spawn(inventory_ui()).with_children(|parent| {
-                                        for i in 1..6 {
+                                        for i in 1..=6 {
                                             parent.spawn(build_slot(i));
                                         }
                                     });

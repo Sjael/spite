@@ -1,5 +1,4 @@
 use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
-use ui_bundles::team_thumbs_holder;
 
 use crate::{
     actor::{player::LocalPlayer, HasHealthBar},
