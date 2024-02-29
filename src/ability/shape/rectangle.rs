@@ -1,7 +1,4 @@
-use bevy::render::{
-    mesh::{Indices, Mesh},
-    render_resource::PrimitiveTopology,
-};
+use bevy::render::{mesh::Indices, render_asset::RenderAssetUsages, render_resource::PrimitiveTopology};
 
 use crate::prelude::*;
 
@@ -53,7 +50,10 @@ impl Rectangle {
     }
 
     pub fn mesh(&self) -> Mesh {
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::RENDER_WORLD,
+        );
         let normals = std::iter::repeat([0.0, 1.0, 0.0])
             .take(self.positions.len())
             .collect::<Vec<_>>();
@@ -62,9 +62,9 @@ impl Rectangle {
             .take(self.positions.len())
             .collect::<Vec<_>>();
 
-        mesh.set_indices(Some(Indices::U32(
+        mesh.insert_indices(Indices::U32(
             self.indices.clone().into_iter().flatten().collect::<Vec<_>>(),
-        )));
+        ));
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             self.positions

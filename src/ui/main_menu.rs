@@ -50,7 +50,7 @@ fn cleanup(mut commands: Commands, root: Query<Entity, With<MainMenuRoot>>) {
     }
 }
 
-fn exit_game_main_menu(kb: Res<Input<KeyCode>>, mut app_exit_writer: EventWriter<AppExit>) {
+fn exit_game_main_menu(kb: Res<ButtonInput<KeyCode>>, mut app_exit_writer: EventWriter<AppExit>) {
     if kb.just_pressed(KeyCode::Escape) {
         app_exit_writer.send(AppExit);
     }

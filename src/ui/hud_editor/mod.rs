@@ -18,7 +18,7 @@ use crate::{
 pub struct HudEditorPlugin;
 impl Plugin for HudEditorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<EditingHUD>();
+        app.init_state::<EditingHUD>();
         app.register_type::<Layout>();
         app.add_event::<HudEditEvent>();
 

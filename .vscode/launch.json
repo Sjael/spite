@@ -12,7 +12,7 @@
                 "args": [
                     "build",
                     "--bin=local",
-                    "--package=sacred_aurora"
+                    "--package=river_lotus"
                 ],
                 "filter": {
                     "name": "local",
@@ -28,16 +28,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'sacred_aurora'",
+            "name": "Debug unit tests in library 'river_lotus'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=sacred_aurora"
+                    "--package=river_lotus"
                 ],
                 "filter": {
-                    "name": "sacred_aurora",
+                    "name": "river_lotus",
                     "kind": "lib"
                 }
             },
@@ -56,7 +56,7 @@
                     "test",
                     "--no-run",
                     "--bin=local",
-                    "--package=sacred_aurora"
+                    "--package=river_lotus"
                 ],
                 "filter": {
                     "name": "local",

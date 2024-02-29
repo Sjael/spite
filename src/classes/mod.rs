@@ -63,6 +63,11 @@ pub enum ResourceKind {
     // Money, 'value', productivity
     // Gold, you legit spend your own gold to use abilities, might be broken
     Gold,
+    // Consistency, flow, steady state
+    // -100 - 100, The resource regen is changed by every ability,
+    // if you have 10, then use an ability that gives 5, you go up to 15, next second you have 30 instead of 20 (10 + 10)
+    // Also gate abilities with requiring a certain amount to cast
+    Momentum,
 }
 
 // It's important to note the difference between what each class fights 'for' and what fuels them

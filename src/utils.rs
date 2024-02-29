@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*,
-    window::PrimaryWindow,
-};
+use bevy::{prelude::*, window::PrimaryWindow};
 
 pub fn despawn_children(commands: &mut Commands, children: Option<&Children>) {
     let Some(children) = children else { return };

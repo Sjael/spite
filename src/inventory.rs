@@ -5,7 +5,7 @@ use crate::{
     assets::Items,
     item::Item,
     prelude::InGameSet,
-    ui::{holding::DropType, ui_bundles::{item_image_build, BuildSlotNumber}},
+    ui::ui_bundles::{item_image_build, BuildSlotNumber},
 };
 
 pub struct InventoryPlugin;
@@ -15,7 +15,7 @@ impl Plugin for InventoryPlugin {
 
         app.add_systems(
             Update,
-            (update_inventory_ui, update_inventory_parents).in_set(InGameSet::Update),
+            (update_inventory_ui, swap_inventory_slots).in_set(InGameSet::Update),
         );
     }
 }
@@ -45,22 +45,22 @@ fn update_inventory_ui(
     }
 }
 
-fn update_inventory_parents(
+fn swap_inventory_slots(
     mut inventories: Query<&mut Inventory>,
     local_entity: Option<Res<LocalPlayer>>,
     added: Query<(), Added<Item>>,
-    children_query: Query<(Entity, &Children), Changed<Children>>,    
+    children_query: Query<(Entity, &Children), Changed<Children>>,
     slot_query: Query<&BuildSlotNumber>,
     mut removals: RemovedComponents<Children>,
 ) {
     let Some(local) = local_entity else { return };
     let Ok(mut inv) = inventories.get_mut(**local) else { return };
     let mut swapping = Vec::new();
-    for entity in removals.read(){
+    for entity in removals.read() {
         let Ok(slot) = slot_query.get(entity) else { continue };
-        swapping.push(slot.0 - 1);        
+        swapping.push(slot.0 - 1);
     }
-    for (entity, children) in children_query.iter(){
+    for (entity, children) in children_query.iter() {
         let Ok(slot) = slot_query.get(entity) else { continue };
         if let Some(child) = children.iter().next() {
             if added.get(*child).is_ok() {

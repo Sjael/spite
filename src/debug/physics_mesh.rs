@@ -2,7 +2,7 @@
 
 use bevy::{
     prelude::*,
-    render::{mesh::Indices, render_resource::PrimitiveTopology},
+    render::{mesh::Indices, render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
 };
 use bevy_xpbd_3d::{
     parry::shape::{TriMesh, TypedShape},
@@ -23,9 +23,12 @@ pub fn trimesh_to_mesh(trimesh: &TriMesh) -> Mesh {
     let points: Vec<[f32; 3]> = points.iter().map(|point| [point.x, point.y, point.z]).collect();
     let indices: Vec<u32> = indices.iter().flatten().cloned().collect();
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::RENDER_WORLD,
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, points);
-    mesh.set_indices(Some(Indices::U32(indices)));
+    mesh.insert_indices(Indices::U32(indices));
     mesh.duplicate_vertices();
     mesh.compute_flat_normals();
     mesh
@@ -36,15 +39,12 @@ impl<'a> AsMesh for TypedShape<'a> {
         let mut meshes = Vec::new();
         match self {
             TypedShape::Ball(ball) => {
-                let mesh = Mesh::from(shape::UVSphere {
-                    radius: ball.radius,
-                    ..default()
-                });
+                let mesh = Mesh::from(Sphere::new(ball.radius));
                 meshes.push((mesh, Transform::default()));
             }
             TypedShape::Cuboid(cuboid) => {
                 let dim = cuboid.half_extents * 2.0;
-                let mesh = Mesh::from(shape::Box::new(dim.x, dim.y, dim.z));
+                let mesh = Mesh::from(Cuboid::from_size(Vec3::new(dim.x, dim.y, dim.z)));
                 meshes.push((mesh, Transform::default()));
             }
             TypedShape::Capsule(capsule) => {
@@ -52,11 +52,7 @@ impl<'a> AsMesh for TypedShape<'a> {
                 let b: Vec3 = capsule.segment.b.into();
                 let midpoint = a * 0.5 + b * 0.5;
                 let length = (a - b).length();
-                let mesh = Mesh::from(shape::Capsule {
-                    depth: length,
-                    radius: capsule.radius,
-                    ..default()
-                });
+                let mesh = Mesh::from(Capsule3d::new(capsule.radius, length));
                 meshes.push((
                     mesh,
                     Transform {
@@ -103,11 +99,7 @@ impl<'a> AsMesh for TypedShape<'a> {
                 meshes.push((mesh, Transform::default()));
             }
             TypedShape::Cylinder(cylinder) => {
-                let mesh = Mesh::from(shape::Cylinder {
-                    radius: cylinder.radius,
-                    height: cylinder.half_height * 2.0,
-                    ..default()
-                });
+                let mesh = Mesh::from(Cylinder::new(cylinder.radius, cylinder.half_height * 2.0));
                 meshes.push((mesh, Transform::default()));
             }
             TypedShape::Cone(_cone) => {}

@@ -12,7 +12,6 @@ use crate::{
         cast::{Caster, Tower},
         HasHealthBar, IncomingDamageLog,
     },
-    area::Fountain,
     buff::{BuffInfo, BuffMap, BuffTargets, BuffType},
     camera::Spectatable,
     crowd_control::{CCInfo, CCKind, CCMap},
@@ -37,10 +36,7 @@ pub fn setup_arena(
     //ground
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane {
-                size: 4.0,
-                subdivisions: 5,
-            })),
+            mesh: meshes.add(Plane3d::default().mesh().size(4.0, 4.0)),
             //material: materials.add(icons.basic_attack.clone().into()),
             transform: Transform {
                 translation: Vec3::new(0.0, -0.1, 0.0),
@@ -91,14 +87,7 @@ pub fn setup_arena(
                 translation: Vec3::new(-3.0, 0.5, -22.0),
                 ..default()
             }),
-            meshes.add(
-                shape::Capsule {
-                    radius: 0.7,
-                    depth: 2.0,
-                    ..default()
-                }
-                .into(),
-            ),
+            meshes.add(Capsule3d::new(0.7, 2.0)),
             materials.add(StandardMaterial::from(Color::RED)),
             Collider::capsule(1.0, 0.7),
             RigidBody::Static,
@@ -151,13 +140,7 @@ pub fn setup_arena(
                 translation: Vec3::new(-3.0, 0.5, -17.0),
                 ..default()
             }),
-            meshes.add(
-                shape::Capsule {
-                    radius: 0.4,
-                    ..default()
-                }
-                .into(),
-            ),
+            meshes.add(Capsule3d::new(0.4, 1.0)),
             materials.add(StandardMaterial::from(Color::INDIGO)),
             Collider::capsule(1.0, 0.5),
             RigidBody::Dynamic,
@@ -189,10 +172,7 @@ pub fn setup_arena(
                 translation: Vec3::new(-10.0, 0.0, 10.0),
                 ..default()
             }),
-            meshes.add(Mesh::from(shape::Plane {
-                size: 4.0,
-                subdivisions: 2,
-            })),
+            meshes.add(Plane3d::default().mesh().size(4.0, 4.0)),
             materials.add(StandardMaterial::from(Color::MAROON)),
             Name::new("DamageFountain"),
         ))
@@ -221,10 +201,7 @@ pub fn setup_arena(
                 translation: Vec3::new(10.0, 0.0, 10.0),
                 ..default()
             }),
-            meshes.add(Mesh::from(shape::Plane {
-                size: 4.0,
-                subdivisions: 2,
-            })),
+            meshes.add(Plane3d::default().mesh().size(4.0, 4.0)),
             materials.add(StandardMaterial::from(Color::GOLD)),
             Spectatable,
             Name::new("DamageFountain2"),
@@ -276,10 +253,7 @@ pub fn setup_arena(
                 translation: Vec3::new(10.0, 0.0, -10.0),
                 ..default()
             }),
-            meshes.add(Mesh::from(shape::Plane {
-                size: 4.0,
-                subdivisions: 2,
-            })),
+            meshes.add(Plane3d::default().mesh().size(4.0, 4.0)),
             materials.add(StandardMaterial::from(Color::GREEN)),
             Spectatable,
             Name::new("Healing Fountain"),

@@ -9,13 +9,11 @@ use crate::{
     area::{
         homing::Homing,
         timeline::{AreaTimeline, CastStage},
-        AbilityBehavior,
     },
     assets::MaterialPresets,
     camera::{OuterGimbal, Reticle},
     crowd_control::{CCKind, CCMap},
     prelude::*,
-    stats::Attributes,
 };
 
 pub struct CastPlugin;
@@ -64,13 +62,13 @@ pub fn show_targetter(
         let mut handle = presets
             .0
             .get("blue")
-            .unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7).into()))
+            .unwrap_or(&materials.add(Color::rgb(0.1, 0.2, 0.7)))
             .clone();
         if cooldowns.map.contains_key(&hovered_ability) {
             handle = presets
                 .0
                 .get("white")
-                .unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4).into()))
+                .unwrap_or(&materials.add(Color::rgb(0.4, 0.4, 0.4)))
                 .clone();
         }
         let targetter = commands.spawn(hovered_ability.hover()).insert(handle).id();

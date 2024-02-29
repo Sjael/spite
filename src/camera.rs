@@ -1,8 +1,8 @@
 use bevy::core_pipeline::{
-    bloom::BloomSettings,
     fxaa::Fxaa,
     tonemapping::{DebandDither, Tonemapping},
 };
+use bevy_fly_camera::FlyCamera;
 
 use crate::{
     actor::player::{input::PlayerInput, LocalPlayer, LocalPlayerId, Player},
@@ -21,7 +21,7 @@ impl Plugin for CameraPlugin {
                 (propagate_follow, follow_entity, camera_swivel_and_tilt).chain(),
                 populate_spectatable,
                 update_spectatable,
-                spectate_owned.run_if(resource_exists::<LocalPlayer>()),
+                spectate_owned.run_if(resource_exists::<LocalPlayer>),
                 rotate_spectating,
                 move_reticle,
             )
@@ -102,7 +102,7 @@ fn rotate_spectating(
     mut cameras: Query<(&mut Spectating, &PlayerBoom)>,
     local_player: Option<Res<LocalPlayer>>,
     local_player_id: Option<Res<LocalPlayerId>>,
-    mouse: Res<Input<MouseButton>>,
+    mouse: Res<ButtonInput<MouseButton>>,
 ) {
     if let Some(_) = local_player {
         return
@@ -142,14 +142,12 @@ fn spawn_camera(
                 dither: DebandDither::Enabled,
                 camera: Camera {
                     order: 1, // overwite the spectator cam
-                    hdr: true,
                     ..default()
                 },
                 ..default()
             },
             Fxaa::default(),
             PlayerCam,
-            BloomSettings::default(),
             Name::new("Player Camera"),
             // AvoidIntersecting {
             //     dir: Vec3::Z,
@@ -216,11 +214,10 @@ fn spawn_camera(
     let ret_mesh = commands
         .spawn(PbrBundle {
             material: red.clone(),
-            mesh: meshes.add(Mesh::from(bevy::render::mesh::shape::Cube { size: 0.2 })),
+            mesh: meshes.add(Cuboid::from_size(Vec3::splat(0.2))),
             ..default()
         })
         .id();
-
     commands.entity(reticle).push_children(&[ret_mesh]);
     commands.entity(inner_gimbal).push_children(&[camera]);
     commands.entity(outer_gimbal).push_children(&[inner_gimbal, reticle]);
@@ -232,16 +229,18 @@ pub fn spawn_spectator_camera(mut commands: Commands) {
             transform: Transform::from_translation(Vec3::new(11., 5., 24.)).looking_at(Vec3::ZERO, Vec3::Y),
             tonemapping: Tonemapping::ReinhardLuminance,
             dither: DebandDither::Enabled,
+            camera: Camera {
+                // is_active: false, // turn off cam
+                ..default()
+            },
             ..default()
         },
-        Fxaa::default(),
-        Name::new("Spectator Camera"),
-        /*
         FlyCamera {
             sensitivity: 12.0,
             ..default()
         },
-        */
+        Fxaa::default(),
+        Name::new("Spectator Camera"),
     ));
 }
 

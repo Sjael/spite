@@ -6,8 +6,8 @@ use winit::window::Icon;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(sacred_aurora::GamePlugin);
-    app.add_plugins(sacred_aurora::map::arena::ArenaPlugin);
+    app.add_plugins(river_lotus::GamePlugin);
+    app.add_plugins(river_lotus::map::arena::ArenaPlugin);
     // Systems
     app.add_systems(Startup, set_window_icon);
     /*app.add_systems(

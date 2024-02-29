@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 pub struct Previous<T>(pub T);
 
 pub fn previous<T>(mut commands: Commands, mut query: Query<(Entity, Option<&mut Previous<T>>, &T)>)

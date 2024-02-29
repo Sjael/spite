@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::{ecs::query::WorldQuery, input::mouse::MouseMotion};
+use bevy::{ecs::query::QueryData, input::mouse::MouseMotion};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -44,7 +44,8 @@ impl Plugin for InputPlugin {
 }
 
 /// Query information about the changing state of player inputs.
-#[derive(WorldQuery)]
+#[derive(QueryData)]
+#[query_data(mutable, derive(Debug))]
 pub struct PlayerInputQuery {
     current: &'static PlayerInput,
     previous: &'static Previous<PlayerInput>,
@@ -107,19 +108,19 @@ pub fn player_mouse_input(
 // change to use leafwing slots? Also input component?
 /// Propagate local keyboard/mouse inputs into the [`PlayerInput`].
 pub fn player_keys_input(
-    keyboard_input: Res<Input<KeyCode>>,
-    mouse_input: Res<Input<MouseButton>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
     mut player_input: ResMut<PlayerInput>,
 ) {
-    player_input.set_forward(keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up));
-    player_input.set_left(keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left));
-    player_input.set_back(keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down));
-    player_input.set_right(keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right));
+    player_input.set_forward(keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp));
+    player_input.set_left(keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft));
+    player_input.set_back(keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown));
+    player_input.set_right(keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight));
 
-    player_input.set_ability1(keyboard_input.pressed(KeyCode::Key1));
-    player_input.set_ability2(keyboard_input.pressed(KeyCode::Key2));
-    player_input.set_ability3(keyboard_input.pressed(KeyCode::Key3));
-    player_input.set_ability4(keyboard_input.pressed(KeyCode::Key4));
+    player_input.set_ability1(keyboard_input.pressed(KeyCode::Digit1));
+    player_input.set_ability2(keyboard_input.pressed(KeyCode::Digit2));
+    player_input.set_ability3(keyboard_input.pressed(KeyCode::Digit3));
+    player_input.set_ability4(keyboard_input.pressed(KeyCode::Digit4));
     player_input.set_left_click(mouse_input.pressed(MouseButton::Left));
     player_input.set_right_click(mouse_input.pressed(MouseButton::Right));
 }

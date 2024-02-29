@@ -4,8 +4,8 @@ use bevy_editor_pls::editor::Editor;
 use crate::{prelude::InGameSet, ui::hud_editor::EditingHUD, GameState};
 
 pub fn build_mouse(app: &mut App) {
-    app.add_state::<MouseState>();
-    app.add_state::<OpenMenus>();
+    app.init_state::<MouseState>();
+    app.init_state::<OpenMenus>();
 
     app.configure_sets(
         Update,
@@ -21,7 +21,7 @@ pub fn build_mouse(app: &mut App) {
 }
 
 fn mouse_toggle(
-    kb: Res<Input<KeyCode>>,
+    kb: Res<ButtonInput<KeyCode>>,
     menu_state: Res<State<OpenMenus>>,
     editing_hud: Res<State<EditingHUD>>,
     mut next_state: ResMut<NextState<MouseState>>,
@@ -56,15 +56,15 @@ fn mouse_show(
 }
 
 fn menu_toggle(
-    kb: Res<Input<KeyCode>>,
+    kb: Res<ButtonInput<KeyCode>>,
     menu_state: Res<State<OpenMenus>>,
     mut next_state: ResMut<NextState<OpenMenus>>,
 ) {
-    if kb.just_pressed(KeyCode::T) {
+    if kb.just_pressed(KeyCode::KeyT) {
         next_state.set(menu_state.toggle(MenuType::DamageLog));
-    } else if kb.just_pressed(KeyCode::Y) {
+    } else if kb.just_pressed(KeyCode::KeyY) {
         next_state.set(menu_state.toggle(MenuType::DeathRecap));
-    } else if kb.just_pressed(KeyCode::K) {
+    } else if kb.just_pressed(KeyCode::KeyK) {
         next_state.set(menu_state.toggle(MenuType::Abilities));
     } else if kb.just_pressed(KeyCode::Tab) {
         next_state.set(menu_state.toggle(MenuType::Scoreboard));
