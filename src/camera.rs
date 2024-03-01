@@ -14,7 +14,9 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<FollowTranslation>();
         app.register_type::<Spectating>();
+        app.register_type::<MainCam>();
 
+        // app.add_systems(Update, (change_target_cam, update_main_cam));
         app.add_systems(
             PostUpdate,
             (
@@ -29,6 +31,45 @@ impl Plugin for CameraPlugin {
         );
 
         app.add_systems(FixedUpdate, (spawn_camera,).in_set(InGameSet::Pre));
+    }
+}
+
+#[derive(Resource, Deref, Reflect)]
+pub struct MainCam(Entity);
+
+fn update_main_cam(
+    mut commands: Commands,
+    main_cam: Option<Res<MainCam>>,
+    query: Query<(&Camera, Entity, Has<PlayerCam>)>,
+    added: Query<(), Added<Camera>>,
+){
+    if let Some(main_cam) = main_cam {
+        if let Ok((_, _, is_player_cam)) = query.get(**main_cam) {
+            if is_player_cam{
+                println!("playercam already exists");
+                return;
+            }
+        }
+    }
+    for (_, entity, _) in query.iter(){
+        let Ok(_) = added.get(entity) else { continue };
+        println!("added maincam");
+        commands.insert_resource(MainCam(entity));
+    }
+}
+
+fn change_target_cam(
+    main_cam: Option<Res<MainCam>>,
+    query: Query<Entity, (With<Node>, Without<Parent>)>,
+    mut commands: Commands,
+) {
+    let Some(main_cam) = main_cam else {return};
+    if !main_cam.is_changed(){
+        return
+    }
+    for root_ent in query.iter(){
+        commands.entity(root_ent).insert(TargetCamera(**main_cam));
+        println!("set targets");
     }
 }
 
@@ -230,7 +271,7 @@ pub fn spawn_spectator_camera(mut commands: Commands) {
             tonemapping: Tonemapping::ReinhardLuminance,
             dither: DebandDither::Enabled,
             camera: Camera {
-                // is_active: false, // turn off cam
+                is_active: false, 
                 ..default()
             },
             ..default()

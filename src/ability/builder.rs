@@ -3,22 +3,52 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::{
-    ability::{shape::AbilityShape, Ability},
-    crowd_control::CCKind,
-    stats::Stat,
+    ability::{shape::AbilityShape, Ability}, buff::BuffInfo, crowd_control::CCKind, stats::Stat
 };
 
-pub struct AbilityBlueprint {
-    pub base_ability: Ability,
-    pub name: String,
-    pub stages: HashMap<Trigger, AbilityStage>,
-    pub cooldown: Cooldown,
+impl Ability{
+    fn get_info(&self, rank: u32) -> AbilityInfo{
+        match self {
+            Ability::Frostbolt => {}
+            _ => (),
+        }
+
+        AbilityInfo{
+            stages: HashMap::new(),
+            cooldown: self.get_cooldown(),
+            cost: self.get_cost() as u32,
+            effects: HashMap::new(),
+        }
+    }
 }
 
-pub struct AbilityStage {
-    pub effects: HashMap<AbilityComp, RankNumbers>,
+pub struct AbilityInfo {
+    pub stages: HashMap<Trigger, AbilityStage>,
+    pub cooldown: f32,
+    pub effects: HashMap<Components, RankNumbers>,
+    pub cost: u32,
+}
+
+pub enum AbilityStage{
+    DeployArea(DeployStage),
+    Buff(BuffStage),
+    // Target(TargetStage), // Geb Shield
+    // Mobility(MobilityStage),
+}
+
+pub struct DeployStage {
     pub shape: AbilityShape,
     pub path: Path,
+}
+
+pub struct BuffStage{
+    pub info: BuffInfo,
+    pub fx: FxInfo,
+}
+
+pub struct FxInfo{
+    anim: AnimationClip,
+    audio: AudioSink,
 }
 
 #[derive(PartialEq, PartialOrd)]
@@ -40,10 +70,9 @@ pub enum Path {
     Straight { lifetime: f32, speed: f32 },
 }
 
-pub enum AbilityComp {
+pub enum Components {
     Scaling(Stat),
     BaseDamage,
-    Cooldown,
     Cost,
     CC(CCKind),
 }

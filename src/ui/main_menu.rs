@@ -22,7 +22,14 @@ impl Plugin for MainMenuPlugin {
 }
 
 fn spawn_main_menu(mut commands: Commands, fonts: Res<Fonts>) {
-    commands.spawn(main_menu()).with_children(|parent| {
+    let cam = commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_translation(Vec3::new(11., 5., 24.)).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        },
+        MainMenuRoot,
+    )).id();
+    commands.spawn((main_menu(), TargetCamera(cam))).with_children(|parent| {
         parent
             .spawn(button())
             .insert(ButtonAction::Play)
