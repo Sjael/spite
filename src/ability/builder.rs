@@ -7,6 +7,12 @@ use crate::{
 };
 
 impl Ability{
+    fn get_per_rank(&self) -> Vec<AbilityAttribute> {
+        match self {
+            Ability::Frostbolt => {Vec::new()}
+            _ => Vec::new(),
+        }
+    }
     fn get_info(&self, rank: u32) -> AbilityInfo{
         match self {
             Ability::Frostbolt => {}
@@ -20,8 +26,39 @@ impl Ability{
             effects: HashMap::new(),
         }
     }
+
+    fn full_info(&self) -> AbilityInfo {
+        match self {
+            Ability::Frostbolt => {
+                AbilityInfo {
+                    cooldown: 2.0,
+                    cost: 0,
+                    stages: HashMap::from([
+                        (Trigger::Cast(TransformOrigin::Player), AbilityStage::DeployArea(DeployStage{
+                            shape: self.get_shape(),
+                            path: Path::Static,
+                        }))
+                    ]),
+                    effects: HashMap::new(),
+                }
+            }
+            _ => AbilityInfo::default(),
+        }
+    }
 }
 
+// Things that an ability can have, and things that can change per rank
+pub enum AbilityAttribute{
+    Cooldown(f32),
+    BaseDamage(u32),
+    Scaling{
+        stat: Stat,
+        percent: u32,
+    },
+    Cost(u32),
+}
+
+#[derive(Default)]
 pub struct AbilityInfo {
     pub stages: HashMap<Trigger, AbilityStage>,
     pub cooldown: f32,
@@ -42,7 +79,6 @@ pub struct DeployStage {
 }
 
 pub struct BuffStage{
-    pub info: BuffInfo,
     pub fx: FxInfo,
 }
 
@@ -51,15 +87,15 @@ pub struct FxInfo{
     audio: AudioSink,
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Eq, Hash)]
 pub enum Trigger {
     Cast(TransformOrigin),
     Collision, // Merlin Frostbolt explosion // change to be the bitmask of walls/allies/enemies
     Detonate,  // Isis Spirit ball, Thor 1
-    TimeDelay(f32),
+    TimeDelay(u32),
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Eq, Hash)]
 pub enum TransformOrigin {
     Player,
     Reticle,

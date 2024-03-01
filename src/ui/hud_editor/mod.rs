@@ -10,7 +10,7 @@ use crate::{
             button, button_text, editing_ui_buttons, editing_ui_handle, editing_ui_label, EditableUI, EditingUIHandle,
             UiForEditingUi,
         },
-        ButtonAction,
+        ButtonAction, RootUI,
     },
     utils::{floor_places, get_px},
 };
@@ -56,6 +56,7 @@ fn apply_layout(
 fn give_editable_ui(
     mut commands: Commands,
     mut editables: Query<(Entity, &Parent, &mut Visibility), With<EditableUI>>,
+    root: Query<Entity, With<RootUI>>,
     names: Query<&Name>,
     fonts: Res<Fonts>,
 ) {
@@ -74,6 +75,7 @@ fn give_editable_ui(
         });
     }
 
+    let Ok(root_entity) = root.get_single() else { return };
     commands.spawn(editing_ui_buttons()).with_children(|parent| {
         parent
             .spawn(button())
@@ -87,7 +89,7 @@ fn give_editable_ui(
             .with_children(|parent| {
                 parent.spawn(button_text("Save", &fonts));
             });
-    });
+    }).set_parent(root_entity);
 }
 
 fn scale_ui(
