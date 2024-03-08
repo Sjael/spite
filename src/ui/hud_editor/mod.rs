@@ -76,20 +76,23 @@ fn give_editable_ui(
     }
 
     let Ok(root_entity) = root.get_single() else { return };
-    commands.spawn(editing_ui_buttons()).with_children(|parent| {
-        parent
-            .spawn(button())
-            .insert(ButtonAction::ResetUi)
-            .with_children(|parent| {
-                parent.spawn(button_text("Reset", &fonts));
-            });
-        parent
-            .spawn(button())
-            .insert(ButtonAction::SaveUi)
-            .with_children(|parent| {
-                parent.spawn(button_text("Save", &fonts));
-            });
-    }).set_parent(root_entity);
+    commands
+        .spawn(editing_ui_buttons())
+        .with_children(|parent| {
+            parent
+                .spawn(button())
+                .insert(ButtonAction::ResetUi)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Reset", &fonts));
+                });
+            parent
+                .spawn(button())
+                .insert(ButtonAction::SaveUi)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Save", &fonts));
+                });
+        })
+        .set_parent(root_entity);
 }
 
 fn scale_ui(

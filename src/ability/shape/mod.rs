@@ -47,6 +47,12 @@ impl AbilityShape {
             AbilityShape::Rectangle { width, .. } => width,
         }
     }
+    pub fn get_length(&self) -> f32 {
+        match *self {
+            AbilityShape::Arc { radius, .. } => radius * 2.0,
+            AbilityShape::Rectangle { length, .. } => length,
+        }
+    }
 }
 
 pub fn load_ability_shape(

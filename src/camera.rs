@@ -230,7 +230,7 @@ pub fn spawn_spectator_camera(mut commands: Commands) {
             tonemapping: Tonemapping::ReinhardLuminance,
             dither: DebandDither::Enabled,
             camera: Camera {
-                is_active: false, 
+                is_active: false,
                 ..default()
             },
             ..default()

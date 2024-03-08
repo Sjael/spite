@@ -33,6 +33,7 @@ pub mod debug;
 pub mod inventory;
 pub mod item;
 pub mod map;
+pub mod mobility;
 pub mod physics;
 pub mod previous;
 pub mod session;

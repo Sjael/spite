@@ -22,33 +22,37 @@ impl Plugin for MainMenuPlugin {
 }
 
 fn spawn_main_menu(mut commands: Commands, fonts: Res<Fonts>) {
-    let cam = commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(11., 5., 24.)).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        MainMenuRoot,
-    )).id();
-    commands.spawn((main_menu(), TargetCamera(cam))).with_children(|parent| {
-        parent
-            .spawn(button())
-            .insert(ButtonAction::Play)
-            .with_children(|parent| {
-                parent.spawn(button_text("Play", &fonts));
-            });
-        parent
-            .spawn(button())
-            .insert(ButtonAction::Settings)
-            .with_children(|parent| {
-                parent.spawn(button_text("Settings", &fonts));
-            });
-        parent
-            .spawn(button())
-            .insert(ButtonAction::Exit)
-            .with_children(|parent| {
-                parent.spawn(button_text("Exit Game", &fonts));
-            });
-    });
+    let cam = commands
+        .spawn((
+            Camera3dBundle {
+                transform: Transform::from_translation(Vec3::new(11., 5., 24.)).looking_at(Vec3::ZERO, Vec3::Y),
+                ..default()
+            },
+            MainMenuRoot,
+        ))
+        .id();
+    commands
+        .spawn((main_menu(), TargetCamera(cam)))
+        .with_children(|parent| {
+            parent
+                .spawn(button())
+                .insert(ButtonAction::Play)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Play", &fonts));
+                });
+            parent
+                .spawn(button())
+                .insert(ButtonAction::Settings)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Settings", &fonts));
+                });
+            parent
+                .spawn(button())
+                .insert(ButtonAction::Exit)
+                .with_children(|parent| {
+                    parent.spawn(button_text("Exit Game", &fonts));
+                });
+        });
 }
 
 fn cleanup(mut commands: Commands, root: Query<Entity, With<MainMenuRoot>>) {

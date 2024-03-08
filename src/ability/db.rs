@@ -39,7 +39,7 @@ impl Ability {
 
     pub fn on_reticle(&self) -> bool {
         match self {
-            Ability::Fireball => true,
+            Ability::Fireball => false,
             Ability::Bomb => true,
             _ => false,
         }
@@ -89,13 +89,6 @@ impl Ability {
         }
     }
 
-    pub fn get_scaling(&self) -> u32 {
-        match self {
-            Ability::Frostbolt => 30,
-            _ => 40,
-        }
-    }
-
     pub fn get_timeline_blueprint(&self) -> HashMap<CastStage, f32> {
         let map = match self {
             Ability::Bomb => vec![
@@ -138,16 +131,6 @@ impl Ability {
             _ => 0.0,
         }
     }
-    pub fn get_length(&self) -> f32 {
-        match self {
-            Ability::Frostbolt => 0.8,
-            Ability::Fireball => 2.0,
-            Ability::Bomb => 2.0,
-            Ability::BasicAttack => 2.0,
-            Ability::Dash => 10.0,
-            _ => 0.0,
-        }
-    }
 
     pub fn get_shape(&self) -> AbilityShape {
         match self {
@@ -169,15 +152,9 @@ impl Ability {
         }
     }
 
-    pub fn has_movement(&self) -> bool {
+    pub fn is_mobility(&self) -> bool {
         match self {
-            Ability::Bomb => false,
-            _ => true,
-        }
-    }
-    pub fn has_filter(&self) -> bool {
-        match self {
-            Ability::Bomb => true,
+            Ability::Dash => true,
             _ => false,
         }
     }

@@ -19,10 +19,3 @@ impl Default for Rank {
 pub struct AbilityRanks {
     pub map: HashMap<Ability, Rank>,
 }
-
-#[derive(Component, Reflect, Default, Debug, Clone)]
-#[reflect]
-pub struct AbilityMap {
-    pub ranks: HashMap<Ability, u32>,
-    pub cds: HashMap<Ability, Timer>,
-}

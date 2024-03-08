@@ -1,19 +1,13 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    ability::{Ability, Tags, TargetsHittable, TargetsInArea, Targetter},
-    actor::{
+    ability::{Ability, Tags, TargetsHittable, TargetsInArea, Targetter}, actor::{
         player::input::{PlayerInputKeys, PlayerInputQuery},
         rank::AbilityRanks,
-    },
-    area::{
+    }, area::{
         homing::Homing,
         timeline::{AreaTimeline, CastStage},
-    },
-    assets::MaterialPresets,
-    camera::{OuterGimbal, Reticle},
-    crowd_control::{CCKind, CCMap},
-    prelude::*,
+    }, assets::MaterialPresets, camera::{OuterGimbal, Reticle}, crowd_control::{CCKind, CCMap}, mobility::Mobility, prelude::*
 };
 
 pub struct CastPlugin;
@@ -260,72 +254,77 @@ fn tick_cooldowns(
 fn place_ability(
     mut commands: Commands,
     mut cast_events: EventReader<AbilityFireEvent>,
-    caster: Query<(&GlobalTransform, &Team, &AbilityRanks)>,
+    caster: Query<(&GlobalTransform, &Team, &AbilityRanks, Entity)>,
     reticle: Query<&GlobalTransform, With<Reticle>>,
     procmaps: Query<&ProcMap>,
 ) {
     let Ok(reticle_transform) = reticle.get_single() else { return };
     for event in cast_events.read() {
-        let Ok((caster_transform, team, _ranks)) = caster.get(event.caster) else { return };
         let ability = event.ability;
-        // Get ability-specific components
-        let transform = if event.ability.on_reticle() {
-            reticle_transform.compute_transform()
+        if ability.is_mobility() {
+            let Ok((_, _, _, entity)) = caster.get(event.caster) else { return };
+            commands.entity(entity).insert(Mobility::Dash);
         } else {
-            caster_transform.compute_transform()
-        };
+            let Ok((caster_transform, team, _ranks, _)) = caster.get(event.caster) else { return };
+            // Get ability-specific components
+            let transform = if event.ability.on_reticle() {
+                reticle_transform.compute_transform()
+            } else {
+                caster_transform.compute_transform()
+            };
 
-        // TODO if ability actually spawns something, which is going to be like 80% of the time
-        // other cases include Zeus Detonate, self buffs, mobility
-        let spawned = commands
-            .spawn((
-                Name::new(ability.get_name()),
-                ability,
-                ability.get_shape(),
-                SpatialBundle::from_transform(transform.clone()),
-                Sensor,
-                RigidBody::Kinematic,
-                // Apply team and caster components for figuring out damage
-                team.clone(),
-                Caster(event.caster),
-                AreaTimeline::new_at_stage(ability.get_timeline_blueprint(), CastStage::Windup),
-                ability.get_damage_type(),
-                TargetsHittable::default(),
-                TargetsInArea::default(),
-            ))
-            .id();
+            // TODO if ability actually spawns something, which is going to be like 80% of the time
+            // other cases include Zeus Detonate, self buffs, mobility
+            let spawned = commands
+                .spawn((
+                    Name::new(ability.get_name()),
+                    ability,
+                    ability.get_shape(),
+                    SpatialBundle::from_transform(transform.clone()),
+                    Sensor,
+                    RigidBody::Kinematic,
+                    // Apply team and caster components for figuring out damage
+                    team.clone(),
+                    Caster(event.caster),
+                    AreaTimeline::new_at_stage(ability.get_timeline_blueprint(), CastStage::Windup),
+                    ability.get_damage_type(),
+                    TargetsHittable::default(),
+                    TargetsInArea::default(),
+                ))
+                .id();
 
-        if ability.get_speed() > 1.0 {
-            let direction = transform.rotation * -Vec3::Z;
-            commands
-                .entity(spawned)
-                .insert(LinearVelocity(direction * ability.get_speed()));
-        }
+            if ability.get_speed() > 1.0 {
+                let direction = transform.rotation * -Vec3::Z;
+                commands
+                    .entity(spawned)
+                    .insert(LinearVelocity(direction * ability.get_speed()));
+            }
 
-        //let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
-        //let scaling = rank.current as u32 * event.ability.get_scaling();
+            //let rank = ranks.map.get(&event.ability).cloned().unwrap_or_default();
+            //let scaling = rank.current as u32 * event.ability.get_scaling();
 
-        // TODO Scale these tags with ranks appropriately
-        commands.entity(spawned).insert(Tags(ability.get_tags()));
+            // TODO Scale these tags with ranks appropriately
+            commands.entity(spawned).insert(Tags(ability.get_tags()));
 
-        // like MaxTargets before despawn, Ticks, etc. Rework later somehow
-        ability.add_unique_components(&mut commands, spawned);
+            // like MaxTargets before despawn, Ticks, etc. Rework later somehow
+            ability.add_unique_components(&mut commands, spawned);
 
-        for extra in event.extras.iter() {
-            match extra {
-                AbilityExtras::Homing(target) => {
-                    commands.entity(spawned).insert(Homing(*target));
+            for extra in event.extras.iter() {
+                match extra {
+                    AbilityExtras::Homing(target) => {
+                        commands.entity(spawned).insert(Homing(*target));
+                    }
                 }
             }
-        }
 
-        // Apply special procs from the caster's proc list component (qin sais, exe, etc)
-        if let Ok(procmap) = procmaps.get(event.caster) {
-            if let Some(behaviors) = procmap.0.get(&event.ability) {
-                for behavior in behaviors {
-                    match behavior {
-                        AbilityBehavior::Homing => (),
-                        AbilityBehavior::OnHit => (),
+            // Apply special procs from the caster's proc list component (qin sais, exe, etc)
+            if let Ok(procmap) = procmaps.get(event.caster) {
+                if let Some(behaviors) = procmap.0.get(&event.ability) {
+                    for behavior in behaviors {
+                        match behavior {
+                            AbilityBehavior::Homing => (),
+                            AbilityBehavior::OnHit => (),
+                        }
                     }
                 }
             }
