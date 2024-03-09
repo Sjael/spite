@@ -1,5 +1,4 @@
 use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
-use ui_bundles::team_thumbs_holder;
 
 use crate::{
     actor::{player::LocalPlayer, HasHealthBar},
@@ -40,8 +39,6 @@ impl Plugin for UiPlugin {
 
         app.add_systems(Update, (button_hovers, button_actions));
 
-        app.add_systems(OnEnter(GameState::InGame), add_base_ui);
-
         app.add_systems(
             Update,
             (
@@ -51,6 +48,7 @@ impl Plugin for UiPlugin {
                 follow_in_3d,
                 bar_track,
                 text_track,
+                add_base_ui,
                 //show_floating_health_bars.run_if(resource_exists::<Spectating>()),
             )
                 .in_set(InGameSet::Update),
@@ -82,8 +80,9 @@ fn button_hovers(
     }
 }
 
-fn add_base_ui(mut commands: Commands, fonts: Res<Fonts>, images: Res<Images>) {
-    commands.spawn(root_ui()).with_children(|parent| {
+fn add_base_ui(mut commands: Commands, fonts: Res<Fonts>, images: Res<Images>, query: Query<Entity, Added<PlayerCam>>) {
+    let Ok(cam) = query.get_single() else { return };
+    commands.spawn(root_ui(cam)).with_children(|parent| {
         // can be edited in HUD editor
         parent.spawn(header_holder()).with_children(|parent| {
             parent
@@ -236,7 +235,7 @@ pub fn button_actions(
                         item: inspected,
                         direction: TransactionType::Buy,
                         fresh: true,
-                    })
+                    });
                 }
             }
             ButtonAction::SellItem => {
@@ -248,7 +247,7 @@ pub fn button_actions(
                         item: inspected,
                         direction: TransactionType::Sell,
                         fresh: true,
-                    })
+                    });
                 }
             }
             ButtonAction::UndoStore => {

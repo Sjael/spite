@@ -61,7 +61,7 @@ fn drag_holdable(
         Entity,
     )>,
     parents: Query<(&Node, &GlobalTransform)>,
-    mouse: Res<Input<MouseButton>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mut holding: ResMut<CursorHolding>,
 ) {
     let Ok(window) = windows.get_single() else { return };
@@ -125,7 +125,7 @@ fn hover_drop_slots(
 pub fn drop_holdable(
     mut commands: Commands,
     mut holding: ResMut<CursorHolding>,
-    mouse: Res<Input<MouseButton>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mut hold_query: Query<(&mut Style, &Parent, &mut ZIndex, Option<&DropType>), Without<DropSlot>>,
     mut slot_query: Query<
         (

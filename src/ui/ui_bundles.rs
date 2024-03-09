@@ -79,7 +79,6 @@ pub fn editing_ui_handle() -> impl Bundle {
 }
 
 pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
-    let text = text.into();
     (
         TextBundle {
             style: Style {
@@ -87,7 +86,7 @@ pub fn editing_ui_label(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bun
                 ..default()
             },
             text: Text::from_section(
-                text,
+                text.into(),
                 TextStyle {
                     font: fonts.exo_bold.clone(),
                     font_size: 16.0,
@@ -216,7 +215,7 @@ pub fn respawn_text(fonts: &Res<Fonts>) -> impl Bundle {
                     },
                 },
             ])
-            .with_alignment(TextAlignment::Center),
+            .with_justify(JustifyText::Center),
             ..default()
         },
         RespawnText,
@@ -756,8 +755,9 @@ pub fn timer_ui(fonts: &Res<Fonts>) -> impl Bundle {
 #[derive(Component)]
 pub struct RootUI;
 
-pub fn root_ui() -> impl Bundle {
+pub fn root_ui(cam: Entity) -> impl Bundle {
     (
+        TargetCamera(cam),
         NodeBundle {
             style: Style {
                 width: Val::Percent(100.),
@@ -1453,9 +1453,9 @@ pub fn ingame_menu_button() -> impl Bundle {
     )
 }
 
-pub fn ingame_menu_button_text(text: String, fonts: &Res<Fonts>) -> impl Bundle {
+pub fn ingame_menu_button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
     (TextBundle::from_section(
-        text.to_owned(),
+        text.into(),
         TextStyle {
             font: fonts.exo_regular.clone(),
             font_size: 24.0,
@@ -1792,9 +1792,8 @@ pub fn category(stat: Stat) -> impl Bundle {
 pub struct Category(pub Stat);
 
 pub fn category_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
-    let text = text.into();
     (TextBundle::from_section(
-        text.to_owned(),
+        text.into(),
         TextStyle {
             font: fonts.exo_semibold.clone(),
             font_size: 15.0,
@@ -2000,6 +1999,7 @@ pub fn item_image_build(item_images: &Res<Items>, item: Item) -> impl Bundle {
             ..default()
         },
         Hoverable::Item(item),
+        item,
         DropType::BuildItem,
         HoverHoldStyle::Transparent,
         Reposition::default(),
@@ -2037,9 +2037,8 @@ pub fn button() -> impl Bundle {
 }
 
 pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
-    let text = text.into();
     (TextBundle::from_section(
-        text.to_owned(),
+        text.into(),
         TextStyle {
             font: fonts.exo_regular.clone(),
             font_size: 36.0,
@@ -2049,14 +2048,13 @@ pub fn button_text(text: impl Into<String>, fonts: &Res<Fonts>) -> impl Bundle {
 }
 
 pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> impl Bundle {
-    let text = text.into();
     (TextBundle {
         style: Style {
             align_self: AlignSelf::Center,
             ..default()
         },
         text: Text::from_section(
-            text,
+            text.into(),
             TextStyle {
                 font: fonts.exo_regular.clone(),
                 font_size: size as f32,
@@ -2068,10 +2066,9 @@ pub fn plain_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>) -> imp
 }
 
 pub fn color_text(text: impl Into<String>, size: u32, fonts: &Res<Fonts>, color: Color) -> impl Bundle {
-    let text = text.into();
     (TextBundle {
         text: Text::from_section(
-            text,
+            text.into(),
             TextStyle {
                 font: fonts.exo_semibold.clone(),
                 font_size: size as f32,

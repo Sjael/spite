@@ -13,7 +13,10 @@ impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Inventory>();
 
-        app.add_systems(Update, (update_inventory_ui,).in_set(InGameSet::Update));
+        app.add_systems(
+            Update,
+            (update_inventory_ui, swap_inventory_slots).in_set(InGameSet::Update),
+        );
     }
 }
 
@@ -29,6 +32,7 @@ fn update_inventory_ui(
 ) {
     let Some(local) = local_entity else { return };
     for (inv, entity) in query.iter() {
+        dbg!(inv.clone());
         if entity != *local {
             continue
         }
@@ -37,6 +41,37 @@ fn update_inventory_ui(
             let Some(item) = inv.get(index.0 as usize - 1).unwrap_or(&None) else { continue };
             let new_item = commands.spawn(item_image_build(&items, item.clone())).id();
             commands.entity(new_item).set_parent(slot_e);
+        }
+    }
+}
+
+fn swap_inventory_slots(
+    mut inventories: Query<&mut Inventory>,
+    local_entity: Option<Res<LocalPlayer>>,
+    added: Query<(), Added<Item>>,
+    children_query: Query<(Entity, &Children), Changed<Children>>,
+    slot_query: Query<&BuildSlotNumber>,
+    mut removals: RemovedComponents<Children>,
+) {
+    let Some(local) = local_entity else { return };
+    let Ok(mut inv) = inventories.get_mut(**local) else { return };
+    let mut swapping = Vec::new();
+    for entity in removals.read() {
+        let Ok(slot) = slot_query.get(entity) else { continue };
+        swapping.push(slot.0 - 1);
+    }
+    for (entity, children) in children_query.iter() {
+        let Ok(slot) = slot_query.get(entity) else { continue };
+        if let Some(child) = children.iter().next() {
+            if added.get(*child).is_ok() {
+                continue;
+            }
+        }
+        swapping.push(slot.0 - 1);
+        if swapping.len() > 1 {
+            println!("swap {} and {}", swapping[0] + 1, swapping[1] + 1);
+            inv.swap(swapping[0] as usize, swapping[1] as usize);
+            break
         }
     }
 }

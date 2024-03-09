@@ -87,18 +87,6 @@ pub enum Ability {
 }
 
 impl Ability {
-    pub fn get_shape_with_movement(&self) -> AbilityShape {
-        let length = self.get_length();
-        let lifetime = self.get_deployed_lifetime();
-        let speed = self.get_speed();
-        let width = self.get_shape().get_width();
-        let length_with_movement = length + speed * lifetime;
-        AbilityShape::Rectangle {
-            length: length_with_movement,
-            width: width,
-        }
-    }
-
     pub fn add_unique_components(&self, commands: &mut Commands, entity: Entity) {
         match self {
             Ability::Frostbolt => {
@@ -125,9 +113,10 @@ impl Ability {
     }
 
     pub fn hover(&self) -> impl Bundle {
-        let length = self.get_length();
         let speed = self.get_speed();
         let lifetime = self.get_deployed_lifetime();
+        let length = self.get_shape().get_length();
+        let width = self.get_shape().get_width();
 
         let length_with_movement = length + speed * lifetime;
 
@@ -143,7 +132,10 @@ impl Ability {
             }),
             Sensor,
             Targetter,
-            self.get_shape_with_movement(),
+            AbilityShape::Rectangle {
+                length: length_with_movement,
+                width,
+            },
             *self,
         )
     }

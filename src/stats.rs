@@ -258,6 +258,12 @@ impl Stat {
             target: Box::new(self.into()),
         }
     }
+    pub fn mult(self) -> AttributeTag {
+        AttributeTag::Modifier {
+            modifier: Modifier::Mul,
+            target: Box::new(self.into()),
+        }
+    }
 }
 
 impl Display for Stat {

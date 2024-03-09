@@ -14,7 +14,6 @@ use crate::{
     },
     crowd_control::CCMap,
     prelude::*,
-    session::director::InGameSet,
     stats::HealthMitigatedEvent,
     ui::scoreboard::Scoreboard,
 };
@@ -186,7 +185,7 @@ fn give_kill_credit(
             killer: *killer,
             accomplices: killers[1..].to_vec(),
             damned: damned,
-        })
+        });
     }
 }
 
@@ -224,7 +223,7 @@ fn tick_death_animation(
 ) {
     for (entity, mut timer, mut vis) in respawning.iter_mut() {
         timer.0.tick(time.delta());
-        if timer.0.percent() > 0.7 {
+        if timer.0.fraction() > 0.7 {
             *vis = Visibility::Hidden;
         }
         if timer.0.finished() {

@@ -1,5 +1,5 @@
 [package]
-name = "sacred_aurora"
+name = "river_lotus"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,20 +7,20 @@ edition = "2021"
 opt-level = 3
 
 [dependencies]
-bevy = "0.12"
-bevy_editor_pls = "0.6"
-#bevy_fly_camera = { git = "https://github.com/sjael/bevy_fly_camera", branch = "main" }
-leafwing-input-manager = "0.11"
-bevy_tweening = "0.9"
+bevy = "0.13"
+bevy_editor_pls = "0.8"
+bevy_fly_camera = { git = "https://github.com/sjael/bevy_fly_camera", branch = "master" }
+leafwing-input-manager = "0.13.3"
+bevy_tweening = "0.10"
 strum = "0.25"
 strum_macros = "0.25"
 lazy_static = "1.4"
-oxidized_navigation = { version = "0.8", features = ["xpbd", "debug_draw"] }
-bevy_debug_texture = "0.2"
-bevy_xpbd_3d = "0.3"
+oxidized_navigation = { version = "0.10", features = ["xpbd", "debug_draw"] }
+bevy_debug_texture = { git = "https://github.com/aceeri/bevy_debug_texture.git" }
+bevy_xpbd_3d = "0.4.2"
 # for geometric shapes as sprites
 #bevy_prototype_lyon = "0.8.0" 
-bevy_asset_loader = "0.18"
+bevy_asset_loader = "0.20"
 ron = "0.8"
 
 # Relatively stable crates down here
@@ -31,7 +31,7 @@ serde = { version = "1.0", features = ["derive"] }
 fixed = { version = "1.11", features = ["serde", "std", "serde-str"] }
 
 # keep the following in sync with Bevy's dependencies for window icon
-winit = { version = "0.28", default-features = false }
+winit = { version = "0.29", default-features = false }
 image = { version = "0.24", default-features = false }
 
 [[bin]]

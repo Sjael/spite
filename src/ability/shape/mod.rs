@@ -2,7 +2,7 @@ pub mod arc;
 pub mod rectangle;
 
 pub use arc::*;
-pub use rectangle::*;
+pub use rectangle::Rectangle;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -47,6 +47,12 @@ impl AbilityShape {
             AbilityShape::Rectangle { width, .. } => width,
         }
     }
+    pub fn get_length(&self) -> f32 {
+        match *self {
+            AbilityShape::Arc { radius, .. } => radius * 2.0,
+            AbilityShape::Rectangle { length, .. } => length,
+        }
+    }
 }
 
 pub fn load_ability_shape(
@@ -67,7 +73,7 @@ pub fn load_ability_shape(
         let new_material = presets
             .0
             .get("red")
-            .unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2).into()))
+            .unwrap_or(&materials.add(Color::rgb(0.9, 0.2, 0.2)))
             .clone();
         if let None = targetter {
             commands

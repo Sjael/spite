@@ -66,11 +66,11 @@ pub struct CategorySorted(pub Vec<Stat>);
 pub struct ItemInspected(pub Option<Item>);
 
 fn show_store(
-    kb: Res<Input<KeyCode>>,
+    kb: Res<ButtonInput<KeyCode>>,
     menu_state: Res<State<OpenMenus>>,
     mut next_state: ResMut<NextState<OpenMenus>>,
 ) {
-    if kb.just_pressed(KeyCode::R) {
+    if kb.just_pressed(KeyCode::KeyR) {
         next_state.set(menu_state.toggle(MenuType::Store));
     }
 }

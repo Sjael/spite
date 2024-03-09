@@ -7,7 +7,7 @@ use oxidized_navigation::{
 };
 */
 
-use crate::{actor::controller::Controller, prelude::*, session::team::TEAM_1, stats::Attributes};
+use crate::{actor::controller::Controller, prelude::*};
 
 pub struct MinionPlugin;
 impl Plugin for MinionPlugin {
@@ -59,14 +59,14 @@ impl Plugin for MinionPlugin {
 //  Press M to toggle drawing the navmesh.
 //
 /*
-fn toggle_nav_mesh_system(keys: Res<Input<KeyCode>>, mut show_navmesh: ResMut<DrawNavMesh>) {
+fn toggle_nav_mesh_system(keys: Res<ButtonInput<KeyCode>>, mut show_navmesh: ResMut<DrawNavMesh>) {
     if keys.just_pressed(KeyCode::M) {
         show_navmesh.0 = !show_navmesh.0;
     }
 }
 */
 
-fn spawn_single_minion(keys: Res<Input<KeyCode>>, mut events: EventWriter<SpawnMinionEvent>) {
+fn spawn_single_minion(keys: Res<ButtonInput<KeyCode>>, mut events: EventWriter<SpawnMinionEvent>) {
     if keys.just_pressed(KeyCode::Semicolon) {
         events.send(SpawnMinionEvent { location: Vec3::ZERO });
     }
@@ -81,7 +81,7 @@ fn spawn_single_minion(keys: Res<Input<KeyCode>>, mut events: EventWriter<SpawnM
 /*
 fn run_blocking_pathfinding(
     mut commands: Commands,
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     nav_mesh_settings: Res<NavMeshSettings>,
     nav_mesh: Res<NavMesh>,
 ) {

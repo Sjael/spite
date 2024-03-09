@@ -43,10 +43,10 @@ pub fn build_spectating(app: &mut App) {
             floating_damage_cleanup,
             //update_objective_health,
             toggle_objective_health,
-            init_resource_pips_max.run_if(resource_exists::<LocalPlayer>()),
-            change_resource_pips_max.run_if(resource_exists::<LocalPlayer>()),
+            init_resource_pips_max.run_if(resource_exists::<LocalPlayer>),
+            change_resource_pips_max.run_if(resource_exists::<LocalPlayer>),
             update_pips
-                .run_if(resource_exists::<LocalPlayer>())
+                .run_if(resource_exists::<LocalPlayer>)
                 .after(area_apply_tags)
                 .after(gen_fury),
         )
@@ -60,15 +60,14 @@ fn add_player_ui(
     ui_query: Query<Entity, With<RootUI>>,
     player_query: Query<(Entity, &AbilitySlots)>,
     cam_query: Query<(Entity, &PlayerBoom, &Spectating), Changed<Spectating>>,
-    cam_added: Query<(), Added<Spectating>>,
+    // cam_added: Query<(), Added<Spectating>>,
     fonts: Res<Fonts>,
     icons: Res<Icons>,
     items: Res<Items>,
 ) {
     let Ok(root_ui) = ui_query.get_single() else { return };
     let Some(local_player_id) = local_player_id else { return };
-    for (cam_entity, player_boom, spectating) in cam_query.iter() {
-        let Ok(_) = cam_added.get(cam_entity) else { continue }; // only when cam is added add UI
+    for (_cam_entity, player_boom, spectating) in cam_query.iter() {
         if *local_player_id != **player_boom {
             // only when player is the camera's focus
             continue
@@ -159,21 +158,9 @@ fn add_player_ui(
                                         parent.spawn(plain_text("0 / 0 / 0", 18, &fonts)).insert(PersonalKDA);
                                     });
                                     parent.spawn(inventory_ui()).with_children(|parent| {
-                                        parent.spawn(build_slot(1)).with_children(|_parent| {
-                                            //parent.spawn(item_image_build(&items,
-                                            // Item::Arondight));
-                                        });
-                                        parent.spawn(build_slot(2)).with_children(|_parent| {
-                                            //parent.spawn(item_image_build(&items,
-                                            // Item::HiddenDagger));
-                                        });
-                                        parent.spawn(build_slot(3));
-                                        parent.spawn(build_slot(4)).with_children(|_parent| {
-                                            //parent.spawn(item_image_build(&items,
-                                            // Item::SoulReaver));
-                                        });
-                                        parent.spawn(build_slot(5));
-                                        parent.spawn(build_slot(6));
+                                        for i in 1..=6 {
+                                            parent.spawn(build_slot(i));
+                                        }
                                     });
                                 });
                             });
@@ -325,7 +312,7 @@ fn update_cc_bar(
     let cc_vec = Vec::from_iter(cc_of_spectating.map.clone());
     let Some((_, cc_timer)) = cc_vec.get(0) else { return };
     let Ok(mut bar) = cc_bar_fill.get_single_mut() else { return };
-    bar.width = Val::Percent(cc_timer.percent_left() * 100.0);
+    bar.width = Val::Percent(cc_timer.fraction_remaining() * 100.0);
 }
 
 // fn toggle_cast_bar(
@@ -342,7 +329,7 @@ fn update_cc_bar(
 // fn update_cast_bar(player: Option<Res<LocalPlayer>>, mut cast_bar_fill: Query<&mut Style, With<CastBarFill>>) {
 //     let Some(player) = player else { return };
 //     let Ok(mut style) = cast_bar_fill.get_single_mut() else { return };
-//     style.width = Val::Percent(windup.0.percent() * 100.0);
+//     style.width = Val::Percent(windup.0.fraction() * 100.0);
 // }
 
 fn init_resource_pips_max(
@@ -408,7 +395,7 @@ fn update_pips(
         commands.spawn(AudioBundle {
             source: audio.blip.clone(),
             settings: PlaybackSettings {
-                volume: Volume::new_relative(0.1),
+                volume: Volume::new(0.1),
                 ..default()
             },
         });

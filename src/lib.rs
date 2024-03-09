@@ -33,6 +33,7 @@ pub mod debug;
 pub mod inventory;
 pub mod item;
 pub mod map;
+pub mod mobility;
 pub mod physics;
 pub mod previous;
 pub mod session;
@@ -66,7 +67,7 @@ impl Plugin for GamePlugin {
         //Basic
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Sacred Aurora".to_string(),
+                title: "River Lotus".to_string(),
                 resolution: default_res.into(),
                 ..default()
             }),
@@ -79,7 +80,7 @@ impl Plugin for GamePlugin {
             .insert_resource(Time::<Physics>::new_with(Physics::fixed_once_hz(tick_hz)))
             .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.15)));
 
-        app.add_state::<GameState>();
+        app.init_state::<GameState>();
 
         app.add_plugins((
             EditorPlugin::default(),
